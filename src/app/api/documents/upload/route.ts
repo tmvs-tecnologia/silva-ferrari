@@ -53,10 +53,21 @@ export async function POST(request: NextRequest) {
 
     console.log('🔹 Upload iniciado:', { caseId, entityId, recordId, fieldName, moduleType, fileName: file?.name, fileSize: file?.size });
 
-    if (!file || !recordId || !fieldName) {
+    // Validate required fields - allow temporary uploads without caseId/fieldName
+    if (!file) {
+      return NextResponse.json(
+        { error: "Arquivo é obrigatório" },
+        { status: 400 }
+      );
+    }
+
+    // Check if this is a temporary upload (no caseId/entityId and no fieldName)
+    const isTemporaryUpload = !caseId && !entityId && !fieldName;
+
+    if (!isTemporaryUpload && (!recordId || !fieldName)) {
       console.error('❌ Dados incompletos:', { file: !!file, caseId, entityId, recordId, fieldName, moduleType });
       return NextResponse.json(
-        { error: 'Arquivo, ID do caso e nome do campo são obrigatórios' },
+        { error: 'ID do caso e nome do campo são obrigatórios para uploads permanentes' },
         { status: 400 }
       );
     }
@@ -88,15 +99,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get step folder from field name
-    const stepFolder = FIELD_TO_STEP_MAP[fieldName] || 'outros';
-
     // Generate file path
     const timestamp = Date.now();
     const originalName = file.name;
     const extension = originalName.split('.').pop();
-    const fileNameWithTimestamp = `${fieldName}_${timestamp}.${extension}`;
-    const filePath = getFilePath.acoesCiveis(parseInt(recordId), stepFolder, fileNameWithTimestamp);
+    const sanitizedFileName = `${fieldName}_${timestamp}.${extension}`;
+    
+    // Construct file path based on upload type
+    let filePath: string;
+    
+    if (isTemporaryUpload) {
+      // For temporary uploads, use a simple path with timestamp
+      filePath = `temp/${timestamp}_${sanitizedFileName}`;
+    } else {
+      // Get step folder from field name
+      const stepFolder = FIELD_TO_STEP_MAP[fieldName] || 'outros';
+      
+      if (moduleType === 'compra_venda_imoveis') {
+        filePath = getFilePath.compraVenda(parseInt(recordId), stepFolder, sanitizedFileName);
+      } else {
+        // Default to acoesCiveis for backward compatibility
+        filePath = getFilePath.acoesCiveis(parseInt(recordId), stepFolder, sanitizedFileName);
+      }
+    }
 
     console.log('📂 Caminho do arquivo:', filePath);
 
@@ -140,7 +165,18 @@ export async function POST(request: NextRequest) {
 
     console.log('🔗 URL pública gerada:', publicUrl);
 
-    // Save document metadata to database
+    // For temporary uploads, skip database operations
+    if (isTemporaryUpload) {
+      return NextResponse.json({
+        success: true,
+        fileName: originalName,
+        url: publicUrl,
+        filePath: filePath,
+        temporary: true
+      });
+    }
+
+    // Save document metadata to database (only for permanent uploads)
     console.log('💾 Salvando metadados no banco de dados...');
     const { error: insertError } = await supabaseAdmin
       .from('documents')
