@@ -1,10 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { perdaNacionalidade } from '@/db/schema';
-import { eq, like, and, or, desc } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
+
+// Helper function to convert snake_case to camelCase
+function mapDbFieldsToFrontend(record: any) {
+  if (!record) return record;
+  
+  return {
+    id: record.id,
+    clientName: record.client_name,
+    status: record.status,
+    notes: record.notes,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -17,20 +33,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const record = await db
-        .select()
-        .from(perdaNacionalidade)
-        .where(eq(perdaNacionalidade.id, parseInt(id)))
-        .limit(1);
+      const { data: record, error } = await supabase
+        .from('perda_nacionalidade')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
 
-      if (record.length === 0) {
-        return NextResponse.json(
-          { error: 'Record not found', code: 'NOT_FOUND' },
-          { status: 404 }
-        );
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json(
+            { error: 'Record not found', code: 'NOT_FOUND' },
+            { status: 404 }
+          );
+        }
+        throw error;
       }
 
-      return NextResponse.json(record[0], { status: 200 });
+      return NextResponse.json(record, { status: 200 });
     }
 
     // List with pagination, search, and filtering
@@ -39,29 +58,31 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const statusFilter = searchParams.get('status');
 
-    let query = db.select().from(perdaNacionalidade);
+    let query = supabase
+      .from('perda_nacionalidade')
+      .select('*');
 
-    // Build where conditions
-    const conditions = [];
-
+    // Apply filters
     if (search) {
-      conditions.push(like(perdaNacionalidade.clientName, `%${search}%`));
+      query = query.ilike('client_name', `%${search}%`);
     }
 
     if (statusFilter) {
-      conditions.push(eq(perdaNacionalidade.status, statusFilter));
+      query = query.eq('status', statusFilter);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    const { data: results, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
     }
 
-    const results = await query
-      .orderBy(desc(perdaNacionalidade.createdAt))
-      .limit(limit)
-      .offset(offset);
+    // Map database fields to frontend format
+    const mappedResults = (results || []).map(mapDbFieldsToFrontend);
 
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(mappedResults, { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json(
@@ -73,6 +94,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const body = await request.json();
 
     // Validate required fields
@@ -83,31 +105,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize and prepare data
-    const now = new Date().toISOString();
+    // Prepare data for Supabase (map camelCase to snake_case)
     const insertData = {
-      clientName: body.clientName.trim(),
-      rnmMae: body.rnmMae?.trim() || null,
-      rnmPai: body.rnmPai?.trim() || null,
-      cpfMae: body.cpfMae?.trim() || null,
-      cpfPai: body.cpfPai?.trim() || null,
-      certidaoNascimento: body.certidaoNascimento?.trim() || null,
-      comprovanteEndereco: body.comprovanteEndereco?.trim() || null,
+      client_name: body.clientName.trim(),
+      rnm_mae: body.rnmMae?.trim() || null,
+      rnm_mae_doc: body.rnmMaeDoc?.trim() || null,
+      rnm_pai: body.rnmPai?.trim() || null,
+      rnm_pai_doc: body.rnmPaiDoc?.trim() || null,
+      cpf_mae: body.cpfMae?.trim() || null,
+      cpf_pai: body.cpfPai?.trim() || null,
+      certidao_nascimento: body.certidaoNascimento?.trim() || null,
+      certidao_nascimento_doc: body.certidaoNascimentoDoc?.trim() || null,
+      comprovante_endereco: body.comprovanteEndereco?.trim() || null,
+      comprovante_endereco_doc: body.comprovanteEnderecoDoc?.trim() || null,
       passaportes: body.passaportes?.trim() || null,
-      documentoChines: body.documentoChines?.trim() || null,
-      traducaoJuramentada: body.traducaoJuramentada?.trim() || null,
-      currentStep: body.currentStep ?? 0,
+      passaportes_doc: body.passaportesDoc?.trim() || null,
+      documento_chines: body.documentoChines?.trim() || null,
+      documento_chines_doc: body.documentoChinesDoc?.trim() || null,
+      traducao_juramentada: body.traducaoJuramentada?.trim() || null,
+      traducao_juramentada_doc: body.traducaoJuramentadaDoc?.trim() || null,
+      procuracao_doc: body.procuracaoDoc?.trim() || null,
+      pedido_perda_doc: body.pedidoPerdaDoc?.trim() || null,
+      protocolo_doc: body.protocoloDoc?.trim() || null,
+      dou_doc: body.douDoc?.trim() || null,
+      passaporte_chines_doc: body.passaporteChinesDoc?.trim() || null,
+      manifesto_doc: body.manifestoDoc?.trim() || null,
+      portaria_doc: body.portariaDoc?.trim() || null,
+      current_step: body.currentStep ?? 0,
       status: body.status?.trim() || 'Em Andamento',
-      createdAt: now,
-      updatedAt: now,
+      notes: body.notes?.trim() || null,
     };
 
-    const newRecord = await db
-      .insert(perdaNacionalidade)
-      .values(insertData)
-      .returning();
+    const { data: newRecord, error } = await supabase
+      .from('perda_nacionalidade')
+      .insert(insertData)
+      .select()
+      .single();
 
-    return NextResponse.json(newRecord[0], { status: 201 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(newRecord, { status: 201 });
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json(
@@ -119,6 +158,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -131,25 +171,26 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if record exists
-    const existing = await db
-      .select()
-      .from(perdaNacionalidade)
-      .where(eq(perdaNacionalidade.id, parseInt(id)))
-      .limit(1);
+    const { data: existing, error: existError } = await supabase
+      .from('perda_nacionalidade')
+      .select('id')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existing.length === 0) {
-      return NextResponse.json(
-        { error: 'Record not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      );
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Record not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+      throw existError;
     }
 
     const body = await request.json();
 
-    // Prepare update data (only include provided fields)
-    const updateData: Record<string, any> = {
-      updatedAt: new Date().toISOString(),
-    };
+    // Prepare update data (only include provided fields, map camelCase to snake_case)
+    const updateData: Record<string, any> = {};
 
     if (body.clientName !== undefined) {
       if (body.clientName.trim() === '') {
@@ -158,28 +199,48 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.clientName = body.clientName.trim();
+      updateData.client_name = body.clientName.trim();
     }
 
-    if (body.rnmMae !== undefined) updateData.rnmMae = body.rnmMae?.trim() || null;
-    if (body.rnmPai !== undefined) updateData.rnmPai = body.rnmPai?.trim() || null;
-    if (body.cpfMae !== undefined) updateData.cpfMae = body.cpfMae?.trim() || null;
-    if (body.cpfPai !== undefined) updateData.cpfPai = body.cpfPai?.trim() || null;
-    if (body.certidaoNascimento !== undefined) updateData.certidaoNascimento = body.certidaoNascimento?.trim() || null;
-    if (body.comprovanteEndereco !== undefined) updateData.comprovanteEndereco = body.comprovanteEndereco?.trim() || null;
+    if (body.rnmMae !== undefined) updateData.rnm_mae = body.rnmMae?.trim() || null;
+    if (body.rnmMaeDoc !== undefined) updateData.rnm_mae_doc = body.rnmMaeDoc?.trim() || null;
+    if (body.rnmPai !== undefined) updateData.rnm_pai = body.rnmPai?.trim() || null;
+    if (body.rnmPaiDoc !== undefined) updateData.rnm_pai_doc = body.rnmPaiDoc?.trim() || null;
+    if (body.cpfMae !== undefined) updateData.cpf_mae = body.cpfMae?.trim() || null;
+    if (body.cpfPai !== undefined) updateData.cpf_pai = body.cpfPai?.trim() || null;
+    if (body.certidaoNascimento !== undefined) updateData.certidao_nascimento = body.certidaoNascimento?.trim() || null;
+    if (body.certidaoNascimentoDoc !== undefined) updateData.certidao_nascimento_doc = body.certidaoNascimentoDoc?.trim() || null;
+    if (body.comprovanteEndereco !== undefined) updateData.comprovante_endereco = body.comprovanteEndereco?.trim() || null;
+    if (body.comprovanteEnderecoDoc !== undefined) updateData.comprovante_endereco_doc = body.comprovanteEnderecoDoc?.trim() || null;
     if (body.passaportes !== undefined) updateData.passaportes = body.passaportes?.trim() || null;
-    if (body.documentoChines !== undefined) updateData.documentoChines = body.documentoChines?.trim() || null;
-    if (body.traducaoJuramentada !== undefined) updateData.traducaoJuramentada = body.traducaoJuramentada?.trim() || null;
-    if (body.currentStep !== undefined) updateData.currentStep = body.currentStep;
+    if (body.passaportesDoc !== undefined) updateData.passaportes_doc = body.passaportesDoc?.trim() || null;
+    if (body.documentoChines !== undefined) updateData.documento_chines = body.documentoChines?.trim() || null;
+    if (body.documentoChinesDoc !== undefined) updateData.documento_chines_doc = body.documentoChinesDoc?.trim() || null;
+    if (body.traducaoJuramentada !== undefined) updateData.traducao_juramentada = body.traducaoJuramentada?.trim() || null;
+    if (body.traducaoJuramentadaDoc !== undefined) updateData.traducao_juramentada_doc = body.traducaoJuramentadaDoc?.trim() || null;
+    if (body.procuracaoDoc !== undefined) updateData.procuracao_doc = body.procuracaoDoc?.trim() || null;
+    if (body.pedidoPerdaDoc !== undefined) updateData.pedido_perda_doc = body.pedidoPerdaDoc?.trim() || null;
+    if (body.protocoloDoc !== undefined) updateData.protocolo_doc = body.protocoloDoc?.trim() || null;
+    if (body.douDoc !== undefined) updateData.dou_doc = body.douDoc?.trim() || null;
+    if (body.passaporteChinesDoc !== undefined) updateData.passaporte_chines_doc = body.passaporteChinesDoc?.trim() || null;
+    if (body.manifestoDoc !== undefined) updateData.manifesto_doc = body.manifestoDoc?.trim() || null;
+    if (body.portariaDoc !== undefined) updateData.portaria_doc = body.portariaDoc?.trim() || null;
+    if (body.currentStep !== undefined) updateData.current_step = body.currentStep;
     if (body.status !== undefined) updateData.status = body.status.trim();
+    if (body.notes !== undefined) updateData.notes = body.notes?.trim() || null;
 
-    const updated = await db
-      .update(perdaNacionalidade)
-      .set(updateData)
-      .where(eq(perdaNacionalidade.id, parseInt(id)))
-      .returning();
+    const { data: updated, error } = await supabase
+      .from('perda_nacionalidade')
+      .update(updateData)
+      .eq('id', parseInt(id))
+      .select()
+      .single();
 
-    return NextResponse.json(updated[0], { status: 200 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('PUT error:', error);
     return NextResponse.json(
@@ -191,6 +252,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -202,29 +264,36 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if record exists
-    const existing = await db
-      .select()
-      .from(perdaNacionalidade)
-      .where(eq(perdaNacionalidade.id, parseInt(id)))
-      .limit(1);
+    // Check if record exists and get it before deletion
+    const { data: existing, error: existError } = await supabase
+      .from('perda_nacionalidade')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existing.length === 0) {
-      return NextResponse.json(
-        { error: 'Record not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      );
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Record not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+      throw existError;
     }
 
-    const deleted = await db
-      .delete(perdaNacionalidade)
-      .where(eq(perdaNacionalidade.id, parseInt(id)))
-      .returning();
+    const { error } = await supabase
+      .from('perda_nacionalidade')
+      .delete()
+      .eq('id', parseInt(id));
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json(
       {
         message: 'Record deleted successfully',
-        record: deleted[0],
+        record: existing,
       },
       { status: 200 }
     );

@@ -29,11 +29,29 @@ export const NotificationBell = () => {
   const fetchAlerts = async () => {
     try {
       const response = await fetch("/api/alerts?isRead=false&limit=20");
+      
+      if (!response.ok) {
+        console.error("Error fetching alerts: HTTP", response.status);
+        setAlerts([]);
+        setUnreadCount(0);
+        return;
+      }
+      
       const data = await response.json();
-      setAlerts(data);
-      setUnreadCount(data.length);
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setAlerts(data);
+        setUnreadCount(data.length);
+      } else {
+        console.error("Error: API response is not an array:", data);
+        setAlerts([]);
+        setUnreadCount(0);
+      }
     } catch (error) {
       console.error("Error fetching alerts:", error);
+      setAlerts([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }

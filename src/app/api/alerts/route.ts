@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { alerts } from '@/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const alertFor = searchParams.get('alertFor');
@@ -22,45 +25,44 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
       }
 
-      const alert = await db.select()
-        .from(alerts)
-        .where(eq(alerts.id, parseInt(id)))
-        .limit(1);
+      const { data: alert, error } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
 
-      if (alert.length === 0) {
+      if (error || !alert) {
         return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
       }
 
-      return NextResponse.json(alert[0], { status: 200 });
+      return NextResponse.json(alert, { status: 200 });
     }
 
     // List alerts with filtering
-    let query = db.select().from(alerts);
-    const conditions = [];
+    let query = supabase.from('alerts').select('*');
 
     if (alertFor) {
-      conditions.push(eq(alerts.alertFor, alertFor));
+      query = query.eq('alert_for', alertFor);
     }
 
     if (moduleType) {
-      conditions.push(eq(alerts.moduleType, moduleType));
+      query = query.eq('module_type', moduleType);
     }
 
     if (isReadParam !== null) {
       const isReadValue = isReadParam === 'true';
-      conditions.push(eq(alerts.isRead, isReadValue));
+      query = query.eq('is_read', isReadValue);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    const { data: results, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
     }
 
-    const results = await query
-      .orderBy(desc(alerts.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(results || [], { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json({ 
@@ -71,6 +73,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const body = await request.json();
     const { moduleType, recordId, alertFor, message, isRead } = body;
 
@@ -111,18 +118,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new alert
-    const newAlert = await db.insert(alerts)
-      .values({
-        moduleType: moduleType.trim(),
-        recordId: parseInt(recordId.toString()),
-        alertFor: alertFor.trim(),
+    const { data: newAlert, error } = await supabase
+      .from('alerts')
+      .insert({
+        module_type: moduleType.trim(),
+        record_id: parseInt(recordId.toString()),
+        alert_for: alertFor.trim(),
         message: message.trim(),
-        isRead: isRead ?? false,
-        createdAt: new Date().toISOString()
+        is_read: isRead ?? false,
+        created_at: new Date().toISOString()
       })
-      .returning();
+      .select()
+      .single();
 
-    return NextResponse.json(newAlert[0], { status: 201 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(newAlert, { status: 201 });
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json({ 
@@ -133,6 +146,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -147,12 +165,13 @@ export async function PUT(request: NextRequest) {
     const { isRead, message } = body;
 
     // Check if alert exists
-    const existingAlert = await db.select()
-      .from(alerts)
-      .where(eq(alerts.id, parseInt(id)))
-      .limit(1);
+    const { data: existingAlert, error: checkError } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existingAlert.length === 0) {
+    if (checkError || !existingAlert) {
       return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
     }
 
@@ -160,7 +179,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {};
 
     if (isRead !== undefined) {
-      updateData.isRead = isRead;
+      updateData.is_read = isRead;
     }
 
     if (message !== undefined && message.trim() !== '') {
@@ -168,12 +187,18 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update alert
-    const updated = await db.update(alerts)
-      .set(updateData)
-      .where(eq(alerts.id, parseInt(id)))
-      .returning();
+    const { data: updated, error } = await supabase
+      .from('alerts')
+      .update(updateData)
+      .eq('id', parseInt(id))
+      .select()
+      .single();
 
-    return NextResponse.json(updated[0], { status: 200 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('PUT error:', error);
     return NextResponse.json({ 
@@ -184,6 +209,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -195,23 +225,31 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if alert exists
-    const existingAlert = await db.select()
-      .from(alerts)
-      .where(eq(alerts.id, parseInt(id)))
-      .limit(1);
+    const { data: existingAlert, error: checkError } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existingAlert.length === 0) {
+    if (checkError || !existingAlert) {
       return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
     }
 
     // Delete alert
-    const deleted = await db.delete(alerts)
-      .where(eq(alerts.id, parseInt(id)))
-      .returning();
+    const { data: deleted, error } = await supabase
+      .from('alerts')
+      .delete()
+      .eq('id', parseInt(id))
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ 
       message: 'Alert deleted successfully',
-      alert: deleted[0]
+      alert: deleted
     }, { status: 200 });
   } catch (error) {
     console.error('DELETE error:', error);

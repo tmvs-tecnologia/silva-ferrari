@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { acoesTrabalhistas } from '@/db/schema';
-import { eq, like, and, desc } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
+
+// Helper function to convert snake_case to camelCase
+function mapDbFieldsToFrontend(record: any) {
+  if (!record) return record;
+  
+  return {
+    id: record.id,
+    clientName: record.client_name,
+    status: record.status,
+    notes: record.notes,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -17,19 +35,20 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
       }
 
-      const record = await db.select()
-        .from(acoesTrabalhistas)
-        .where(eq(acoesTrabalhistas.id, parseInt(id)))
-        .limit(1);
+      const { data: record, error } = await supabase
+        .from('acoes_trabalhistas')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
 
-      if (record.length === 0) {
+      if (error || !record) {
         return NextResponse.json({ 
           error: 'Record not found',
           code: 'NOT_FOUND' 
         }, { status: 404 });
       }
 
-      return NextResponse.json(record[0], { status: 200 });
+      return NextResponse.json(record, { status: 200 });
     }
 
     // List with pagination, search, and filters
@@ -38,29 +57,35 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
 
-    let query = db.select().from(acoesTrabalhistas);
+    let query = supabase
+      .from('acoes_trabalhistas')
+      .select('*');
 
-    // Build where conditions
-    const conditions = [];
-
+    // Apply filters
     if (search) {
-      conditions.push(like(acoesTrabalhistas.clientName, `%${search}%`));
+      query = query.ilike('client_name', `%${search}%`);
     }
 
     if (status) {
-      conditions.push(eq(acoesTrabalhistas.status, status));
+      query = query.eq('status', status);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    // Apply ordering, limit and offset
+    const { data: results, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return NextResponse.json({ 
+        error: 'Internal server error: ' + error.message 
+      }, { status: 500 });
     }
 
-    const results = await query
-      .orderBy(desc(acoesTrabalhistas.createdAt))
-      .limit(limit)
-      .offset(offset);
+    // Map database fields to frontend format
+    const mappedResults = (results || []).map(mapDbFieldsToFrontend);
 
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(mappedResults, { status: 200 });
 
   } catch (error) {
     console.error('GET error:', error);
@@ -72,8 +97,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const body = await request.json();
-    const { clientName, status } = body;
+    const { clientName, status, notes } = body;
 
     // Validate required fields
     if (!clientName || clientName.trim() === '') {
@@ -84,17 +115,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare insert data
-    const insertData = {
-      clientName: clientName.trim(),
+    const insertData: any = {
+      client_name: clientName.trim(),
       status: status || 'Em Andamento',
-      createdAt: new Date().toISOString(),
     };
 
-    const newRecord = await db.insert(acoesTrabalhistas)
-      .values(insertData)
-      .returning();
+    if (notes !== undefined) {
+      insertData.notes = notes;
+    }
 
-    return NextResponse.json(newRecord[0], { status: 201 });
+    const { data: newRecord, error } = await supabase
+      .from('acoes_trabalhistas')
+      .insert(insertData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return NextResponse.json({ 
+        error: 'Internal server error: ' + error.message 
+      }, { status: 500 });
+    }
+
+    return NextResponse.json(newRecord, { status: 201 });
 
   } catch (error) {
     console.error('POST error:', error);
@@ -106,6 +149,12 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -118,15 +167,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { clientName, status } = body;
+    const { clientName, status, notes } = body;
 
     // Check if record exists
-    const existing = await db.select()
-      .from(acoesTrabalhistas)
-      .where(eq(acoesTrabalhistas.id, parseInt(id)))
-      .limit(1);
+    const { data: existing, error: existingError } = await supabase
+      .from('acoes_trabalhistas')
+      .select('id')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existing.length === 0) {
+    if (existingError || !existing) {
       return NextResponse.json({ 
         error: 'Record not found',
         code: 'NOT_FOUND' 
@@ -134,7 +184,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: Record<string, any> = {};
+    const updateData: any = {};
 
     if (clientName !== undefined) {
       if (clientName.trim() === '') {
@@ -143,20 +193,33 @@ export async function PUT(request: NextRequest) {
           code: "INVALID_CLIENT_NAME" 
         }, { status: 400 });
       }
-      updateData.clientName = clientName.trim();
+      updateData.client_name = clientName.trim();
     }
 
     if (status !== undefined) {
       updateData.status = status;
     }
 
-    // Perform update
-    const updated = await db.update(acoesTrabalhistas)
-      .set(updateData)
-      .where(eq(acoesTrabalhistas.id, parseInt(id)))
-      .returning();
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
 
-    return NextResponse.json(updated[0], { status: 200 });
+    // Perform update
+    const { data: updated, error } = await supabase
+      .from('acoes_trabalhistas')
+      .update(updateData)
+      .eq('id', parseInt(id))
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return NextResponse.json({ 
+        error: 'Internal server error: ' + error.message 
+      }, { status: 500 });
+    }
+
+    return NextResponse.json(updated, { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);
@@ -168,6 +231,12 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -179,27 +248,30 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if record exists
-    const existing = await db.select()
-      .from(acoesTrabalhistas)
-      .where(eq(acoesTrabalhistas.id, parseInt(id)))
-      .limit(1);
+    // Check if record exists and delete it
+    const { data: deleted, error } = await supabase
+      .from('acoes_trabalhistas')
+      .delete()
+      .eq('id', parseInt(id))
+      .select()
+      .single();
 
-    if (existing.length === 0) {
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ 
+          error: 'Record not found',
+          code: 'NOT_FOUND'
+        }, { status: 404 });
+      }
+      console.error('Supabase error:', error);
       return NextResponse.json({ 
-        error: 'Record not found',
-        code: 'NOT_FOUND' 
-      }, { status: 404 });
+        error: 'Internal server error: ' + error.message 
+      }, { status: 500 });
     }
-
-    // Delete record
-    const deleted = await db.delete(acoesTrabalhistas)
-      .where(eq(acoesTrabalhistas.id, parseInt(id)))
-      .returning();
 
     return NextResponse.json({ 
       message: 'Record deleted successfully',
-      record: deleted[0]
+      record: deleted
     }, { status: 200 });
 
   } catch (error) {

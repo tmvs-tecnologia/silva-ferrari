@@ -1,10 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { vistos } from '@/db/schema';
-import { eq, like, and, or, desc } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
+
+// Helper function to convert snake_case to camelCase for vistos
+function mapVistosDbFieldsToFrontend(record: any) {
+  if (!record) return record;
+  
+  return {
+    id: record.id,
+    clientName: record.client_name,
+    type: record.type,
+    cpf: record.cpf,
+    cpfDoc: record.cpf_doc,
+    rnm: record.rnm,
+    rnmDoc: record.rnm_doc,
+    passaporte: record.passaporte,
+    passaporteDoc: record.passaporte_doc,
+    comprovanteEndereco: record.comprovante_endereco,
+    comprovanteEnderecoDoc: record.comprovante_endereco_doc,
+    certidaoNascimentoFilhos: record.certidao_nascimento_filhos,
+    certidaoNascimentoFilhosDoc: record.certidao_nascimento_filhos_doc,
+    cartaoCnpj: record.cartao_cnpj,
+    cartaoCnpjDoc: record.cartao_cnpj_doc,
+    contratoEmpresa: record.contrato_empresa,
+    contratoEmpresaDoc: record.contrato_empresa_doc,
+    escrituraImoveis: record.escritura_imoveis,
+    escrituraImoveisDoc: record.escritura_imoveis_doc,
+    reservasPassagens: record.reservas_passagens,
+    reservasPassagensDoc: record.reservas_passagens_doc,
+    reservasHotel: record.reservas_hotel,
+    reservasHotelDoc: record.reservas_hotel_doc,
+    seguroViagem: record.seguro_viagem,
+    seguroViagemDoc: record.seguro_viagem_doc,
+    roteiroViagem: record.roteiro_viagem,
+    roteiroViagemDoc: record.roteiro_viagem_doc,
+    taxa: record.taxa,
+    taxaDoc: record.taxa_doc,
+    status: record.status,
+    notes: record.notes,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -17,19 +60,25 @@ export async function GET(request: NextRequest) {
         }, { status: 400 });
       }
 
-      const record = await db.select()
-        .from(vistos)
-        .where(eq(vistos.id, parseInt(id)))
-        .limit(1);
+      const { data: record, error } = await supabase
+        .from('vistos')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
 
-      if (record.length === 0) {
-        return NextResponse.json({ 
-          error: 'Record not found',
-          code: 'NOT_FOUND' 
-        }, { status: 404 });
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json({ 
+            error: 'Record not found',
+            code: 'NOT_FOUND' 
+          }, { status: 404 });
+        }
+        throw error;
       }
 
-      return NextResponse.json(record[0], { status: 200 });
+      // Map database fields to frontend format
+      const mappedRecord = mapVistosDbFieldsToFrontend(record);
+      return NextResponse.json(mappedRecord, { status: 200 });
     }
 
     // List with pagination, search, and filters
@@ -39,33 +88,35 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const status = searchParams.get('status');
 
-    let query = db.select().from(vistos);
+    let query = supabase
+      .from('vistos')
+      .select('*');
 
-    // Build WHERE conditions
-    const conditions = [];
-
+    // Apply filters
     if (search) {
-      conditions.push(like(vistos.clientName, `%${search}%`));
+      query = query.ilike('client_name', `%${search}%`);
     }
 
     if (type) {
-      conditions.push(eq(vistos.type, type));
+      query = query.eq('type', type);
     }
 
     if (status) {
-      conditions.push(eq(vistos.status, status));
+      query = query.eq('status', status);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    const { data: results, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
     }
 
-    const results = await query
-      .orderBy(desc(vistos.createdAt))
-      .limit(limit)
-      .offset(offset);
+    // Map database fields to frontend format
+    const mappedResults = (results || []).map(mapVistosDbFieldsToFrontend);
 
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(mappedResults, { status: 200 });
 
   } catch (error) {
     console.error('GET error:', error);
@@ -77,6 +128,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const body = await request.json();
 
     // Validate required fields
@@ -94,33 +146,51 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Sanitize inputs
-    const sanitizedData = {
-      clientName: body.clientName.trim(),
+    // Prepare data for Supabase (map camelCase to snake_case)
+    const insertData = {
+      client_name: body.clientName.trim(),
       type: body.type.trim(),
       cpf: body.cpf?.trim() || null,
+      cpf_doc: body.cpfDoc?.trim() || null,
       rnm: body.rnm?.trim() || null,
+      rnm_doc: body.rnmDoc?.trim() || null,
       passaporte: body.passaporte?.trim() || null,
-      comprovanteEndereco: body.comprovanteEndereco?.trim() || null,
-      certidaoNascimentoFilhos: body.certidaoNascimentoFilhos?.trim() || null,
-      cartaoCnpj: body.cartaoCnpj?.trim() || null,
-      contratoEmpresa: body.contratoEmpresa?.trim() || null,
-      escrituraImoveis: body.escrituraImoveis?.trim() || null,
-      reservasPassagens: body.reservasPassagens?.trim() || null,
-      reservasHotel: body.reservasHotel?.trim() || null,
-      seguroViagem: body.seguroViagem?.trim() || null,
-      roteiroViagem: body.roteiroViagem?.trim() || null,
+      passaporte_doc: body.passaporteDoc?.trim() || null,
+      comprovante_endereco: body.comprovanteEndereco?.trim() || null,
+      comprovante_endereco_doc: body.comprovanteEnderecoDoc?.trim() || null,
+      certidao_nascimento_filhos: body.certidaoNascimentoFilhos?.trim() || null,
+      certidao_nascimento_filhos_doc: body.certidaoNascimentoFilhosDoc?.trim() || null,
+      cartao_cnpj: body.cartaoCnpj?.trim() || null,
+      cartao_cnpj_doc: body.cartaoCnpjDoc?.trim() || null,
+      contrato_empresa: body.contratoEmpresa?.trim() || null,
+      contrato_empresa_doc: body.contratoEmpresaDoc?.trim() || null,
+      escritura_imoveis: body.escrituraImoveis?.trim() || null,
+      escritura_imoveis_doc: body.escrituraImoveisDoc?.trim() || null,
+      reservas_passagens: body.reservasPassagens?.trim() || null,
+      reservas_passagens_doc: body.reservasPassagensDoc?.trim() || null,
+      reservas_hotel: body.reservasHotel?.trim() || null,
+      reservas_hotel_doc: body.reservasHotelDoc?.trim() || null,
+      seguro_viagem: body.seguroViagem?.trim() || null,
+      seguro_viagem_doc: body.seguroViagemDoc?.trim() || null,
+      roteiro_viagem: body.roteiroViagem?.trim() || null,
+      roteiro_viagem_doc: body.roteiroViagemDoc?.trim() || null,
       taxa: body.taxa?.trim() || null,
+      taxa_doc: body.taxaDoc?.trim() || null,
       status: body.status?.trim() || 'Em Andamento',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      notes: body.notes?.trim() || null,
     };
 
-    const newRecord = await db.insert(vistos)
-      .values(sanitizedData)
-      .returning();
+    const { data: newRecord, error } = await supabase
+      .from('vistos')
+      .insert(insertData)
+      .select()
+      .single();
 
-    return NextResponse.json(newRecord[0], { status: 201 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(newRecord, { status: 201 });
 
   } catch (error) {
     console.error('POST error:', error);
@@ -132,6 +202,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -144,27 +215,29 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if record exists
-    const existing = await db.select()
-      .from(vistos)
-      .where(eq(vistos.id, parseInt(id)))
-      .limit(1);
+    const { data: existing, error: existError } = await supabase
+      .from('vistos')
+      .select('id')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existing.length === 0) {
-      return NextResponse.json({ 
-        error: 'Record not found',
-        code: 'NOT_FOUND' 
-      }, { status: 404 });
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json({ 
+          error: 'Record not found',
+          code: 'NOT_FOUND' 
+        }, { status: 404 });
+      }
+      throw existError;
     }
 
     const body = await request.json();
 
-    // Build update object with sanitized data
-    const updateData: any = {
-      updatedAt: new Date().toISOString()
-    };
+    // Prepare update data (only include provided fields, map camelCase to snake_case)
+    const updateData: Record<string, any> = {};
 
     if (body.clientName !== undefined) {
-      updateData.clientName = body.clientName.trim();
+      updateData.client_name = body.clientName.trim();
     }
 
     if (body.type !== undefined) {
@@ -175,64 +248,126 @@ export async function PUT(request: NextRequest) {
       updateData.cpf = body.cpf?.trim() || null;
     }
 
+    if (body.cpfDoc !== undefined) {
+      updateData.cpf_doc = body.cpfDoc?.trim() || null;
+    }
+
     if (body.rnm !== undefined) {
       updateData.rnm = body.rnm?.trim() || null;
+    }
+
+    if (body.rnmDoc !== undefined) {
+      updateData.rnm_doc = body.rnmDoc?.trim() || null;
     }
 
     if (body.passaporte !== undefined) {
       updateData.passaporte = body.passaporte?.trim() || null;
     }
 
+    if (body.passaporteDoc !== undefined) {
+      updateData.passaporte_doc = body.passaporteDoc?.trim() || null;
+    }
+
     if (body.comprovanteEndereco !== undefined) {
-      updateData.comprovanteEndereco = body.comprovanteEndereco?.trim() || null;
+      updateData.comprovante_endereco = body.comprovanteEndereco?.trim() || null;
+    }
+
+    if (body.comprovanteEnderecoDoc !== undefined) {
+      updateData.comprovante_endereco_doc = body.comprovanteEnderecoDoc?.trim() || null;
     }
 
     if (body.certidaoNascimentoFilhos !== undefined) {
-      updateData.certidaoNascimentoFilhos = body.certidaoNascimentoFilhos?.trim() || null;
+      updateData.certidao_nascimento_filhos = body.certidaoNascimentoFilhos?.trim() || null;
+    }
+
+    if (body.certidaoNascimentoFilhosDoc !== undefined) {
+      updateData.certidao_nascimento_filhos_doc = body.certidaoNascimentoFilhosDoc?.trim() || null;
     }
 
     if (body.cartaoCnpj !== undefined) {
-      updateData.cartaoCnpj = body.cartaoCnpj?.trim() || null;
+      updateData.cartao_cnpj = body.cartaoCnpj?.trim() || null;
+    }
+
+    if (body.cartaoCnpjDoc !== undefined) {
+      updateData.cartao_cnpj_doc = body.cartaoCnpjDoc?.trim() || null;
     }
 
     if (body.contratoEmpresa !== undefined) {
-      updateData.contratoEmpresa = body.contratoEmpresa?.trim() || null;
+      updateData.contrato_empresa = body.contratoEmpresa?.trim() || null;
+    }
+
+    if (body.contratoEmpresaDoc !== undefined) {
+      updateData.contrato_empresa_doc = body.contratoEmpresaDoc?.trim() || null;
     }
 
     if (body.escrituraImoveis !== undefined) {
-      updateData.escrituraImoveis = body.escrituraImoveis?.trim() || null;
+      updateData.escritura_imoveis = body.escrituraImoveis?.trim() || null;
+    }
+
+    if (body.escrituraImoveisDoc !== undefined) {
+      updateData.escritura_imoveis_doc = body.escrituraImoveisDoc?.trim() || null;
     }
 
     if (body.reservasPassagens !== undefined) {
-      updateData.reservasPassagens = body.reservasPassagens?.trim() || null;
+      updateData.reservas_passagens = body.reservasPassagens?.trim() || null;
+    }
+
+    if (body.reservasPassagensDoc !== undefined) {
+      updateData.reservas_passagens_doc = body.reservasPassagensDoc?.trim() || null;
     }
 
     if (body.reservasHotel !== undefined) {
-      updateData.reservasHotel = body.reservasHotel?.trim() || null;
+      updateData.reservas_hotel = body.reservasHotel?.trim() || null;
+    }
+
+    if (body.reservasHotelDoc !== undefined) {
+      updateData.reservas_hotel_doc = body.reservasHotelDoc?.trim() || null;
     }
 
     if (body.seguroViagem !== undefined) {
-      updateData.seguroViagem = body.seguroViagem?.trim() || null;
+      updateData.seguro_viagem = body.seguroViagem?.trim() || null;
+    }
+
+    if (body.seguroViagemDoc !== undefined) {
+      updateData.seguro_viagem_doc = body.seguroViagemDoc?.trim() || null;
     }
 
     if (body.roteiroViagem !== undefined) {
-      updateData.roteiroViagem = body.roteiroViagem?.trim() || null;
+      updateData.roteiro_viagem = body.roteiroViagem?.trim() || null;
+    }
+
+    if (body.roteiroViagemDoc !== undefined) {
+      updateData.roteiro_viagem_doc = body.roteiroViagemDoc?.trim() || null;
     }
 
     if (body.taxa !== undefined) {
       updateData.taxa = body.taxa?.trim() || null;
     }
 
+    if (body.taxaDoc !== undefined) {
+      updateData.taxa_doc = body.taxaDoc?.trim() || null;
+    }
+
     if (body.status !== undefined) {
       updateData.status = body.status.trim();
     }
 
-    const updated = await db.update(vistos)
-      .set(updateData)
-      .where(eq(vistos.id, parseInt(id)))
-      .returning();
+    if (body.notes !== undefined) {
+      updateData.notes = body.notes?.trim() || null;
+    }
 
-    return NextResponse.json(updated[0], { status: 200 });
+    const { data: updated, error } = await supabase
+      .from('vistos')
+      .update(updateData)
+      .eq('id', parseInt(id))
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(updated, { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);
@@ -244,6 +379,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -255,26 +391,35 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if record exists
-    const existing = await db.select()
-      .from(vistos)
-      .where(eq(vistos.id, parseInt(id)))
-      .limit(1);
+    // Check if record exists and get it before deletion
+    const { data: existing, error: existError } = await supabase
+      .from('vistos')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existing.length === 0) {
-      return NextResponse.json({ 
-        error: 'Record not found',
-        code: 'NOT_FOUND' 
-      }, { status: 404 });
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json({ 
+          error: 'Record not found',
+          code: 'NOT_FOUND' 
+        }, { status: 404 });
+      }
+      throw existError;
     }
 
-    const deleted = await db.delete(vistos)
-      .where(eq(vistos.id, parseInt(id)))
-      .returning();
+    const { error } = await supabase
+      .from('vistos')
+      .delete()
+      .eq('id', parseInt(id));
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({ 
       message: 'Record deleted successfully',
-      record: deleted[0]
+      record: existing
     }, { status: 200 });
 
   } catch (error) {

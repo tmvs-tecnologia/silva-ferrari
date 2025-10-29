@@ -1,10 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { compraVendaImoveis } from '@/db/schema';
-import { eq, like, and, or, desc } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// Helper function to map database fields to frontend format
+function mapDbFieldsToFrontend(record: any) {
+  if (!record) return record;
+  
+  return {
+    id: record.id,
+    numeroMatricula: record.numero_matricula,
+    numeroMatriculaDoc: record.numero_matricula_doc,
+    cadastroContribuinte: record.cadastro_contribuinte,
+    cadastroContribuinteDoc: record.cadastro_contribuinte_doc,
+    enderecoImovel: record.endereco_imovel,
+    rgVendedores: record.rg_vendedores,
+    rgVendedoresDoc: record.rg_vendedores_doc,
+    cpfVendedores: record.cpf_vendedores,
+    cpfVendedoresDoc: record.cpf_vendedores_doc,
+    dataNascimentoVendedores: record.data_nascimento_vendedores,
+    rnmComprador: record.rnm_comprador,
+    rnmCompradorDoc: record.rnm_comprador_doc,
+    cpfComprador: record.cpf_comprador,
+    cpfCompradorDoc: record.cpf_comprador_doc,
+    enderecoComprador: record.endereco_comprador,
+    currentStep: record.current_step,
+    status: record.status,
+    prazoSinal: record.prazo_sinal,
+    prazoEscritura: record.prazo_escritura,
+    contractNotes: record.contract_notes,
+    stepNotes: record.step_notes,
+    completedSteps: record.completed_steps,
+    certidoesDoc: record.certidoes_doc,
+    contratoDoc: record.contrato_doc,
+    assinaturaContratoDoc: record.assinatura_contrato_doc,
+    escrituraDoc: record.escritura_doc,
+    matriculaCartorioDoc: record.matricula_cartorio_doc,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -17,20 +57,23 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const record = await db
-        .select()
-        .from(compraVendaImoveis)
-        .where(eq(compraVendaImoveis.id, parseInt(id)))
-        .limit(1);
+      const { data: record, error } = await supabase
+        .from('compra_venda_imoveis')
+        .select('*')
+        .eq('id', parseInt(id))
+        .single();
 
-      if (record.length === 0) {
-        return NextResponse.json(
-          { error: 'Record not found', code: 'NOT_FOUND' },
-          { status: 404 }
-        );
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return NextResponse.json(
+            { error: 'Record not found', code: 'NOT_FOUND' },
+            { status: 404 }
+          );
+        }
+        throw error;
       }
 
-      return NextResponse.json(record[0], { status: 200 });
+      return NextResponse.json(mapDbFieldsToFrontend(record), { status: 200 });
     }
 
     // List with pagination, search, and filtering
@@ -39,33 +82,32 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
 
-    let query = db.select().from(compraVendaImoveis);
+    let query = supabase
+      .from('compra_venda_imoveis')
+      .select('*');
 
-    // Build where conditions
-    const conditions = [];
-
+    // Apply filters
     if (search) {
-      conditions.push(like(compraVendaImoveis.enderecoImovel, `%${search}%`));
+      query = query.ilike('endereco_imovel', `%${search}%`);
     }
 
     if (status) {
-      conditions.push(eq(compraVendaImoveis.status, status));
+      query = query.eq('status', status);
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+    const { data: results, error } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      throw error;
     }
 
-    const results = await query
-      .orderBy(desc(compraVendaImoveis.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    return NextResponse.json(results, { status: 200 });
+    return NextResponse.json(results?.map(mapDbFieldsToFrontend) || [], { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }
@@ -73,40 +115,44 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const body = await request.json();
 
-    // Prepare insert data with defaults
+    // Prepare data for Supabase (map camelCase to snake_case)
     const insertData = {
-      numeroMatricula: body.numeroMatricula ?? null,
-      cadastroContribuinte: body.cadastroContribuinte ?? null,
-      enderecoImovel: body.enderecoImovel ?? null,
-      rgVendedores: body.rgVendedores ?? null,
-      cpfVendedores: body.cpfVendedores ?? null,
-      dataNascimentoVendedores: body.dataNascimentoVendedores ?? null,
-      rnmComprador: body.rnmComprador ?? null,
-      cpfComprador: body.cpfComprador ?? null,
-      enderecoComprador: body.enderecoComprador ?? null,
-      currentStep: body.currentStep ?? 0,
+      numero_matricula: body.numeroMatricula ?? null,
+      cadastro_contribuinte: body.cadastroContribuinte ?? null,
+      endereco_imovel: body.enderecoImovel ?? null,
+      rg_vendedores: body.rgVendedores ?? null,
+      cpf_vendedores: body.cpfVendedores ?? null,
+      data_nascimento_vendedores: body.dataNascimentoVendedores ?? null,
+      rnm_comprador: body.rnmComprador ?? null,
+      cpf_comprador: body.cpfComprador ?? null,
+      endereco_comprador: body.enderecoComprador ?? null,
+      current_step: body.currentStep ?? 0,
       status: body.status ?? 'Em Andamento',
-      prazoSinal: body.prazoSinal ?? null,
-      prazoEscritura: body.prazoEscritura ?? null,
-      contractNotes: body.contractNotes ?? null,
-      stepNotes: body.stepNotes ?? null,
-      completedSteps: body.completedSteps ?? null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      prazo_sinal: body.prazoSinal ?? null,
+      prazo_escritura: body.prazoEscritura ?? null,
+      contract_notes: body.contractNotes ?? null,
+      step_notes: body.stepNotes ?? null,
+      completed_steps: body.completedSteps ?? null,
     };
 
-    const newRecord = await db
-      .insert(compraVendaImoveis)
-      .values(insertData)
-      .returning();
+    const { data: newRecord, error } = await supabase
+      .from('compra_venda_imoveis')
+      .insert(insertData)
+      .select()
+      .single();
 
-    return NextResponse.json(newRecord[0], { status: 201 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(newRecord, { status: 201 });
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }
@@ -114,6 +160,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -124,56 +171,61 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-
     // Check if record exists
-    const existingRecord = await db
-      .select()
-      .from(compraVendaImoveis)
-      .where(eq(compraVendaImoveis.id, parseInt(id)))
-      .limit(1);
+    const { data: existing, error: existError } = await supabase
+      .from('compra_venda_imoveis')
+      .select('id')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existingRecord.length === 0) {
-      return NextResponse.json(
-        { error: 'Record not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      );
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Record not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+      throw existError;
     }
 
-    // Prepare update data
-    const updateData: Record<string, any> = {
-      updatedAt: new Date().toISOString(),
-    };
+    const body = await request.json();
 
-    // Only include fields that are provided in the request
-    if (body.numeroMatricula !== undefined) updateData.numeroMatricula = body.numeroMatricula;
-    if (body.cadastroContribuinte !== undefined) updateData.cadastroContribuinte = body.cadastroContribuinte;
-    if (body.enderecoImovel !== undefined) updateData.enderecoImovel = body.enderecoImovel;
-    if (body.rgVendedores !== undefined) updateData.rgVendedores = body.rgVendedores;
-    if (body.cpfVendedores !== undefined) updateData.cpfVendedores = body.cpfVendedores;
-    if (body.dataNascimentoVendedores !== undefined) updateData.dataNascimentoVendedores = body.dataNascimentoVendedores;
-    if (body.rnmComprador !== undefined) updateData.rnmComprador = body.rnmComprador;
-    if (body.cpfComprador !== undefined) updateData.cpfComprador = body.cpfComprador;
-    if (body.enderecoComprador !== undefined) updateData.enderecoComprador = body.enderecoComprador;
-    if (body.currentStep !== undefined) updateData.currentStep = body.currentStep;
+    // Prepare update data (only include provided fields, map camelCase to snake_case)
+    const updateData: Record<string, any> = {};
+
+    if (body.numeroMatricula !== undefined) updateData.numero_matricula = body.numeroMatricula;
+    if (body.cadastroContribuinte !== undefined) updateData.cadastro_contribuinte = body.cadastroContribuinte;
+    if (body.enderecoImovel !== undefined) updateData.endereco_imovel = body.enderecoImovel;
+    if (body.rgVendedores !== undefined) updateData.rg_vendedores = body.rgVendedores;
+    if (body.cpfVendedores !== undefined) updateData.cpf_vendedores = body.cpfVendedores;
+    if (body.dataNascimentoVendedores !== undefined) updateData.data_nascimento_vendedores = body.dataNascimentoVendedores;
+    if (body.rnmComprador !== undefined) updateData.rnm_comprador = body.rnmComprador;
+    if (body.cpfComprador !== undefined) updateData.cpf_comprador = body.cpfComprador;
+    if (body.enderecoComprador !== undefined) updateData.endereco_comprador = body.enderecoComprador;
+    if (body.currentStep !== undefined) updateData.current_step = body.currentStep;
     if (body.status !== undefined) updateData.status = body.status;
-    if (body.prazoSinal !== undefined) updateData.prazoSinal = body.prazoSinal;
-    if (body.prazoEscritura !== undefined) updateData.prazoEscritura = body.prazoEscritura;
-    if (body.contractNotes !== undefined) updateData.contractNotes = body.contractNotes;
-    if (body.stepNotes !== undefined) updateData.stepNotes = body.stepNotes;
-    if (body.completedSteps !== undefined) updateData.completedSteps = body.completedSteps;
+    if (body.prazoSinal !== undefined) updateData.prazo_sinal = body.prazoSinal;
+    if (body.prazoEscritura !== undefined) updateData.prazo_escritura = body.prazoEscritura;
+    if (body.contractNotes !== undefined) updateData.contract_notes = body.contractNotes;
+    if (body.stepNotes !== undefined) updateData.step_notes = body.stepNotes;
+    if (body.completedSteps !== undefined) updateData.completed_steps = body.completedSteps;
 
-    const updated = await db
-      .update(compraVendaImoveis)
-      .set(updateData)
-      .where(eq(compraVendaImoveis.id, parseInt(id)))
-      .returning();
+    const { data: updated, error } = await supabase
+      .from('compra_venda_imoveis')
+      .update(updateData)
+      .eq('id', parseInt(id))
+      .select()
+      .single();
 
-    return NextResponse.json(updated[0], { status: 200 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('PUT error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }
@@ -181,6 +233,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -191,36 +244,43 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if record exists
-    const existingRecord = await db
-      .select()
-      .from(compraVendaImoveis)
-      .where(eq(compraVendaImoveis.id, parseInt(id)))
-      .limit(1);
+    // Check if record exists and get it before deletion
+    const { data: existing, error: existError } = await supabase
+      .from('compra_venda_imoveis')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
 
-    if (existingRecord.length === 0) {
-      return NextResponse.json(
-        { error: 'Record not found', code: 'NOT_FOUND' },
-        { status: 404 }
-      );
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Record not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+      throw existError;
     }
 
-    const deleted = await db
-      .delete(compraVendaImoveis)
-      .where(eq(compraVendaImoveis.id, parseInt(id)))
-      .returning();
+    const { error } = await supabase
+      .from('compra_venda_imoveis')
+      .delete()
+      .eq('id', parseInt(id));
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json(
       {
         message: 'Record deleted successfully',
-        record: deleted[0],
+        record: existing,
       },
       { status: 200 }
     );
   } catch (error) {
     console.error('DELETE error:', error);
     return NextResponse.json(
-      { error: 'Internal server error: ' + (error as Error).message },
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }

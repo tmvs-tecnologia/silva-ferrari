@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
@@ -23,26 +26,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        role: users.role,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(eq(users.id, parsedUserId))
-      .limit(1);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, name, role, created_at')
+      .eq('id', parsedUserId)
+      .single();
 
-    if (user.length === 0) {
+    if (error || !user) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(user[0], { status: 200 });
+    return NextResponse.json(user, { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json(

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { alerts } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { createClient } from '@supabase/supabase-js';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { id } = await params;
 
     if (!id || isNaN(parseInt(id))) {
       return NextResponse.json({ 
@@ -20,21 +23,11 @@ export async function PATCH(
     const body = await request.json();
     const { isRead, message } = body;
 
-    // Check if alert exists
-    const existingAlert = await db.select()
-      .from(alerts)
-      .where(eq(alerts.id, parseInt(id)))
-      .limit(1);
-
-    if (existingAlert.length === 0) {
-      return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
-    }
-
     // Build update object with only provided fields
     const updateData: any = {};
 
     if (isRead !== undefined) {
-      updateData.isRead = isRead;
+      updateData.is_read = isRead;
     }
 
     if (message !== undefined && message.trim() !== '') {
@@ -42,12 +35,20 @@ export async function PATCH(
     }
 
     // Update alert
-    const updated = await db.update(alerts)
-      .set(updateData)
-      .where(eq(alerts.id, parseInt(id)))
-      .returning();
+    const { error } = await supabase
+      .from('alerts')
+      .update(updateData)
+      .eq('id', parseInt(id));
 
-    return NextResponse.json(updated[0], { status: 200 });
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ 
+      message: 'Alert updated successfully',
+      id: parseInt(id),
+      ...updateData
+    }, { status: 200 });
   } catch (error) {
     console.error('PATCH error:', error);
     return NextResponse.json({ 

@@ -1,24 +1,24 @@
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
 
 // Users table
-export const users = sqliteTable('users', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   name: text('name').notNull(),
   role: text('role').notNull(),
-  createdAt: text('created_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Ações Civeis table
-export const acoesCiveis = sqliteTable('acoes_civeis', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const acoesCiveis = pgTable('acoes_civeis', {
+  id: serial('id').primaryKey(),
   clientName: text('client_name').notNull(),
   type: text('type').notNull(),
   currentStep: integer('current_step').default(0),
   status: text('status').notNull().default('Em Andamento'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
   rnmMae: text('rnm_mae'),
   rnmPai: text('rnm_pai'),
   rnmSupostoPai: text('rnm_suposto_pai'),
@@ -59,8 +59,8 @@ export const acoesCiveis = sqliteTable('acoes_civeis', {
 });
 
 // Compra Venda Imoveis table
-export const compraVendaImoveis = sqliteTable('compra_venda_imoveis', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const compraVendaImoveis = pgTable('compra_venda_imoveis', {
+  id: serial('id').primaryKey(),
   numeroMatricula: text('numero_matricula'),
   cadastroContribuinte: text('cadastro_contribuinte'),
   enderecoImovel: text('endereco_imovel'),
@@ -77,13 +77,13 @@ export const compraVendaImoveis = sqliteTable('compra_venda_imoveis', {
   contractNotes: text('contract_notes'),
   stepNotes: text('step_notes'),
   completedSteps: text('completed_steps', { mode: 'json' }),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Perda Nacionalidade table
-export const perdaNacionalidade = sqliteTable('perda_nacionalidade', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const perdaNacionalidade = pgTable('perda_nacionalidade', {
+  id: serial('id').primaryKey(),
   clientName: text('client_name').notNull(),
   rnmMae: text('rnm_mae'),
   rnmPai: text('rnm_pai'),
@@ -96,13 +96,13 @@ export const perdaNacionalidade = sqliteTable('perda_nacionalidade', {
   traducaoJuramentada: text('traducao_juramentada'),
   currentStep: integer('current_step').default(0),
   status: text('status').notNull().default('Em Andamento'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Vistos table
-export const vistos = sqliteTable('vistos', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const vistos = pgTable('vistos', {
+  id: serial('id').primaryKey(),
   clientName: text('client_name').notNull(),
   type: text('type').notNull(),
   cpf: text('cpf'),
@@ -119,44 +119,44 @@ export const vistos = sqliteTable('vistos', {
   roteiroViagem: text('roteiro_viagem'),
   taxa: text('taxa'),
   status: text('status').notNull().default('Em Andamento'),
-  createdAt: text('created_at').notNull(),
-  updatedAt: text('updated_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Documents table
-export const documents = sqliteTable('documents', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const documents = pgTable('documents', {
+  id: serial('id').primaryKey(),
   moduleType: text('module_type').notNull(),
   recordId: integer('record_id').notNull(),
   fileName: text('file_name').notNull(),
   filePath: text('file_path').notNull(),
   fileType: text('file_type').notNull(),
-  uploadedAt: text('uploaded_at').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
 });
 
 // Alerts table
-export const alerts = sqliteTable('alerts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const alerts = pgTable('alerts', {
+  id: serial('id').primaryKey(),
   moduleType: text('module_type').notNull(),
   recordId: integer('record_id').notNull(),
   alertFor: text('alert_for').notNull(),
   message: text('message').notNull(),
-  isRead: integer('is_read', { mode: 'boolean' }).default(false),
-  createdAt: text('created_at').notNull(),
+  isRead: boolean('is_read').default(false),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Ações Trabalhistas table
-export const acoesTrabalhistas = sqliteTable('acoes_trabalhistas', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const acoesTrabalhistas = pgTable('acoes_trabalhistas', {
+  id: serial('id').primaryKey(),
   clientName: text('client_name').notNull(),
   status: text('status').notNull().default('Em Andamento'),
-  createdAt: text('created_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Ações Criminais table
-export const acoesCriminais = sqliteTable('acoes_criminais', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
+export const acoesCriminais = pgTable('acoes_criminais', {
+  id: serial('id').primaryKey(),
   clientName: text('client_name').notNull(),
   status: text('status').notNull().default('Em Andamento'),
-  createdAt: text('created_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });

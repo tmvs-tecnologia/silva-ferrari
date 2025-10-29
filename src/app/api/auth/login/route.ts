@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import bcrypt from 'bcrypt';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,14 +32,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Query user by email
-    const user = await db.select()
-      .from(users)
-      .where(eq(users.email, email.toLowerCase().trim()))
-      .limit(1);
+    // Create Supabase client with service role key for admin operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
-    // Check if user exists
-    if (user.length === 0) {
+    // Authenticate with Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password: password,
+    });
+
+    if (error || !data.user) {
       return NextResponse.json(
         { 
           error: 'Invalid credentials',
@@ -49,25 +56,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const foundUser = user[0];
+    // Get user metadata
+    const user = data.user;
+    const userMetadata = user.user_metadata || {};
 
-    // Verify password with bcrypt
-    const isPasswordValid = await bcrypt.compare(password, foundUser.password);
-
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { 
-          error: 'Invalid credentials',
-          code: 'INVALID_CREDENTIALS'
-        },
-        { status: 401 }
-      );
-    }
-
-    // Authentication successful - return user without password
-    const { password: _, ...userWithoutPassword } = foundUser;
-
-    return NextResponse.json(userWithoutPassword, { status: 200 });
+    // Return user information
+    return NextResponse.json({
+      id: user.id,
+      email: user.email,
+      name: userMetadata.name || 'Usuário',
+      role: userMetadata.role || 'user',
+      created_at: user.created_at
+    }, { status: 200 });
 
   } catch (error) {
     console.error('POST authentication error:', error);

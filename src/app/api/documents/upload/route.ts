@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { documents, acoesCiveis } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { supabase, getFilePath, BUCKET_NAME } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { getFilePath, BUCKET_NAME } from '@/lib/supabase';
+
+// Create Supabase client with service role key for storage operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Map field names to organized folder structure
 const FIELD_TO_STEP_MAP: Record<string, string> = {
@@ -40,11 +44,12 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const caseId = formData.get('caseId') as string;
     const fieldName = formData.get('fieldName') as string;
+    const moduleType = formData.get('moduleType') as string || 'acoes_civeis'; // Default to acoes_civeis for backward compatibility
 
-    console.log('🔹 Upload iniciado:', { caseId, fieldName, fileName: file?.name, fileSize: file?.size });
+    console.log('🔹 Upload iniciado:', { caseId, fieldName, moduleType, fileName: file?.name, fileSize: file?.size });
 
     if (!file || !caseId || !fieldName) {
-      console.error('❌ Dados incompletos:', { file: !!file, caseId, fieldName });
+      console.error('❌ Dados incompletos:', { file: !!file, caseId, fieldName, moduleType });
       return NextResponse.json(
         { error: 'Arquivo, ID do caso e nome do campo são obrigatórios' },
         { status: 400 }
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     console.log('⬆️ Iniciando upload para Supabase Storage...');
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .upload(filePath, buffer, {
         contentType: file.type,
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Upload no Supabase concluído:', uploadData);
 
     // Get public URL
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabaseAdmin.storage
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);
 
@@ -132,25 +137,70 @@ export async function POST(request: NextRequest) {
 
     // Save document metadata to database
     console.log('💾 Salvando metadados no banco de dados...');
-    await db.insert(documents).values({
-      moduleType: 'acoes_civeis',
-      recordId: parseInt(caseId),
-      fileName: originalName,
-      filePath: publicUrl,
-      fileType: file.type,
-      fileSize: file.size,
-      uploadedAt: new Date().toISOString(),
-    });
+    const { error: insertError } = await supabaseAdmin
+      .from('documents')
+      .insert({
+        module_type: moduleType,
+        record_id: parseInt(caseId),
+        file_name: originalName,
+        file_path: publicUrl,
+        file_type: file.type,
+        file_size: file.size,
+        uploaded_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('❌ Erro ao salvar metadados:', insertError);
+      throw insertError;
+    }
 
     // Update the case with the file URL
     const updateData: any = {};
     updateData[fieldName] = publicUrl;
 
-    console.log('🔄 Atualizando registro da ação cível...');
-    await db
-      .update(acoesCiveis)
-      .set(updateData)
-      .where(eq(acoesCiveis.id, parseInt(caseId)));
+    console.log(`🔄 Atualizando registro do módulo ${moduleType}...`);
+    
+    // Update the appropriate table based on moduleType
+    // Convert camelCase field name to snake_case for Supabase
+    const snakeCaseFieldName = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
+    const supabaseUpdateData: any = {};
+    supabaseUpdateData[snakeCaseFieldName] = publicUrl;
+
+    let tableName: string;
+    switch (moduleType) {
+      case 'acoes_civeis':
+        tableName = 'acoes_civeis';
+        break;
+      case 'perda_nacionalidade':
+        tableName = 'perda_nacionalidade';
+        break;
+      case 'compra_venda_imoveis':
+        tableName = 'compra_venda_imoveis';
+        break;
+      case 'vistos':
+        tableName = 'vistos';
+        break;
+      case 'acoes_trabalhistas':
+        tableName = 'acoes_trabalhistas';
+        break;
+      case 'acoes_criminais':
+        tableName = 'acoes_criminais';
+        break;
+      default:
+        console.warn(`⚠️ Tipo de módulo não reconhecido: ${moduleType}. Usando acoes_civeis como padrão.`);
+        tableName = 'acoes_civeis';
+        break;
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from(tableName)
+      .update(supabaseUpdateData)
+      .eq('id', parseInt(caseId));
+
+    if (updateError) {
+      console.error('❌ Erro ao atualizar registro:', updateError);
+      throw updateError;
+    }
 
     console.log('✅ Upload completo!');
 
@@ -171,6 +221,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const moduleType = searchParams.get('moduleType');
@@ -187,19 +242,20 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const document = await db.select()
-        .from(documents)
-        .where(eq(documents.id, documentId))
-        .limit(1);
+      const { data: document, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
 
-      if (document.length === 0) {
+      if (error || !document) {
         return NextResponse.json(
           { error: 'Documento não encontrado' },
           { status: 404 }
         );
       }
 
-      return NextResponse.json(document[0]);
+      return NextResponse.json(document);
     }
 
     if (moduleType && recordId) {
@@ -211,21 +267,30 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const filteredDocuments = await db.select()
-        .from(documents)
-        .where(eq(documents.moduleType, moduleType))
-        .limit(limit)
-        .offset(offset);
+      const { data: filteredDocuments, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('module_type', moduleType)
+        .eq('record_id', recordIdNum)
+        .range(offset, offset + limit - 1);
 
-      return NextResponse.json(filteredDocuments);
+      if (error) {
+        throw error;
+      }
+
+      return NextResponse.json(filteredDocuments || []);
     }
 
-    const allDocuments = await db.select()
-      .from(documents)
-      .limit(limit)
-      .offset(offset);
+    const { data: allDocuments, error } = await supabase
+      .from('documents')
+      .select('*')
+      .range(offset, offset + limit - 1);
 
-    return NextResponse.json(allDocuments);
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json(allDocuments || []);
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json(
@@ -237,6 +302,11 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -255,25 +325,35 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const existingDocument = await db.select()
-      .from(documents)
-      .where(eq(documents.id, documentId))
-      .limit(1);
+    // Check if document exists
+    const { data: existingDocument, error: checkError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', documentId)
+      .single();
 
-    if (existingDocument.length === 0) {
+    if (checkError || !existingDocument) {
       return NextResponse.json(
         { error: 'Documento não encontrado' },
         { status: 404 }
       );
     }
 
-    const deleted = await db.delete(documents)
-      .where(eq(documents.id, documentId))
-      .returning();
+    // Delete document
+    const { data: deleted, error } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', documentId)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
 
     return NextResponse.json({
       message: 'Documento excluído com sucesso',
-      document: deleted[0]
+      document: deleted
     });
   } catch (error) {
     console.error('DELETE error:', error);

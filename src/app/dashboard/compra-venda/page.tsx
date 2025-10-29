@@ -40,7 +40,7 @@ export default function CompraVendaPage() {
   };
 
   const filteredProperties = properties.filter((p) => {
-    const matchesSearch = p.enderecoImovel?.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = !search || p.enderecoImovel?.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
