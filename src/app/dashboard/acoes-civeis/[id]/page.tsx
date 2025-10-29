@@ -130,10 +130,13 @@ export default function AcaoCivelDetailPage() {
     // Step 0 - Documents
     rnmMae: "",
     rnmMaeFile: "",
+    nomeMae: "",
     rnmPai: "",
     rnmPaiFile: "",
+    nomePaiRegistral: "",
     rnmSupostoPai: "",
     rnmSupostoPaiFile: "",
+    nomeSupostoPai: "",
     cpfMae: "",
     cpfPai: "",
     certidaoNascimento: "",
@@ -605,6 +608,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome da Mãe */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeMae">Nome da Mãe</Label>
+                <Input
+                  id="nomeMae"
+                  value={stepData.nomeMae}
+                  onChange={(e) => setStepData({ ...stepData, nomeMae: e.target.value })}
+                  placeholder="Nome completo da mãe"
+                />
+              </div>
+
               {/* RNM Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmPai">RNM Pai</Label>
@@ -635,6 +649,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome do Pai Registral */}
+              <div className="space-y-2">
+                <Label htmlFor="nomePaiRegistral">Nome do Pai Registral</Label>
+                <Input
+                  id="nomePaiRegistral"
+                  value={stepData.nomePaiRegistral}
+                  onChange={(e) => setStepData({ ...stepData, nomePaiRegistral: e.target.value })}
+                  placeholder="Nome completo do pai registral"
+                />
+              </div>
+
               {/* RNM Suposto Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmSupostoPai">RNM Suposto Pai</Label>
@@ -663,6 +688,17 @@ export default function AcaoCivelDetailPage() {
                     Arquivo anexado: {stepData.rnmSupostoPaiFile}
                   </p>
                 )}
+              </div>
+
+              {/* Nome do Suposto Pai */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeSupostoPai">Nome do Suposto Pai</Label>
+                <Input
+                  id="nomeSupostoPai"
+                  value={stepData.nomeSupostoPai}
+                  onChange={(e) => setStepData({ ...stepData, nomeSupostoPai: e.target.value })}
+                  placeholder="Nome completo do suposto pai"
+                />
               </div>
 
               {/* Certidão de Nascimento */}
@@ -1077,6 +1113,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome da Mãe */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeMae">Nome da Mãe</Label>
+                <Input
+                  id="nomeMae"
+                  value={stepData.nomeMae}
+                  onChange={(e) => setStepData({ ...stepData, nomeMae: e.target.value })}
+                  placeholder="Nome completo da mãe"
+                />
+              </div>
+
               {/* RNM Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmPai">RNM Pai</Label>
@@ -1105,6 +1152,17 @@ export default function AcaoCivelDetailPage() {
                     Arquivo anexado: {stepData.rnmPaiFile}
                   </p>
                 )}
+              </div>
+
+              {/* Nome do Pai Registral */}
+              <div className="space-y-2">
+                <Label htmlFor="nomePaiRegistral">Nome do Pai Registral</Label>
+                <Input
+                  id="nomePaiRegistral"
+                  value={stepData.nomePaiRegistral}
+                  onChange={(e) => setStepData({ ...stepData, nomePaiRegistral: e.target.value })}
+                  placeholder="Nome completo do pai registral"
+                />
               </div>
 
               {/* CPF Mãe */}
@@ -1568,6 +1626,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome da Mãe */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeMae">Nome da Mãe</Label>
+                <Input
+                  id="nomeMae"
+                  value={stepData.nomeMae}
+                  onChange={(e) => setStepData({ ...stepData, nomeMae: e.target.value })}
+                  placeholder="Nome completo da mãe"
+                />
+              </div>
+
               {/* RNM Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmPai">RNM Pai</Label>
@@ -1598,6 +1667,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome do Pai Registral */}
+              <div className="space-y-2">
+                <Label htmlFor="nomePaiRegistral">Nome do Pai Registral</Label>
+                <Input
+                  id="nomePaiRegistral"
+                  value={stepData.nomePaiRegistral}
+                  onChange={(e) => setStepData({ ...stepData, nomePaiRegistral: e.target.value })}
+                  placeholder="Nome completo do pai registral"
+                />
+              </div>
+
               {/* RNM Suposto Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmSupostoPai">RNM Suposto Pai</Label>
@@ -1626,6 +1706,17 @@ export default function AcaoCivelDetailPage() {
                     Arquivo anexado: {stepData.rnmSupostoPaiFile}
                   </p>
                 )}
+              </div>
+
+              {/* Nome do Suposto Pai */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeSupostoPai">Nome do Suposto Pai</Label>
+                <Input
+                  id="nomeSupostoPai"
+                  value={stepData.nomeSupostoPai}
+                  onChange={(e) => setStepData({ ...stepData, nomeSupostoPai: e.target.value })}
+                  placeholder="Nome completo do suposto pai"
+                />
               </div>
 
               {/* Certidão de Nascimento */}
@@ -2108,6 +2199,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome da Mãe */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeMae">Nome da Mãe</Label>
+                <Input
+                  id="nomeMae"
+                  value={stepData.nomeMae}
+                  onChange={(e) => setStepData({ ...stepData, nomeMae: e.target.value })}
+                  placeholder="Nome completo da mãe"
+                />
+              </div>
+
               {/* RNM Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmPai">RNM Pai</Label>
@@ -2138,6 +2240,17 @@ export default function AcaoCivelDetailPage() {
                 )}
               </div>
 
+              {/* Nome do Pai Registral */}
+              <div className="space-y-2">
+                <Label htmlFor="nomePaiRegistral">Nome do Pai Registral</Label>
+                <Input
+                  id="nomePaiRegistral"
+                  value={stepData.nomePaiRegistral}
+                  onChange={(e) => setStepData({ ...stepData, nomePaiRegistral: e.target.value })}
+                  placeholder="Nome completo do pai registral"
+                />
+              </div>
+
               {/* RNM Suposto Pai */}
               <div className="space-y-2">
                 <Label htmlFor="rnmSupostoPai">RNM Suposto Pai</Label>
@@ -2166,6 +2279,17 @@ export default function AcaoCivelDetailPage() {
                     Arquivo anexado: {stepData.rnmSupostoPaiFile}
                   </p>
                 )}
+              </div>
+
+              {/* Nome do Suposto Pai */}
+              <div className="space-y-2">
+                <Label htmlFor="nomeSupostoPai">Nome do Suposto Pai</Label>
+                <Input
+                  id="nomeSupostoPai"
+                  value={stepData.nomeSupostoPai}
+                  onChange={(e) => setStepData({ ...stepData, nomeSupostoPai: e.target.value })}
+                  placeholder="Nome completo do suposto pai"
+                />
               </div>
 
               {/* Certidão de Nascimento */}

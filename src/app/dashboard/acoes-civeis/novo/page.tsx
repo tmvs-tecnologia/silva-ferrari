@@ -36,6 +36,9 @@ export default function NovaAcaoCivelPage() {
     rnmMae: "",
     rnmPai: "",
     rnmSupostoPai: "",
+    nomeMae: "",
+    nomePaiRegistral: "",
+    nomeSupostoPai: "",
     cpfMae: "",
     cpfPai: "",
     certidaoNascimento: "",
@@ -365,6 +368,22 @@ export default function NovaAcaoCivelPage() {
                     </div>
                   )}
 
+                  {showFieldForType("rnmMae") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="nomeMae">
+                        {formData.type === "Divórcio Consensual" || formData.type === "Divórcio Litígio" 
+                          ? "Nome da Mulher" 
+                          : "Nome da Mãe"}
+                      </Label>
+                      <Input
+                        id="nomeMae"
+                        value={formData.nomeMae}
+                        onChange={(e) => handleChange("nomeMae", e.target.value)}
+                        placeholder="Nome completo"
+                      />
+                    </div>
+                  )}
+
                   {showFieldForType("rnmPai") && (
                     <div className="space-y-2">
                       <Label htmlFor="rnmPai">
@@ -411,6 +430,22 @@ export default function NovaAcaoCivelPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {showFieldForType("rnmPai") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="nomePaiRegistral">
+                        {formData.type === "Divórcio Consensual" || formData.type === "Divórcio Litígio" 
+                          ? "Nome do Homem" 
+                          : "Nome do Pai Registral"}
+                      </Label>
+                      <Input
+                        id="nomePaiRegistral"
+                        value={formData.nomePaiRegistral}
+                        onChange={(e) => handleChange("nomePaiRegistral", e.target.value)}
+                        placeholder="Nome completo"
+                      />
                     </div>
                   )}
 
@@ -554,6 +589,18 @@ export default function NovaAcaoCivelPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  )}
+
+                  {showFieldForType("rnmSupostoPai") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="nomeSupostoPai">Nome do Suposto Pai</Label>
+                      <Input
+                        id="nomeSupostoPai"
+                        value={formData.nomeSupostoPai}
+                        onChange={(e) => handleChange("nomeSupostoPai", e.target.value)}
+                        placeholder="Nome completo"
+                      />
                     </div>
                   )}
 
