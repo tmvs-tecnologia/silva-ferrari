@@ -15,7 +15,8 @@ import {
   Clock, 
   CheckCircle2, 
   AlertCircle,
-  Users
+  Users,
+  Trash2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,6 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const CASE_TYPES = [
   "Rescisão Indireta",
@@ -99,7 +111,24 @@ export default function AcoesTrabalhistasPage() {
       case "Aguardando":
         return <AlertCircle className="h-3 w-3" />;
       default:
-        return <FileText className="h-3 w-3" />;
+        return <Clock className="h-3 w-3" />;
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/acoes-trabalhistas/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove the case from the local state
+        setCases(cases.filter(c => c.id !== id));
+      } else {
+        console.error('Failed to delete case');
+      }
+    } catch (error) {
+      console.error('Error deleting case:', error);
     }
   };
 
@@ -109,7 +138,7 @@ export default function AcoesTrabalhistasPage() {
       <div className="bg-gradient-to-br from-purple-900 via-purple-800 to-purple-700 rounded-xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between p-8">
           <div className="flex items-center gap-6">
-            <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+            <div className="p-4 bg-white rounded-xl border border-white/20">
               <Briefcase className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -264,8 +293,39 @@ export default function AcoesTrabalhistasPage() {
           filteredCases.map((caseItem) => (
             <Card 
               key={caseItem.id} 
-              className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
+              className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
             >
+              {/* Discrete Delete Button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 opacity-70 hover:opacity-100 transition-all duration-200"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir a ação trabalhista de <strong>{caseItem.clientName}</strong>? 
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => handleDelete(caseItem.id)}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">

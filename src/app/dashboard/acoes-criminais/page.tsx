@@ -15,7 +15,8 @@ import {
   Clock, 
   CheckCircle2, 
   Shield,
-  Gavel
+  Gavel,
+  Trash2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -25,6 +26,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const CASE_TYPES = [
   "Defesa Criminal",
@@ -95,6 +107,23 @@ export default function AcoesCriminaisPage() {
         return CheckCircle2;
       default:
         return FileText;
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/acoes-criminais/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove the case from the local state
+        setCases(cases.filter(c => c.id !== id));
+      } else {
+        console.error('Failed to delete case');
+      }
+    } catch (error) {
+      console.error('Error deleting case:', error);
     }
   };
 
@@ -253,7 +282,38 @@ export default function AcoesCriminaisPage() {
           filteredCases.map((caseItem) => {
             const StatusIcon = getStatusIcon(caseItem.status);
             return (
-              <Card key={caseItem.id} className="hover:shadow-lg transition-all duration-200">
+              <Card key={caseItem.id} className="hover:shadow-lg transition-all duration-200 relative">
+                {/* Discrete Delete Button */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2 z-10 h-8 w-8 p-0 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 opacity-70 hover:opacity-100 transition-all duration-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tem certeza que deseja excluir a ação criminal de <strong>{caseItem.clientName}</strong>? 
+                        Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => handleDelete(caseItem.id)}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        Excluir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 space-y-4">

@@ -239,7 +239,7 @@ export default function VistoDetailsPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
+                <AlertDialogAction variant="destructive" onClick={handleDelete}>
                   Excluir
                 </AlertDialogAction>
               </AlertDialogFooter>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getFilePath, BUCKET_NAME } from '@/lib/supabase';
+import { getFilePath, BUCKET_NAME, FIELD_TO_DOCUMENT_NAME } from '@/lib/supabase';
 
 // Create Supabase client with service role key for storage operations
 const supabaseAdmin = createClient(
@@ -46,12 +46,27 @@ export async function POST(request: NextRequest) {
     const entityId = formData.get('entityId') as string;
     const entityType = formData.get('entityType') as string;
     const fieldName = formData.get('fieldName') as string;
+    const clientName = formData.get('clientName') as string;
     const moduleType = formData.get('moduleType') as string || entityType || 'acoes_civeis'; // Default to acoes_civeis for backward compatibility
 
     // Use either caseId or entityId as the identifier
     const recordId = caseId || entityId;
 
-    console.log('🔹 Upload iniciado:', { caseId, entityId, recordId, fieldName, moduleType, fileName: file?.name, fileSize: file?.size });
+    // Get case data to extract client information if not provided
+    let finalClientName = clientName;
+    if (!finalClientName && recordId && moduleType === 'acoes_civeis') {
+      const { data: caseData, error: caseError } = await supabaseAdmin
+        .from("acoes_civeis")
+        .select("client_name")
+        .eq("id", recordId)
+        .single();
+
+      if (caseData && !caseError) {
+        finalClientName = caseData.client_name;
+      }
+    }
+
+    console.log('🔹 Upload iniciado:', { caseId, entityId, recordId, fieldName, clientName, moduleType, fileName: file?.name, fileSize: file?.size });
 
     // Validate required fields - allow temporary uploads without caseId/fieldName
     if (!file) {
@@ -99,11 +114,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate file path
+    // Generate file path with descriptive name
     const timestamp = Date.now();
     const originalName = file.name;
     const extension = originalName.split('.').pop();
-    const sanitizedFileName = `${fieldName}_${timestamp}.${extension}`;
+    
+    // Create a descriptive file name based on document type
+    const documentDisplayName = FIELD_TO_DOCUMENT_NAME[fieldName] || fieldName;
+    const sanitizedDocumentName = documentDisplayName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '_')
+      .toLowerCase();
+    
+    const sanitizedFileName = `${sanitizedDocumentName}_${timestamp}.${extension}`;
     
     // Construct file path based on upload type
     let filePath: string;
@@ -115,11 +141,22 @@ export async function POST(request: NextRequest) {
       // Get step folder from field name
       const stepFolder = FIELD_TO_STEP_MAP[fieldName] || 'outros';
       
+      // Use clientName or fallback to 'cliente_desconhecido'
+      const clientNameForPath = clientName || 'cliente_desconhecido';
+      
       if (moduleType === 'compra_venda_imoveis') {
-        filePath = getFilePath.compraVenda(parseInt(recordId), stepFolder, sanitizedFileName);
+        filePath = getFilePath.compraVenda(parseInt(recordId), clientNameForPath, sanitizedFileName);
+      } else if (moduleType === 'perda_nacionalidade') {
+        filePath = getFilePath.perdaNacionalidade(parseInt(recordId), clientNameForPath, stepFolder, sanitizedFileName);
+      } else if (moduleType === 'vistos') {
+        filePath = getFilePath.vistos(parseInt(recordId), clientNameForPath, stepFolder, sanitizedFileName);
+      } else if (moduleType === 'acoes_trabalhistas') {
+        filePath = getFilePath.acoesTrabalhistas(parseInt(recordId), clientNameForPath, sanitizedFileName);
+      } else if (moduleType === 'acoes_criminais') {
+        filePath = getFilePath.acoesCriminais(parseInt(recordId), clientNameForPath, sanitizedFileName);
       } else {
         // Default to acoesCiveis for backward compatibility
-        filePath = getFilePath.acoesCiveis(parseInt(recordId), stepFolder, sanitizedFileName);
+        filePath = getFilePath.acoesCiveis(parseInt(recordId), clientNameForPath, stepFolder, sanitizedFileName);
       }
     }
 
@@ -183,6 +220,9 @@ export async function POST(request: NextRequest) {
       .insert({
         module_type: moduleType,
         record_id: parseInt(recordId),
+        client_name: finalClientName || 'Cliente Desconhecido',
+        field_name: fieldName,
+        document_name: documentDisplayName,
         file_name: originalName,
         file_path: publicUrl,
         file_type: file.type,
@@ -195,53 +235,58 @@ export async function POST(request: NextRequest) {
       throw insertError;
     }
 
-    // Update the case with the file URL
-    const updateData: any = {};
-    updateData[fieldName] = publicUrl;
+    // Update the case with the file URL (skip for generic document uploads)
+    // Skip table update for generic document uploads (documentoAnexado)
+    if (fieldName !== 'documentoAnexado') {
+      const updateData: any = {};
+      updateData[fieldName] = publicUrl;
 
-    console.log(`🔄 Atualizando registro do módulo ${moduleType}...`);
-    
-    // Update the appropriate table based on moduleType
-    // Convert camelCase field name to snake_case for Supabase
-    const snakeCaseFieldName = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
-    const supabaseUpdateData: any = {};
-    supabaseUpdateData[snakeCaseFieldName] = publicUrl;
+      console.log(`🔄 Atualizando registro do módulo ${moduleType}...`);
+      
+      // Update the appropriate table based on moduleType
+      // Convert camelCase field name to snake_case for Supabase
+      const snakeCaseFieldName = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
+      const supabaseUpdateData: any = {};
+      supabaseUpdateData[snakeCaseFieldName] = publicUrl;
 
-    let tableName: string;
-    switch (moduleType) {
-      case 'acoes_civeis':
-        tableName = 'acoes_civeis';
-        break;
-      case 'perda_nacionalidade':
-        tableName = 'perda_nacionalidade';
-        break;
-      case 'compra_venda_imoveis':
-      case 'compra-venda':
-        tableName = 'compra_venda_imoveis';
-        break;
-      case 'vistos':
-        tableName = 'vistos';
-        break;
-      case 'acoes_trabalhistas':
-        tableName = 'acoes_trabalhistas';
-        break;
-      case 'acoes_criminais':
-        tableName = 'acoes_criminais';
-        break;
-      default:
-        console.warn(`⚠️ Tipo de módulo não reconhecido: ${moduleType}. Usando acoes_civeis como padrão.`);
-        tableName = 'acoes_civeis';
-        break;
-    }
+      let tableName: string;
+      switch (moduleType) {
+        case 'acoes_civeis':
+          tableName = 'acoes_civeis';
+          break;
+        case 'perda_nacionalidade':
+          tableName = 'perda_nacionalidade';
+          break;
+        case 'compra_venda_imoveis':
+        case 'compra-venda':
+          tableName = 'compra_venda_imoveis';
+          break;
+        case 'vistos':
+          tableName = 'vistos';
+          break;
+        case 'acoes_trabalhistas':
+          tableName = 'acoes_trabalhistas';
+          break;
+        case 'acoes_criminais':
+          tableName = 'acoes_criminais';
+          break;
+        default:
+          console.warn(`⚠️ Tipo de módulo não reconhecido: ${moduleType}. Usando acoes_civeis como padrão.`);
+          tableName = 'acoes_civeis';
+          break;
+      }
 
-    const { error: updateError } = await supabaseAdmin
-      .from(tableName)
-      .update(supabaseUpdateData)
-      .eq('id', parseInt(recordId));
+      const { error: updateError } = await supabaseAdmin
+        .from(tableName)
+        .update(supabaseUpdateData)
+        .eq('id', parseInt(recordId));
 
-    if (updateError) {
-      console.error('❌ Erro ao atualizar registro:', updateError);
-      throw updateError;
+      if (updateError) {
+        console.error('❌ Erro ao atualizar registro:', updateError);
+        throw updateError;
+      }
+    } else {
+      console.log('📄 Upload genérico de documento - não atualizando tabela principal');
     }
 
     console.log('✅ Upload completo!');

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, CheckCircle2, Circle, Save, Trash2, FileUp, ChevronDown, ChevronUp, Edit2, Upload, FileText } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Save, Trash2, FileUp, ChevronDown, ChevronUp, Upload, FileText, Download, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -116,6 +116,14 @@ export default function AcaoCivelDetailPage() {
   const [pendingStep, setPendingStep] = useState(0);
   const [documents, setDocuments] = useState<any[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<any>(null);
+  const [deletingDocument, setDeletingDocument] = useState(false);
+  
+  // Document editing states
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [editingDocumentName, setEditingDocumentName] = useState("");
   
   // Step data states
   const [stepData, setStepData] = useState({
@@ -214,13 +222,156 @@ export default function AcaoCivelDetailPage() {
   const fetchDocuments = async () => {
     try {
       setLoadingDocuments(true);
-      const response = await fetch(`/api/acoes-civeis/${params.id}/documents`);
+      const response = await fetch(`/api/documents/${params.id}?moduleType=acoes_civeis`);
       const data = await response.json();
-      setDocuments(data.documents || []);
+      setDocuments(data || []);
     } catch (error) {
       console.error("Error fetching documents:", error);
     } finally {
       setLoadingDocuments(false);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId: number) => {
+    try {
+      setDeletingDocument(true);
+      const response = await fetch(`/api/documents/delete/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove document from state
+        setDocuments(prev => prev.filter(doc => doc.id !== documentId));
+        setDeleteDialogOpen(false);
+        setDocumentToDelete(null);
+      } else {
+        console.error('Erro ao excluir documento');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir documento:', error);
+    } finally {
+      setDeletingDocument(false);
+    }
+  };
+
+  const handleDocumentDoubleClick = (doc: any) => {
+    setEditingDocumentId(doc.id);
+    setEditingDocumentName(doc.document_name || doc.file_name);
+  };
+
+  const handleDocumentNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingDocumentName(e.target.value);
+  };
+
+  const handleDocumentNameSave = async (documentId: string) => {
+    if (!editingDocumentName.trim()) {
+      setEditingDocumentId(null);
+      setEditingDocumentName("");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/documents/rename/${documentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_name: editingDocumentName.trim() }),
+      });
+
+      if (response.ok) {
+        // Update document in state
+        setDocuments(prev => prev.map(doc => 
+          doc.id === parseInt(documentId) 
+            ? { ...doc, document_name: editingDocumentName.trim() }
+            : doc
+        ));
+        setEditingDocumentId(null);
+        setEditingDocumentName("");
+      } else {
+        console.error('Erro ao renomear documento');
+        alert('Erro ao renomear documento');
+      }
+    } catch (error) {
+      console.error('Erro ao renomear documento:', error);
+      alert('Erro ao renomear documento');
+    }
+  };
+
+  const handleDocumentNameCancel = () => {
+    setEditingDocumentId(null);
+    setEditingDocumentName("");
+  };
+
+  const handleDocumentNameKeyPress = (e: React.KeyboardEvent, documentId: string) => {
+    if (e.key === 'Enter') {
+      handleDocumentNameSave(documentId);
+    } else if (e.key === 'Escape') {
+      handleDocumentNameCancel();
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      await uploadDroppedFile(file);
+    }
+  };
+
+  const uploadDroppedFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("caseId", params.id as string);
+    formData.append("fieldName", "documentoAnexado");
+
+    try {
+      setUploadingFile(true);
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        // Refresh documents list
+        await fetchDocuments();
+        alert("✅ Arquivo enviado com sucesso!");
+      } else {
+        const data = await response.json();
+        console.error('Erro ao fazer upload do arquivo:', data);
+        alert(
+          `❌ Erro ao enviar arquivo:\n\n${data.error}\n\n${
+            data.details ? `Detalhes: ${data.details}\n\n` : ""
+          }${
+            data.hint
+              ? `💡 ${data.hint}\n\nConsulte o arquivo SUPABASE_STORAGE_POLICIES.md para configurar as políticas RLS do bucket.`
+              : ""
+          }`
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      alert(
+        "❌ Erro ao enviar arquivo. Verifique:\n\n" +
+        "1. Se o bucket 'juridico-documentos' existe no Supabase Storage\n" +
+        "2. Se as políticas RLS estão configuradas (consulte SUPABASE_STORAGE_POLICIES.md)\n" +
+        "3. Se as variáveis de ambiente estão corretas no arquivo .env\n\n" +
+        "Erro: " + (error as Error).message
+      );
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -255,6 +406,7 @@ export default function AcaoCivelDetailPage() {
         
         alert("✅ Arquivo enviado e salvo com sucesso!");
         await fetchCase(); // Refresh data
+        await fetchDocuments(); // Refresh documents list
       } else {
         console.error("Erro no upload:", data);
         alert(
@@ -2477,7 +2629,7 @@ export default function AcaoCivelDetailPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/acoes-civeis">
             <Button variant="ghost" size="icon">
@@ -2485,17 +2637,18 @@ export default function AcaoCivelDetailPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">{caseData.clientName}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">{caseData.clientName}</h1>
             <p className="text-muted-foreground">{caseData.type}</p>
           </div>
         </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
-            </Button>
-          </AlertDialogTrigger>
+        <div className="flex-shrink-0">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" className="w-full sm:w-auto">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir
+              </Button>
+            </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
@@ -2511,6 +2664,7 @@ export default function AcaoCivelDetailPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -2863,44 +3017,130 @@ export default function AcaoCivelDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Documentos */}
+          {/* Documentos do Cliente */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Documentos
+                Documentos do Cliente
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Todos os documentos anexados para {caseData?.clientName}
+              </p>
             </CardHeader>
             <CardContent>
+              {/* Drag & Drop Area */}
+              <div
+                className={`border-2 border-dashed rounded-lg p-4 mb-4 transition-colors ${
+                  isDragOver 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                } ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="text-center">
+                  <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <p className={`text-sm ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {uploadingFile 
+                      ? 'Fazendo upload...' 
+                      : isDragOver 
+                        ? 'Solte os arquivos aqui' 
+                        : 'Arraste e solte arquivos aqui para anexar'
+                    }
+                  </p>
+                  {!uploadingFile && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ou clique nos botões de upload nas etapas acima
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {loadingDocuments ? (
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
                 </div>
               ) : documents.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                      onClick={() => window.open(doc.file_path, '_blank')}
+                      className="group flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex-shrink-0 mt-0.5">
                         <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium truncate">
-                          {doc.file_name}
-                        </span>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(doc.uploaded_at).toLocaleDateString("pt-BR")}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          {editingDocumentId === doc.id ? (
+                            <input
+                              type="text"
+                              value={editingDocumentName}
+                              onChange={handleDocumentNameChange}
+                              onBlur={() => handleDocumentNameSave(doc.id.toString())}
+                              onKeyDown={(e) => handleDocumentNameKeyPress(e, doc.id.toString())}
+                              className="text-sm font-medium bg-background border border-input rounded px-2 py-1 flex-1 mr-2"
+                              autoFocus
+                            />
+                          ) : (
+                            <h4 
+                              className="text-sm font-medium truncate cursor-pointer hover:text-blue-600 transition-colors"
+                              onDoubleClick={() => handleDocumentDoubleClick(doc)}
+                              title="Clique duas vezes para renomear"
+                            >
+                              {doc.document_name || doc.file_name}
+                            </h4>
+                          )}
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(doc.file_path, '_blank')}
+                            >
+                              <Download className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setDocumentToDelete(doc);
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Enviado em {new Date(doc.uploaded_at).toLocaleDateString("pt-BR", {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {doc.field_name && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Campo: {doc.field_name}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground text-sm">
-                  Nenhum documento anexado ainda
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nenhum documento anexado ainda</p>
+                  <p className="text-xs mt-1">
+                    Arraste arquivos para esta área ou use os botões de upload nas etapas
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -2959,6 +3199,31 @@ export default function AcaoCivelDetailPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmSaveNotes}>
               Salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Document Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir documento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o documento "{documentToDelete?.document_name || documentToDelete?.file_name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingDocument}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => handleDeleteDocument(documentToDelete?.id)}
+              disabled={deletingDocument}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingDocument ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
