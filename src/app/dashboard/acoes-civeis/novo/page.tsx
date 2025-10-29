@@ -113,6 +113,11 @@ export default function NovaAcaoCivelPage() {
     try {
       const formDataUpload = new FormData();
       formDataUpload.append("file", file);
+      // Para uploads temporários (quando ainda não temos o ID do caso), 
+      // não enviamos fieldName nem moduleType para que a API trate como upload temporário
+      // formDataUpload.append("fieldName", field);
+      // formDataUpload.append("moduleType", "acoes_civeis");
+      // formDataUpload.append("clientName", formData.clientName || "");
 
       const response = await fetch("/api/documents/upload", {
         method: "POST",
@@ -121,7 +126,7 @@ export default function NovaAcaoCivelPage() {
 
       if (response.ok) {
         const data = await response.json();
-        handleChange(`${field}File`, data.url);
+        handleChange(`${field}File`, data.fileUrl);
         toast.success("Documento enviado com sucesso!");
       } else {
         const errorData = await response.json();
@@ -139,6 +144,50 @@ export default function NovaAcaoCivelPage() {
   const removeDocument = (field: string) => {
     handleChange(`${field}File`, "");
     toast.success("Documento removido");
+  };
+
+  // Função auxiliar para converter uploads temporários em permanentes
+  const convertTemporaryUploads = async (caseId: number) => {
+    const documentFields = [
+      'rnmMaeFile', 'rnmPaiFile', 'rnmSupostoPaiFile', 'certidaoNascimentoFile',
+      'comprovanteEnderecoFile', 'passaporteFile', 'guiaPagaFile', 'resultadoExameDnaFile',
+      'procuracaoAnexadaFile', 'peticaoAnexadaFile', 'processoAnexadoFile',
+      'documentosFinaisAnexadosFile', 'documentosProcessoFinalizadoFile'
+    ];
+
+    const documentsToConvert = [];
+    
+    for (const field of documentFields) {
+      const fileUrl = formData[field];
+      if (fileUrl) {
+        documentsToConvert.push({
+          fieldName: field.replace('File', ''),
+          fileUrl: fileUrl
+        });
+      }
+    }
+
+    if (documentsToConvert.length > 0) {
+      try {
+        // Chamar API para converter uploads temporários em permanentes
+        const response = await fetch("/api/documents/convert-temporary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            caseId: caseId,
+            moduleType: "acoes_civeis",
+            clientName: formData.clientName,
+            documents: documentsToConvert
+          })
+        });
+
+        if (!response.ok) {
+          console.error("Erro ao converter uploads temporários");
+        }
+      } catch (error) {
+        console.error("Erro ao converter uploads temporários:", error);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -163,6 +212,12 @@ export default function NovaAcaoCivelPage() {
       if (response.ok) {
         const data = await response.json();
         console.log("✅ Ação criada:", data);
+        
+        // Converter uploads temporários em permanentes
+        if (data.id) {
+          await convertTemporaryUploads(data.id);
+        }
+        
         toast.success("Ação criada com sucesso!");
         router.push("/dashboard/acoes-civeis");
       } else {

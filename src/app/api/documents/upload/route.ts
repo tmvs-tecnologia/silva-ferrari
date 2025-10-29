@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     const extension = originalName.split('.').pop();
     
     // Create a descriptive file name based on document type
-    const documentDisplayName = FIELD_TO_DOCUMENT_NAME[fieldName] || fieldName;
+    const documentDisplayName = FIELD_TO_DOCUMENT_NAME[fieldName] || fieldName || 'documento';
     const sanitizedDocumentName = documentDisplayName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         fileName: originalName,
-        url: publicUrl,
+        fileUrl: publicUrl,
         filePath: filePath,
         temporary: true
       });
@@ -244,10 +244,27 @@ export async function POST(request: NextRequest) {
       console.log(`🔄 Atualizando registro do módulo ${moduleType}...`);
       
       // Update the appropriate table based on moduleType
-      // Convert camelCase field name to snake_case for Supabase
-      const snakeCaseFieldName = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
+      // Map field names to correct database column names
+      const fieldNameMapping: Record<string, string> = {
+        // Ações Cíveis - usando colunas _doc para arquivos
+        'rnmMaeFile': 'rnm_mae_doc',
+        'rnmPaiFile': 'rnm_pai_doc', 
+        'rnmSupostoPaiFile': 'rnm_suposto_pai_doc',
+        'certidaoNascimentoFile': 'certidao_nascimento_doc',
+        'comprovanteEnderecoFile': 'comprovante_endereco_doc',
+        'passaporteFile': 'passaporte_doc',
+        'guiaPagaFile': 'guia_paga_doc',
+        'resultadoExameDnaFile': 'resultado_exame_dna_doc',
+        'procuracaoAnexadaFile': 'procuracao_anexada_doc',
+        'peticaoAnexadaFile': 'peticao_anexada_doc',
+        'processoAnexadoFile': 'processo_anexado_doc',
+        'documentosFinaisAnexadosFile': 'documentos_finais_anexados_doc',
+        'documentosProcessoFinalizadoFile': 'documentos_processo_finalizado_doc'
+      };
+      
+      const dbFieldName = fieldNameMapping[fieldName] || fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
       const supabaseUpdateData: any = {};
-      supabaseUpdateData[snakeCaseFieldName] = publicUrl;
+      supabaseUpdateData[dbFieldName] = publicUrl;
 
       let tableName: string;
       switch (moduleType) {

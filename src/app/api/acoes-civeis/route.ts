@@ -254,6 +254,23 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Create notification for new action
+    try {
+      await supabase
+        .from('alerts')
+        .insert({
+          module_type: 'acoes_civeis',
+          record_id: newRecord.id,
+          alert_for: 'admin',
+          message: `Nova ação cível criada: ${clientName.trim()} - ${type.trim()}`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+    } catch (notificationError) {
+      console.error('Error creating notification:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
+
     return NextResponse.json(newRecord, { status: 201 });
   } catch (error) {
     console.error('POST error:', error);
@@ -281,10 +298,10 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if record exists
+    // Check if record exists and get current data
     const { data: existing, error: existingError } = await supabase
       .from('acoes_civeis')
-      .select('id')
+      .select('id, current_step, client_name, type')
       .eq('id', parseInt(id))
       .single();
 
@@ -389,6 +406,25 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Internal server error: ' + error.message 
       }, { status: 500 });
+    }
+
+    // Create notification if step was completed (currentStep increased)
+    if (currentStep !== undefined && currentStep > existing.current_step) {
+      try {
+        await supabase
+          .from('alerts')
+          .insert({
+            module_type: 'acoes_civeis',
+            record_id: parseInt(id),
+            alert_for: 'admin',
+            message: `Passo ${currentStep} concluído para: ${existing.client_name} - ${existing.type}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+      } catch (notificationError) {
+        console.error('Error creating step completion notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
     }
 
     return NextResponse.json(updated, { status: 200 });
