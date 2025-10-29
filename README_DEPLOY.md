@@ -26,11 +26,15 @@ SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_supabase
 
 ### 2. Configurações do Projeto
 
-- **Framework**: Next.js
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
+Certifique-se de que as seguintes configurações estão definidas no Vercel:
+
+- **Framework Preset**: Next.js (detectado automaticamente)
+- **Build Command**: Automático (Next.js)
+- **Output Directory**: Automático (Next.js)
 - **Install Command**: `npm install`
 - **Node.js Version**: 18.x ou superior
+
+**Importante**: Para projetos Next.js, o Vercel detecta automaticamente as configurações de build. Não é necessário especificar `buildCommand` ou `outputDirectory` no `vercel.json`.
 
 ### 3. Configurações Específicas
 
