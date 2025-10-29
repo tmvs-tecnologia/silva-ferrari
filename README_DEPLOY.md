@@ -1,47 +1,36 @@
-# Deploy no Vercel - Sistema Jurídico Integrado
+# Guia de Deploy no Vercel
+
+Este guia fornece instruções detalhadas para fazer o deploy do projeto no Vercel.
 
 ## Configurações Necessárias
 
-### 1. Variáveis de Ambiente no Vercel
+### Variáveis de Ambiente
 
-Configure as seguintes variáveis de ambiente no painel do Vercel:
+Configure as seguintes variáveis de ambiente diretamente no dashboard do Vercel:
 
-**Importante:** Adicione essas variáveis diretamente no dashboard do Vercel em Configurações do Projeto > Variáveis de Ambiente. Não use secrets no vercel.json.
+- `TURSO_CONNECTION_URL`: URL de conexão com o banco Turso
+- `TURSO_AUTH_TOKEN`: Token de autenticação do Turso
+- `NEXT_PUBLIC_SUPABASE_URL`: URL pública do Supabase
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima pública do Supabase
+- `SUPABASE_SERVICE_ROLE_KEY`: Chave de service role do Supabase
 
-```
-TURSO_CONNECTION_URL=sua_url_de_conexao_turso
-TURSO_AUTH_TOKEN=seu_token_de_auth_turso
-NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima_supabase
-SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_supabase
-```
+### Configurações do Projeto
 
-#### Como Adicionar Variáveis de Ambiente no Vercel:
+O projeto está configurado para usar as configurações automáticas do Vercel para Next.js:
 
-1. Vá para o dashboard do seu projeto no Vercel
-2. Clique na aba "Settings"
-3. Clique em "Environment Variables" na barra lateral
-4. Adicione cada variável com seu valor correspondente
-5. Certifique-se de definir o ambiente (Production, Preview, Development) para cada variável
+- **Framework**: Next.js (detectado automaticamente)
+- **Build Command**: Detectado automaticamente (`npm run build`)
+- **Output Directory**: Detectado automaticamente (`.next`)
+- **Install Command**: Detectado automaticamente (`npm install`)
 
-### 2. Configurações do Projeto
+### Configurações Simplificadas
 
-Certifique-se de que as seguintes configurações estão definidas no Vercel:
+O projeto foi otimizado para usar as configurações padrão do Vercel para Next.js, removendo configurações customizadas que podem causar conflitos. O Vercel detectará automaticamente:
 
-- **Framework Preset**: Next.js (detectado automaticamente)
-- **Build Command**: Automático (Next.js)
-- **Output Directory**: Automático (Next.js)
-- **Install Command**: `npm install`
-- **Node.js Version**: 18.x ou superior
-
-**Importante**: Para projetos Next.js, o Vercel detecta automaticamente as configurações de build. Não é necessário especificar `buildCommand` ou `outputDirectory` no `vercel.json`.
-
-### 3. Configurações Específicas
-
-O arquivo `vercel.json` já está configurado com:
-- Timeout de 30 segundos para funções API
-- Região otimizada (iad1)
-- Configurações de framework Next.js
+- Comandos de build
+- Diretório de output
+- Configurações de função
+- Otimizações de performance
 
 ### 4. Pré-requisitos
 
