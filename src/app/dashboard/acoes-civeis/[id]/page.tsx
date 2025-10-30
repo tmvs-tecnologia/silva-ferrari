@@ -120,6 +120,8 @@ export default function AcaoCivelDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<any>(null);
   const [deletingDocument, setDeletingDocument] = useState(false);
+  const [whatsappDialogOpen, setWhatsappDialogOpen] = useState(false);
+  const [whatsappMessage, setWhatsappMessage] = useState("");
   
   // Document editing states
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
@@ -452,8 +454,88 @@ export default function AcaoCivelDetailPage() {
   const handleCompleteStep = async (stepIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Enviar notificação via WhatsApp para os passos 1, 2, 3, 4, 5 e 6 (índices 0, 1, 2, 3, 4 e 5)
+    if (stepIndex >= 0 && stepIndex <= 5) {
+      await sendWhatsAppNotification(stepIndex);
+    }
+    
     setPendingStep(stepIndex);
     setStepDialogOpen(true);
+  };
+
+  const sendWhatsAppNotification = async (stepIndex: number) => {
+    try {
+      const currentStepName = workflow[stepIndex];
+      const nextStepIndex = stepIndex + 1;
+      const nextStepName = workflow[nextStepIndex] || "Processo finalizado";
+      
+      // Preparar dados para envio
+      const notificationData = {
+        clientInfo: {
+          id: caseData.id,
+          name: caseData.clientName,
+          email: caseData.email,
+          phone: caseData.phone,
+          cpf: caseData.cpf,
+          type: caseData.type,
+          status: caseData.status,
+          createdAt: caseData.createdAt,
+          updatedAt: caseData.updatedAt
+        },
+        currentStep: {
+          index: stepIndex,
+          name: currentStepName,
+          status: "concluído"
+        },
+        nextStep: {
+          index: nextStepIndex,
+          name: nextStepName,
+          action: nextStepName
+        },
+        documents: {
+          rnmMae: stepData.rnmMaeFile || null,
+          rnmPai: stepData.rnmPaiFile || null,
+          rnmSupostoPai: stepData.rnmSupostoPaiFile || null,
+          certidaoNascimento: stepData.certidaoNascimentoFile || null,
+          comprovanteEndereco: stepData.comprovanteEnderecoFile || null,
+          passaporte: stepData.passaporteFile || null,
+          guiaPaga: stepData.guiaPagaFile || null,
+          resultadoExameDna: stepData.resultadoExameDnaFile || null,
+          procuracao: stepData.procuracaoAnexadaFile || null,
+          peticao: stepData.peticaoAnexadaFile || null,
+          processo: stepData.processoAnexadoFile || null,
+          documentosFinais: stepData.documentosFinaisAnexadosFile || null,
+          processoFinalizado: stepData.documentosProcessoFinalizadoFile || null
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      console.log("📱 Enviando notificação WhatsApp:", notificationData);
+
+      const response = await fetch("/api/webhook/n8n", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(notificationData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ Notificação WhatsApp enviada com sucesso:", result);
+        setWhatsappMessage("Notificação enviada via WhatsApp para os responsáveis!");
+        setWhatsappDialogOpen(true);
+      } else {
+        console.error("❌ Erro ao enviar notificação:", response.status, result);
+        setWhatsappMessage(`Erro ao enviar notificação via WhatsApp: ${result.error || 'Erro desconhecido'}`);
+        setWhatsappDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("❌ Erro ao enviar notificação WhatsApp:", error);
+      setWhatsappMessage("Erro ao enviar notificação via WhatsApp");
+      setWhatsappDialogOpen(true);
+    }
   };
 
   const confirmStepChange = async () => {
@@ -469,16 +551,32 @@ export default function AcaoCivelDetailPage() {
         return;
       }
       
+      // Verificar se é o último passo do workflow
+      const workflow = WORKFLOWS[caseData.type as keyof typeof WORKFLOWS] || [];
+      const isLastStep = newCurrentStep >= workflow.length - 1;
+      
+      // Preparar dados para atualização
+      const updateData: any = { currentStep: newCurrentStep };
+      
+      // Se for o último passo, automaticamente mudar status para "Finalizado"
+      if (isLastStep && pendingStep === caseData.currentStep) {
+        updateData.status = "Finalizado";
+      }
+      
       const response = await fetch(`/api/acoes-civeis?id=${params.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentStep: newCurrentStep }),
+        body: JSON.stringify(updateData),
       });
 
       if (response.ok) {
         await fetchCase();
         if (pendingStep === caseData.currentStep) {
-          alert("Passo marcado como concluído!");
+          if (isLastStep) {
+            alert("Último passo concluído! Processo finalizado automaticamente.");
+          } else {
+            alert("Passo marcado como concluído!");
+          }
         } else {
           alert("Passo marcado como atual!");
         }
@@ -2933,228 +3031,6 @@ export default function AcaoCivelDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Documents Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileUp className="h-5 w-5" />
-                Documentos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid gap-3">
-                {/* RNM Files */}
-                {stepData.rnmMaeFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">RNM Mãe</span>
-                    <a 
-                      href={stepData.rnmMaeFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.rnmMaeFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                {stepData.rnmPaiFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">RNM Pai</span>
-                    <a 
-                      href={stepData.rnmPaiFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.rnmPaiFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                {stepData.rnmSupostoPaiFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">RNM Suposto Pai</span>
-                    <a 
-                      href={stepData.rnmSupostoPaiFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.rnmSupostoPaiFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Birth Certificate */}
-                {stepData.certidaoNascimentoFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Certidão de Nascimento</span>
-                    <a 
-                      href={stepData.certidaoNascimentoFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.certidaoNascimentoFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Address Proof */}
-                {stepData.comprovanteEnderecoFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Comprovante de Endereço</span>
-                    <a 
-                      href={stepData.comprovanteEnderecoFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.comprovanteEnderecoFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Passport */}
-                {stepData.passaporteFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Passaporte</span>
-                    <a 
-                      href={stepData.passaporteFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.passaporteFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Guia Paga */}
-                {stepData.guiaPagaFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Guia Paga</span>
-                    <a 
-                      href={stepData.guiaPagaFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.guiaPagaFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* DNA Exam Result */}
-                {stepData.resultadoExameDnaFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Resultado Exame DNA</span>
-                    <a 
-                      href={stepData.resultadoExameDnaFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.resultadoExameDnaFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Procuração */}
-                {stepData.procuracaoAnexadaFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Procuração</span>
-                    <a 
-                      href={stepData.procuracaoAnexadaFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.procuracaoAnexadaFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Petição */}
-                {stepData.peticaoAnexadaFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Petição</span>
-                    <a 
-                      href={stepData.peticaoAnexadaFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.peticaoAnexadaFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Process */}
-                {stepData.processoAnexadoFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Processo</span>
-                    <a 
-                      href={stepData.processoAnexadoFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.processoAnexadoFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Final Documents */}
-                {stepData.documentosFinaisAnexadosFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Documentos Finais</span>
-                    <a 
-                      href={stepData.documentosFinaisAnexadosFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.documentosFinaisAnexadosFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Process Completed Documents */}
-                {stepData.documentosProcessoFinalizadoFile && (
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span className="text-sm">Processo Finalizado</span>
-                    <a 
-                      href={stepData.documentosProcessoFinalizadoFile} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline truncate max-w-[150px]"
-                    >
-                      {stepData.documentosProcessoFinalizadoFile.split('/').pop()}
-                    </a>
-                  </div>
-                )}
-                
-                {/* Empty state */}
-                {!stepData.rnmMaeFile && 
-                 !stepData.rnmPaiFile && 
-                 !stepData.rnmSupostoPaiFile &&
-                 !stepData.certidaoNascimentoFile && 
-                 !stepData.comprovanteEnderecoFile && 
-                 !stepData.passaporteFile && 
-                 !stepData.guiaPagaFile &&
-                 !stepData.resultadoExameDnaFile &&
-                 !stepData.procuracaoAnexadaFile &&
-                 !stepData.peticaoAnexadaFile &&
-                 !stepData.processoAnexadoFile &&
-                 !stepData.documentosFinaisAnexadosFile &&
-                 !stepData.documentosProcessoFinalizadoFile && (
-                  <div className="text-center py-6 text-muted-foreground text-sm">
-                    Nenhum documento anexado ainda
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar */}
@@ -3410,6 +3286,23 @@ export default function AcaoCivelDetailPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingDocument ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* WhatsApp Notification Dialog */}
+      <AlertDialog open={whatsappDialogOpen} onOpenChange={setWhatsappDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Notificação WhatsApp</AlertDialogTitle>
+            <AlertDialogDescription>
+              {whatsappMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setWhatsappDialogOpen(false)}>
+              OK
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

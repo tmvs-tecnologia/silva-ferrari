@@ -83,7 +83,12 @@ export async function GET(request: NextRequest) {
       // Map database fields to frontend format
       const mappedRecord = mapDbFieldsToFrontend(record);
 
-      return NextResponse.json(mappedRecord, { status: 200 });
+      return NextResponse.json(mappedRecord, { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8'
+        }
+      });
     }
 
     // List with pagination, search, and filters
@@ -126,7 +131,12 @@ export async function GET(request: NextRequest) {
     // Map database fields to frontend format
     const mappedResults = (results || []).map(mapDbFieldsToFrontend);
 
-    return NextResponse.json(mappedResults, { status: 200 });
+    return NextResponse.json(mappedResults, { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      }
+    });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json({ 
@@ -271,7 +281,12 @@ export async function POST(request: NextRequest) {
       // Don't fail the main operation if notification fails
     }
 
-    return NextResponse.json(newRecord, { status: 201 });
+    return NextResponse.json(newRecord, { 
+      status: 201,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      }
+    });
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json({ 
@@ -427,7 +442,12 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(updated, { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      }
+    });
   } catch (error) {
     console.error('PUT error:', error);
     return NextResponse.json({ 
