@@ -219,8 +219,8 @@ export default function AcoesCriminaisPage() {
 
   const handleCompleteStep = () => {
     if (pendingStepIndex !== null && caseData) {
-      setCaseData(prev => ({ ...prev, currentStep: pendingStepIndex }))
-      setExpandedSteps(prev => ({ ...prev, [pendingStepIndex]: true }))
+      setCaseData((prev: any) => ({ ...prev, currentStep: pendingStepIndex }))
+      setExpandedSteps((prev: { [key: number]: boolean }) => ({ ...prev, [pendingStepIndex]: true }))
     }
     setShowStepDialog(false)
     setPendingStepIndex(null)
