@@ -55,43 +55,6 @@ export async function GET(request: NextRequest) {
     );
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    // Single record by ID
-    if (id) {
-      if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ 
-          error: "Valid ID is required",
-          code: "INVALID_ID" 
-        }, { status: 400 });
-      }
-
-      const { data: record, error } = await supabase
-        .from('acoes_civeis')
-        .select('*')
-        .eq('id', parseInt(id))
-        .single();
-
-      if (error) {
-        console.error('Supabase error:', error);
-        return NextResponse.json({ 
-          error: 'Record not found',
-          code: 'NOT_FOUND'
-        }, { status: 404 });
-      }
-
-      // Map database fields to frontend format
-      const mappedRecord = mapDbFieldsToFrontend(record);
-
-      return NextResponse.json(mappedRecord, { 
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8'
-        }
-      });
-    }
-
-    // List with pagination, search, and filters
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '10'), 100);
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');

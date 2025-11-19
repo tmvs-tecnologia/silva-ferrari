@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ReactNode } from "react";
-import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Trash2 } from "lucide-react";
@@ -61,12 +60,7 @@ export function DetailLayout({ backHref, title, subtitle, onDelete, left, right 
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="px-6">
-              <div className="font-semibold">Fluxo do Processo</div>
-            </CardHeader>
-            {left}
-          </Card>
+          {left}
         </div>
         <div className="space-y-6">
           {right}

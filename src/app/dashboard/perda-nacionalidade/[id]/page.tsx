@@ -680,30 +680,22 @@ export default function PerdaNacionalidadeDetailPage() {
         subtitle="Processo de perda de nacionalidade brasileira"
         onDelete={handleDeleteCase}
         left={
-          <div className="space-y-6">
-            {/* Workflow Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Fluxo do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {WORKFLOW_STEPS.map((step, index) => (
-                  <StepItem
-                    key={step.id}
-                    index={step.id}
-                    title={step.title}
-                    description={step.description}
-                    isCurrent={false}
-                    isCompleted={completedSteps.includes(index)}
-                    isPending={false}
-                    expanded={expandedSteps.includes(index)}
-                    onToggle={() => toggleStep(index)}
-                  >
-                    {expandedSteps.includes(index) && renderStepContent(index)}
-                  </StepItem>
-                ))}
-              </CardContent>
-            </Card>
+          <div className="space-y-4">
+            {WORKFLOW_STEPS.map((step, index) => (
+              <StepItem
+                key={step.id}
+                index={step.id}
+                title={step.title}
+                description={step.description}
+                isCurrent={false}
+                isCompleted={completedSteps.includes(index)}
+                isPending={false}
+                expanded={expandedSteps.includes(index)}
+                onToggle={() => toggleStep(index)}
+              >
+                {expandedSteps.includes(index) && renderStepContent(index)}
+              </StepItem>
+            ))}
           </div>
         }
         right={

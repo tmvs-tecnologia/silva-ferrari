@@ -20,14 +20,24 @@ interface StepItemProps {
 export function StepItem({ index, title, isCurrent, isCompleted, isPending, expanded, onToggle, onMarkComplete, children }: StepItemProps) {
   return (
     <Collapsible>
-      <div className="flex items-start gap-3 p-4 rounded-lg transition-colors "
+      <div className="flex items-start gap-3 p-4 rounded-lg transition-colors relative"
         data-state={isCurrent ? "current" : isCompleted ? "completed" : "pending"}
       >
         <button
-          className="shrink-0 mt-0.5 hover:scale-110 transition-transform cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          className="shrink-0 mt-0.5 hover:scale-110 transition-transform cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 z-10 bg-transparent border-none p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
           title={isCurrent ? "Clique para marcar como concluído" : isCompleted ? "Concluído" : "Aguardando passo anterior"}
-          onClick={isCurrent ? onMarkComplete : undefined}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Botão clicado, isCurrent:', isCurrent, 'onMarkComplete:', !!onMarkComplete);
+            if (isCurrent && onMarkComplete) {
+              console.log('Marcando passo como completo:', index);
+              onMarkComplete();
+            }
+          }}
           disabled={!isCurrent}
+          type="button"
+          aria-label={isCurrent ? "Marcar passo como concluído" : isCompleted ? "Passo concluído" : "Aguardando passo anterior"}
         >
           {isCompleted ? (
             <CircleCheck className="h-6 w-6 text-green-600" />

@@ -30,6 +30,8 @@ interface DocumentPanelProps {
   onDocumentNameSave?: (documentId: string) => void;
   onDocumentNameKeyPress?: (e: React.KeyboardEvent, documentId: string) => void;
   onDocumentDoubleClick?: (document: Document) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
 }
 
 export function DocumentPanel({ 
@@ -47,14 +49,18 @@ export function DocumentPanel({
   onDocumentNameChange,
   onDocumentNameSave,
   onDocumentNameKeyPress,
-  onDocumentDoubleClick
+  onDocumentDoubleClick,
+  onDragOver,
+  onDragLeave
 }: DocumentPanelProps) {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    onDragOver?.(e);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
+    onDragLeave?.(e);
   };
 
   const handleDrop = (e: React.DragEvent) => {

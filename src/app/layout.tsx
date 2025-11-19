@@ -61,6 +61,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased force-light">
         <ErrorReporter />
+        {/* Temporarily disabled VisualEditsMessenger to test preview issues
         <Script
           src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/object/public/scripts//route-messenger.js"
           strategy="afterInteractive"
@@ -71,8 +72,11 @@ export default function RootLayout({
           data-debug="true"
           data-custom-data='{"appName": "YourApp", "version": "1.0.0", "greeting": "hi"}'
         />
+        */}
         {children}
+        {/* Temporarily disabled VisualEditsMessenger to test preview issues
         <VisualEditsMessenger />
+        */}
       </body>
     </html>
   );

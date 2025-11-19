@@ -12,10 +12,10 @@ import { ArrowLeft, CheckCircle2, Circle, Save, Trash2, FileUp, ChevronDown, Che
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DetailLayout } from "@/components/detail/DetailLayout";
-import { StepItem } from "@/components/detail/StepItem";
 import { StatusPanel } from "@/components/detail/StatusPanel";
 import { DocumentPanel } from "@/components/detail/DocumentPanel";
 import { NotesPanel } from "@/components/detail/NotesPanel";
+import { ProcessFlow } from "@/components/detail/ProcessFlow";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -127,16 +127,7 @@ const WORKFLOWS = {
   ],
 };
 
-// Custom step labels for Exame DNA
-const EXAME_DNA_STEP_LABELS = [
-  "Cadastro Documentos",
-  "Agendar Exame DNA",
-  "Elaboração Procuração",
-  "Aguardar procuração assinada",
-  "À Protocolar",
-  "Protocolado",
-  "Processo Finalizado",
-];
+// Workflow steps are now centralized in ProcessFlow component
 
 interface CaseData {
   id: string;
@@ -150,10 +141,12 @@ interface CaseData {
 }
 
 interface Document {
-  id: string;
-  name: string;
+  id: string | number;
+  document_name?: string;
+  file_name?: string;
   file_path: string;
   uploaded_at: string;
+  field_name?: string;
 }
 
 export default function CaseDetailPage() {
@@ -172,14 +165,14 @@ export default function CaseDetailPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | number | null>(null);
   const [editingDocumentName, setEditingDocumentName] = useState("");
 
   // Load case data
   useEffect(() => {
     const loadCase = async () => {
       try {
-        const response = await fetch(`/api/cases/${id}`);
+        const response = await fetch(`/api/acoes-civeis/${id}`);
         if (response.ok) {
           const data = await response.json();
           setCaseData(data);
@@ -223,7 +216,7 @@ export default function CaseDetailPage() {
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus);
     try {
-      const response = await fetch(`/api/cases/${id}/status`, {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
@@ -240,11 +233,9 @@ export default function CaseDetailPage() {
     setExpandedStep(expandedStep === stepIndex ? null : stepIndex);
   };
 
-  const handleCompleteStep = async (stepIndex: number, event: React.MouseEvent) => {
-    event.stopPropagation();
-    
+  const handleCompleteStep = async (stepIndex: number) => {
     try {
-      const response = await fetch(`/api/cases/${id}/step`, {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentStep: stepIndex + 1 }),
@@ -262,7 +253,7 @@ export default function CaseDetailPage() {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/cases/${id}`, {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -275,7 +266,7 @@ export default function CaseDetailPage() {
 
   const handleSaveNotes = async () => {
     try {
-      const response = await fetch(`/api/cases/${id}/notes`, {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes }),
@@ -288,11 +279,7 @@ export default function CaseDetailPage() {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
+  const handleDrop = async (files: File[]) => {
     if (files.length === 0) return;
 
     setUploadingFile(true);
@@ -319,6 +306,17 @@ export default function CaseDetailPage() {
     }
     
     setUploadingFile(false);
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleDocumentDownload = (document: Document) => {
@@ -359,7 +357,7 @@ export default function CaseDetailPage() {
       if (response.ok) {
         setDocuments(prev => prev.map(doc => 
           doc.id === editingDocumentId 
-            ? { ...doc, name: editingDocumentName }
+            ? { ...doc, document_name: editingDocumentName, file_name: editingDocumentName }
             : doc
         ));
         setEditingDocumentId(null);
@@ -381,7 +379,7 @@ export default function CaseDetailPage() {
 
   const handleDocumentDoubleClick = (document: Document) => {
     setEditingDocumentId(document.id);
-    setEditingDocumentName(document.name);
+    setEditingDocumentName(document.document_name || document.file_name || '');
   };
 
   const renderStepContent = (stepIndex: number) => {
@@ -483,31 +481,14 @@ export default function CaseDetailPage() {
         subtitle={caseData.type}
         onDelete={handleDelete}
         left={
-          <div className="space-y-6">
-            {/* Workflow Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Fluxo do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {workflow.map((step, index) => (
-                  <StepItem
-                    key={index}
-                    index={index}
-                    title={caseData.type === "Exame DNA" ? EXAME_DNA_STEP_LABELS[index] : `Passo ${index + 1}`}
-                    isCurrent={index === caseData.currentStep}
-                    isCompleted={index < caseData.currentStep}
-                    isPending={index > caseData.currentStep}
-                    expanded={expandedStep === index}
-                    onToggle={() => handleStepClick(index)}
-                    onMarkComplete={() => handleCompleteStep(index, new Event('click') as any)}
-                  >
-                    {renderStepContent(index)}
-                  </StepItem>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
+          <ProcessFlow
+            caseType={caseData.type}
+            currentStep={caseData.currentStep}
+            expandedStep={expandedStep}
+            onStepToggle={handleStepClick}
+            onStepComplete={handleCompleteStep}
+            renderStepContent={renderStepContent}
+          />
         }
         right={
           <div className="space-y-6">
@@ -537,6 +518,8 @@ export default function CaseDetailPage() {
               onDocumentNameSave={handleDocumentNameSave}
               onDocumentNameKeyPress={handleDocumentNameKeyPress}
               onDocumentDoubleClick={handleDocumentDoubleClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
             />
             
             <NotesPanel
@@ -554,7 +537,7 @@ export default function CaseDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o documento "{documentToDelete?.document_name || documentToDelete?.file_name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

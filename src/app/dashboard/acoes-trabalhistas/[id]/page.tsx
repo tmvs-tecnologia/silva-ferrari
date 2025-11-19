@@ -1005,30 +1005,22 @@ export default function AcaoTrabalhistaDetailPage() {
         subtitle="Ação Trabalhista"
         onDelete={handleDelete}
         left={
-          <div className="space-y-6">
-            {/* Workflow Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Fluxo do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {workflow.map((step, index) => (
-                  <StepItem
-                    key={index}
-                    index={index}
-                    title={step}
-                    isCurrent={index === caseData.currentStep}
-                    isCompleted={index < caseData.currentStep}
-                    isPending={index > caseData.currentStep}
-                    expanded={expandedStep === index}
-                    onToggle={() => handleStepClick(index)}
-                    onMarkComplete={() => handleCompleteStep(index, new Event('click') as any)}
-                  >
-                    {renderStepContent(index)}
-                  </StepItem>
-                ))}
-              </CardContent>
-            </Card>
+          <div className="space-y-4">
+            {workflow.map((step, index) => (
+              <StepItem
+                key={index}
+                index={index}
+                title={step}
+                isCurrent={index === caseData.currentStep}
+                isCompleted={index < caseData.currentStep}
+                isPending={index > caseData.currentStep}
+                expanded={expandedStep === index}
+                onToggle={() => handleStepClick(index)}
+                onMarkComplete={() => handleCompleteStep(index, new Event('click') as any)}
+              >
+                {renderStepContent(index)}
+              </StepItem>
+            ))}
           </div>
         }
         right={

@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Map database fields to frontend format
-    const mappedResults = (results || []).map(alert => ({
+    const mappedResults = (results || []).map((alert: any) => ({
       id: alert.id,
       message: alert.message,
       moduleType: alert.module_type,

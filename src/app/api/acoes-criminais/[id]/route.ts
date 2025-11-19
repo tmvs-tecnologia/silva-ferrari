@@ -4,6 +4,49 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { id } = await params;
+
+    // Validate ID
+    if (!id || isNaN(parseInt(id))) {
+      return NextResponse.json(
+        { error: 'Valid ID is required', code: 'INVALID_ID' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch the record
+    const { data, error } = await supabase
+      .from('acoes_criminais')
+      .select('*')
+      .eq('id', parseInt(id))
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Record not found', code: 'NOT_FOUND' },
+          { status: 404 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error('GET error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error') },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
