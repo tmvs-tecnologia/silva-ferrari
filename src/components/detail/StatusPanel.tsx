@@ -32,11 +32,6 @@ export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, c
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Passo Atual</label>
-          <div className="text-2xl font-bold">{currentStep + 1}</div>
-          <p className="text-xs text-muted-foreground">de {totalSteps} passos</p>
-        </div>
         {createdAt && (
           <div className="pt-2 border-t">
             <p className="text-xs text-muted-foreground">Criado em</p>

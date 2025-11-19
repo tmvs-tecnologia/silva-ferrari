@@ -159,6 +159,7 @@ export default function CompraVendaDetailsPage() {
         setStatus(pendingStatus);
         toast.success("Status atualizado com sucesso");
         setStatusDialogOpen(false);
+        setPendingStatus("");
       }
     } catch (error) {
       console.error("Error updating status:", error);
@@ -546,7 +547,7 @@ export default function CompraVendaDetailsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => { setPendingStatus(""); setStatusDialogOpen(false); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmStatusChange}>
               Confirmar
             </AlertDialogAction>
@@ -625,7 +626,7 @@ export default function CompraVendaDetailsPage() {
         right={
           <div className="space-y-6">
             <StatusPanel
-              status={status}
+              status={pendingStatus || status}
               onStatusChange={handleStatusChange}
               currentStep={currentStep}
               totalSteps={WORKFLOW_STEPS.length}
