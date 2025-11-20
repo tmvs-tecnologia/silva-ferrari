@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       cpf_comprador: body.cpfComprador ?? null,
       endereco_comprador: body.enderecoComprador ?? null,
       current_step: body.currentStep ?? 0,
-      status: body.status ?? 'Em andamento',
+      status: body.status ?? 'Em Andamento',
       prazo_sinal: body.prazoSinal ?? null,
       prazo_escritura: body.prazoEscritura ?? null,
       contract_notes: body.contractNotes ?? null,

@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       roteiro_viagem_doc: body.roteiroViagemDoc?.trim() || null,
       taxa: body.taxa?.trim() || null,
       taxa_doc: body.taxaDoc?.trim() || null,
-      status: body.status?.trim() || 'Em andamento',
+      status: body.status?.trim() || 'Em Andamento',
       notes: body.notes?.trim() || null,
     };
 

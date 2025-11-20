@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       client_name: clientName.trim(),
       type: type.trim(),
       current_step: currentStep !== undefined ? currentStep : 0,
-      status: status || 'Em andamento',
+      status: status || 'Em Andamento',
     };
 
     // Add optional fields if provided

@@ -42,8 +42,19 @@ export default function PerdaNacionalidadePage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   useEffect(() => {
-    // Prefetch disponível para navegação futura
-  }, []);
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'perda-nacionalidade-status-update') {
+        refetch();
+      }
+    };
+    const onCustom = () => refetch();
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('perda-nacionalidade-status-updated', onCustom as EventListener);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('perda-nacionalidade-status-updated', onCustom as EventListener);
+    };
+  }, [refetch]);
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch = c.clientName.toLowerCase().includes(search.toLowerCase());
@@ -92,6 +103,7 @@ export default function PerdaNacionalidadePage() {
     emAndamento: cases.filter(c => (c.status || "").toLowerCase() === "em andamento").length,
     deferido: cases.filter(c => (c.status || "").toLowerCase() === "deferido").length,
     ratificado: cases.filter(c => (c.status || "").toLowerCase() === "ratificado").length,
+    finalizado: cases.filter(c => (c.status || "").toLowerCase() === "ratificado").length,
   };
 
   return (

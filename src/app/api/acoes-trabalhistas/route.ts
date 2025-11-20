@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     // Prepare insert data
     const insertData: any = {
       client_name: clientName.trim(),
-      status: status || 'Em andamento',
+      status: status || 'Em Andamento',
     };
 
     if (notes !== undefined) {

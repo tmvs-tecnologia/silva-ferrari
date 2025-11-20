@@ -290,13 +290,19 @@ export default function PerdaNacionalidadeDetailPage() {
   const saveStatus = async (newStatus: string) => {
     setStatus(newStatus);
     try {
-      await fetch(`/api/perda-nacionalidade/${params.id}`, {
+      const res = await fetch(`/api/perda-nacionalidade/${params.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ status: newStatus, completedSteps }),
       });
+      if (res.ok && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('perda-nacionalidade-status-update', JSON.stringify({ id: params.id, status: newStatus, t: Date.now() }));
+          window.dispatchEvent(new CustomEvent('perda-nacionalidade-status-updated', { detail: { id: params.id, status: newStatus } }));
+        } catch {}
+      }
     } catch (error) {
       console.error("Erro ao salvar status:", error);
     }

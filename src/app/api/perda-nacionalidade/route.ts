@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       manifesto_doc: body.manifestoDoc?.trim() || null,
       portaria_doc: body.portariaDoc?.trim() || null,
       current_step: body.currentStep ?? 0,
-      status: body.status?.trim() || 'Em andamento',
+      status: body.status?.trim() || 'Em Andamento',
       notes: body.notes?.trim() || null,
     };
 
