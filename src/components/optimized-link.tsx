@@ -42,6 +42,7 @@ export function OptimizedLink({
     <Link
       href={href}
       className={className}
+      prefetch={false}
       onMouseEnter={handleMouseEnter}
       onClick={onClick}
       {...props}
