@@ -400,7 +400,28 @@ export default function CaseDetailPage() {
       case 0:
         return (
           <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
-            <h4 className="font-semibold text-slate-900">Documentos Necessários:</h4>
+            <h4 className="font-semibold text-slate-900">Cadastro de Documentos</h4>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Input value={caseData?.clientName || ""} readOnly className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Tipo de Ação</Label>
+                <Input value={caseData?.type || ""} readOnly className="bg-white" />
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <Input value={(caseData?.status || "").toLowerCase() === "em andamento" ? "Em andamento" : caseData?.status || ""} readOnly className="bg-white" />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>Observações</Label>
+                <Textarea value={notes || ""} readOnly className="bg-white" rows={3} />
+              </div>
+            </div>
+            <div className="border-t pt-4 space-y-2">
+              <h5 className="font-semibold text-slate-900">Anexos</h5>
+            </div>
             <div className="grid gap-3">
               <div className="flex items-center gap-2">
                 <Input type="file" className="flex-1" accept=".pdf,.jpg,.jpeg,.png" />
