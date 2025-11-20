@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
@@ -7,11 +7,11 @@ const supabaseAdmin = createClient(
 );
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { caseId: string } }
+  request: Request,
+  context: any
 ) {
   try {
-    const { caseId } = params;
+    const { caseId } = context.params;
     const { searchParams } = new URL(request.url);
     const moduleType = searchParams.get('moduleType') || 'acoes_civeis';
 
