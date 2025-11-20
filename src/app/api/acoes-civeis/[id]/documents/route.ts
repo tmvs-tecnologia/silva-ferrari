@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 // @ts-ignore - Supabase types will be resolved in production
 import { createClient } from "@supabase/supabase-js";
 
@@ -8,10 +8,10 @@ const supabase = createClient(
 );
 
 export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
-  const { id } = context.params;
+  const { id } = params;
   try {
 
     // Buscar documentos relacionados a esta ação cível
@@ -19,7 +19,7 @@ export async function GET(
       .from("documents")
       .select("*")
       .eq("module_type", "acoes_civeis")
-      .eq("record_id", id)
+      .eq("record_id", parseInt(id))
       .order("uploaded_at", { ascending: false });
 
     if (error) {
