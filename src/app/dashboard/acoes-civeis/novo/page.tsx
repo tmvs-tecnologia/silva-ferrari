@@ -18,6 +18,7 @@ import { ArrowLeft, Upload, X, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { DocumentPreview } from "@/components/ui/document-preview";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const CASE_TYPES = [
   "Exame DNA",
@@ -154,6 +155,9 @@ export default function NovaAcaoCivelPage() {
     camposExigencias: false,
   });
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<React.FormEvent | null>(null);
+
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -244,8 +248,7 @@ export default function NovaAcaoCivelPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doCreate = async () => {
 
     if (!formData.clientName || !formData.type) {
       toast.error("Por favor, preencha todos os campos obrigatórios");
@@ -283,6 +286,16 @@ export default function NovaAcaoCivelPage() {
       console.error("❌ Error creating case:", error);
       toast.error("Erro ao criar ação");
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.clientName || !formData.type) {
+      toast.error("Por favor, preencha todos os campos obrigatórios");
+      return;
+    }
+    setPendingSubmit(e);
+    setConfirmOpen(true);
   };
 
   // Helper to check if field should be shown
@@ -395,7 +408,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="rnmMaeDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.rnmMae ? "Enviando..." : "Upload Documento"}
@@ -452,7 +465,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="rnmPaiDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.rnmPai ? "Enviando..." : "Upload Documento"}
@@ -587,7 +600,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="rnmSupostoPaiDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.rnmSupostoPai ? "Enviando..." : "Upload Documento"}
@@ -641,7 +654,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="certidaoNascimentoDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.certidaoNascimento ? "Enviando..." : "Upload Documento"}
@@ -679,7 +692,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="comprovanteEnderecoDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.comprovanteEndereco ? "Enviando..." : "Upload Documento"}
@@ -717,7 +730,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="peticaoConjuntaDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.peticaoConjunta ? "Enviando..." : "Upload Documento"}
@@ -755,7 +768,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="termoPartilhasDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.termoPartilhas ? "Enviando..." : "Upload Documento"}
@@ -793,7 +806,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="guardaDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.guarda ? "Enviando..." : "Upload Documento"}
@@ -831,7 +844,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="procuracaoDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.procuracao ? "Enviando..." : "Upload Documento"}
@@ -869,7 +882,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="passaporteDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.passaporte ? "Enviando..." : "Upload Documento"}
@@ -907,7 +920,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="guiaPagaDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.guiaPaga ? "Enviando..." : "Upload Documento"}
@@ -945,7 +958,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="peticaoClienteDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.peticaoCliente ? "Enviando..." : "Upload Documento"}
@@ -983,7 +996,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="procuracaoClienteDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.procuracaoCliente ? "Enviando..." : "Upload Documento"}
@@ -1021,7 +1034,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="custasDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.custas ? "Enviando..." : "Upload Documento"}
@@ -1059,7 +1072,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="peticaoInicialDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.peticaoInicial ? "Enviando..." : "Upload Documento"}
@@ -1097,7 +1110,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="matriculaImovelDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.matriculaImovel ? "Enviando..." : "Upload Documento"}
@@ -1135,7 +1148,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="aguaLuzIptuDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.aguaLuzIptu ? "Enviando..." : "Upload Documento"}
@@ -1174,7 +1187,7 @@ export default function NovaAcaoCivelPage() {
                             />
                             <Label
                               htmlFor="camposExigenciasDoc"
-                              className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100 hover:text-slate-700"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.camposExigencias ? "Enviando..." : "Upload Documento"}
@@ -1218,6 +1231,20 @@ export default function NovaAcaoCivelPage() {
             </div>
           </CardContent>
         </Card>
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar criação da ação</AlertDialogTitle>
+              <AlertDialogDescription>
+                Criar ação para <span className="font-semibold">{formData.clientName}</span> do tipo <span className="font-semibold">{formData.type || '—'}</span>?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setConfirmOpen(false)}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => { setConfirmOpen(false); doCreate(); }}>Confirmar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </form>
     </div>
   );

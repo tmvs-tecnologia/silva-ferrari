@@ -100,11 +100,11 @@ export default function NovaCompraVendaPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações do Imóvel</CardTitle>
+        <Card className="border-2 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-slate-900 dark:to-slate-800 border-b">
+            <CardTitle className="text-2xl font-semibold">Informações do Imóvel</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8 p-8">
             {/* Property Info */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -115,6 +115,7 @@ export default function NovaCompraVendaPage() {
                   onChange={(e) =>
                     handleChange("numeroMatricula", e.target.value)
                   }
+                  className="h-12 border-2 focus:border-emerald-500"
                 />
               </div>
               <div className="space-y-2">
@@ -127,6 +128,7 @@ export default function NovaCompraVendaPage() {
                   onChange={(e) =>
                     handleChange("cadastroContribuinte", e.target.value)
                   }
+                  className="h-12 border-2 focus:border-emerald-500"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -137,6 +139,7 @@ export default function NovaCompraVendaPage() {
                   onChange={(e) =>
                     handleChange("enderecoImovel", e.target.value)
                   }
+                  className="h-12 border-2 focus:border-emerald-500"
                 />
               </div>
             </div>

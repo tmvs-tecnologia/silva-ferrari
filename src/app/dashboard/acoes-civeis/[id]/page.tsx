@@ -588,8 +588,21 @@ export default function CaseDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
+  return (
+    <div className="space-y-6">
+      {caseData && (
+        <Card className="border-2 shadow-md">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-slate-900 dark:to-slate-800 border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-semibold">{caseData.clientName}</CardTitle>
+              <Badge className="border-blue-200 text-blue-700">
+                {(caseData.status || '').toLowerCase() === 'em andamento' ? 'Em andamento' : caseData.status}
+              </Badge>
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">{caseData.type}</div>
+          </CardHeader>
+        </Card>
+      )}
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-96 w-full" />
       </div>

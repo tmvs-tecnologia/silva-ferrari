@@ -100,7 +100,7 @@ export default function NovoVistoPage() {
 
       <form onSubmit={handleSubmit}>
         <Card className="border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-primary to-primary border-b-2 border-primary">
+          <CardHeader className="bg-gradient-to-r from-cyan-50 to-cyan-100 dark:from-slate-900 dark:to-slate-800 border-b">
             <CardTitle className="text-2xl font-semibold text-foreground flex items-center gap-2">
               <span className="w-1 h-6 bg-primary rounded-full"></span>
               Informações do Visto
@@ -130,9 +130,9 @@ export default function NovoVistoPage() {
                   value={formData.type}
                   onValueChange={(value) => handleChange("type", value)}
                 >
-                  <SelectTrigger className="h-12 border-2 focus:border-primary">
-                    <SelectValue />
-                  </SelectTrigger>
+                <SelectTrigger className="h-12 border-2 focus:border-cyan-500">
+                  <SelectValue />
+                </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Turismo">Turismo</SelectItem>
                     <SelectItem value="Trabalho">Trabalho</SelectItem>
@@ -174,7 +174,7 @@ export default function NovoVistoPage() {
                             value={formData.cpf}
                             onChange={(e) => handleChange("cpf", e.target.value)}
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-primary"
+                          className="h-11 border-2 focus:border-cyan-500"
                           />
                         </div>
                         <div className="space-y-2">
@@ -184,7 +184,7 @@ export default function NovoVistoPage() {
                             value={formData.rnm}
                             onChange={(e) => handleChange("rnm", e.target.value)}
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-primary"
+                          className="h-11 border-2 focus:border-cyan-500"
                           />
                         </div>
                         <div className="space-y-2">
@@ -194,7 +194,7 @@ export default function NovoVistoPage() {
                             value={formData.passaporte}
                             onChange={(e) => handleChange("passaporte", e.target.value)}
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-primary"
+                          className="h-11 border-2 focus:border-cyan-500"
                           />
                         </div>
                         <div className="space-y-2">
@@ -208,7 +208,7 @@ export default function NovoVistoPage() {
                               handleChange("comprovanteEndereco", e.target.value)
                             }
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-primary"
+                          className="h-11 border-2 focus:border-cyan-500"
                           />
                         </div>
                       </div>
