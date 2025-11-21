@@ -40,23 +40,31 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [
-          acoesCiveisRes,
-          acoesTrabalhistasRes,
-          acoesCriminaisRes,
-          compraVendaRes,
-          perdaNacionalidadeRes,
-          vistosRes,
-          alertsRes,
-        ] = await Promise.all([
-          fetch("/api/acoes-civeis?limit=1000"),
-          fetch("/api/acoes-trabalhistas?limit=1000"),
-          fetch("/api/acoes-criminais?limit=1000"),
-          fetch("/api/compra-venda-imoveis?limit=1000"),
-          fetch("/api/perda-nacionalidade?limit=1000"),
-          fetch("/api/vistos?limit=1000"),
-          fetch("/api/alerts?isRead=false&limit=10"),
-        ]);
+        const endpoints = [
+          "/api/acoes-civeis?limit=1000",
+          "/api/acoes-trabalhistas?limit=1000",
+          "/api/acoes-criminais?limit=1000",
+          "/api/compra-venda-imoveis?limit=1000",
+          "/api/perda-nacionalidade?limit=1000",
+          "/api/vistos?limit=1000",
+          "/api/alerts?isRead=false&limit=10",
+        ];
+
+        const responses = await Promise.all(
+          endpoints.map((url) => fetch(url).catch(() => undefined))
+        );
+
+        const safeJson = async (res: Response | undefined) => {
+          if (!res) return [];
+          if (!res.ok) return [];
+          const ct = res.headers.get("content-type") || "";
+          if (!ct.includes("application/json")) return [];
+          try {
+            return await res.json();
+          } catch {
+            return [];
+          }
+        };
 
         const [
           acoesCiveis,
@@ -66,15 +74,7 @@ export default function DashboardPage() {
           perdaNacionalidade,
           vistos,
           alertsData,
-        ] = await Promise.all([
-          acoesCiveisRes.json(),
-          acoesTrabalhistasRes.json(),
-          acoesCriminaisRes.json(),
-          compraVendaRes.json(),
-          perdaNacionalidadeRes.json(),
-          vistosRes.json(),
-          alertsRes.json(),
-        ]);
+        ] = await Promise.all(responses.map((r) => safeJson(r)));
 
         setStats({
           acoesCiveis: acoesCiveis.length,
@@ -88,9 +88,12 @@ export default function DashboardPage() {
         setAlerts(alertsData);
         try {
           const totalRes = await fetch('/api/processos/count');
-          const totalJson = await totalRes.json();
           if (totalRes.ok) {
-            setTotalCount(totalJson.total ?? 0);
+            const ct = totalRes.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              const totalJson = await totalRes.json();
+              setTotalCount(totalJson.total ?? 0);
+            }
           }
         } catch (err) {
           console.error('Erro ao buscar total de processos:', err);
