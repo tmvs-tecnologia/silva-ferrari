@@ -482,6 +482,3 @@ export async function DELETE(request: NextRequest) {
     }, { status: 500 });
   }
 }
-    if (nomeMae !== undefined) insertData.nome_mae = nomeMae;
-    if (nomePaiRegistral !== undefined) insertData.nome_pai_registral = nomePaiRegistral;
-    if (nomeSupostoPai !== undefined) insertData.nome_suposto_pai = nomeSupostoPai;
