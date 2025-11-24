@@ -119,6 +119,7 @@ export default function AcaoTrabalhistaDetailPage() {
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [editingDocumentName, setEditingDocumentName] = useState("");
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
+  const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
 
   // Load case data
   useEffect(() => {
@@ -142,6 +143,45 @@ export default function AcaoTrabalhistaDetailPage() {
       loadCase();
     }
   }, [id]);
+
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/step-assignments?moduleType=acoes_trabalhistas&recordId=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+          (data || []).forEach((a: any) => { map[a.stepIndex] = { responsibleName: a.responsibleName, dueDate: a.dueDate }; });
+          setAssignments(map);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar assignments:", e);
+      }
+    };
+    loadAssignments();
+  }, [id]);
+
+  const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
+    try {
+      const res = await fetch(`/api/step-assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleType: "acoes_trabalhistas", recordId: id, stepIndex: index, responsibleName, dueDate })
+      });
+      if (res.ok) {
+        setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
+        return true;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error("Falha ao salvar assignment:", err);
+        return false;
+      }
+    } catch (e) {
+      console.error("Erro ao salvar assignment:", e);
+      return false;
+    }
+  };
 
   // Load documents
   useEffect(() => {
@@ -1022,6 +1062,8 @@ export default function AcaoTrabalhistaDetailPage() {
                 expanded={expandedStep === index}
                 onToggle={() => handleStepClick(index)}
                 onMarkComplete={() => handleCompleteStep(index, new Event('click') as any)}
+                assignment={assignments[index]}
+                onSaveAssignment={(a) => handleSaveAssignment(index, a.responsibleName, a.dueDate)}
               >
                 {renderStepContent(index)}
               </StepItem>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Eye, Clock, CheckCircle2, AlertCircle, Scale, Trash2 } from "lucide-react";
+import { Plus, Search, FileText, Eye, Clock, CheckCircle2, AlertCircle, Scale, Trash2, User, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingState } from "@/components/loading-state";
@@ -43,17 +45,26 @@ const CASE_TYPES = [
 ];
 
 export default function AcoesCiveisPage() {
+  const fetchCases = useCallback(async () => {
+    const response = await fetch("/api/acoes-civeis?limit=100");
+    return response.json();
+  }, []);
+
   const { data: casesData, isLoading, error, refetch } = useDataCache(
     "acoes-civeis",
-    async () => {
-      const response = await fetch("/api/acoes-civeis?limit=100");
-      return response.json();
-    }
+    fetchCases
   );
   const cases = Array.isArray(casesData) ? casesData : [];
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingCaseId, setEditingCaseId] = useState<number | null>(null);
+  const [editResponsibleName, setEditResponsibleName] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [caseAssignments, setCaseAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
 
   useEffect(() => {
     // Only set up event listeners on the client side
@@ -91,6 +102,45 @@ export default function AcoesCiveisPage() {
     }
   }, [refetch]);
 
+  const lastAssignmentIdsRef = useRef<string>("");
+  useEffect(() => {
+    const ids = cases.map((c: any) => c.id).join(",");
+    if (ids === lastAssignmentIdsRef.current) return;
+    if (isTypeOpen || isStatusOpen) return;
+    lastAssignmentIdsRef.current = ids;
+
+    const loadAssignments = async () => {
+      const entries = await Promise.all(
+        cases.map(async (c: any) => {
+          try {
+            const res = await fetch(`/api/step-assignments?moduleType=acoes_civeis&recordId=${c.id}&stepIndex=${c.currentStep}`);
+            if (!res.ok) return [c.id, null] as const;
+            const data = await res.json();
+            const item = Array.isArray(data) ? (data[0] || null) : data;
+            return [c.id, item ? { responsibleName: item.responsibleName, dueDate: item.dueDate } : null] as const;
+          } catch {
+            return [c.id, null] as const;
+          }
+        })
+      );
+      const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+      for (const [id, a] of entries) {
+        if (a) map[id] = a;
+      }
+      const nextStr = JSON.stringify(map);
+      const prevStr = JSON.stringify(caseAssignments);
+      if (nextStr !== prevStr) {
+        setCaseAssignments(map);
+      }
+    };
+
+    if (cases.length > 0) {
+      loadAssignments();
+    } else {
+      setCaseAssignments({});
+    }
+  }, [cases, isTypeOpen, isStatusOpen]);
+
   const filteredCases = cases.filter((c) => {
     const matchesSearch = c.clientName.toLowerCase().includes(search.toLowerCase());
     const matchesType = typeFilter === "all" || c.type === typeFilter;
@@ -102,6 +152,29 @@ export default function AcoesCiveisPage() {
     total: cases.length,
     emAndamento: cases.filter(c => (c.status || "").toLowerCase() === "em andamento").length,
     finalizado: cases.filter(c => (c.status || "").toLowerCase() === "finalizado").length,
+  };
+
+  const getStepTitle = (type: string, index: number) => {
+    const standard = [
+      "Cadastro de Informações",
+      "Agendar Exame DNA",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "À Protocolar",
+      "Protocolado",
+      "Processo Finalizado",
+    ];
+    const exameDna = [
+      "Cadastro Documentos",
+      "Agendar Exame DNA",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "À Protocolar",
+      "Protocolado",
+      "Processo Finalizado",
+    ];
+    const steps = type === "Exame DNA" ? exameDna : standard;
+    return steps[index] ?? `Passo ${index}`;
   };
 
   const getStatusColor = (status: string) => {
@@ -130,7 +203,7 @@ export default function AcoesCiveisPage() {
 
   const normalizeStatusLabel = (status: string) => {
     const s = (status || "").toLowerCase();
-    if (s === "em andamento") return "Em andamento";
+    if (s === "em andamento") return "Em Andamento";
     if (s === "finalizado") return "Finalizado";
     return status;
   };
@@ -170,12 +243,14 @@ export default function AcoesCiveisPage() {
               </div>
             </div>
           </div>
-          <Link href="/dashboard/acoes-civeis/novo">
-            <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
-              <Plus className="h-5 w-5 mr-2" />
-              Nova Ação
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/acoes-civeis/novo">
+              <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
+                <Plus className="h-5 w-5 mr-2" />
+                Nova Ação
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Cards de estatísticas */}
@@ -239,7 +314,7 @@ export default function AcoesCiveisPage() {
                 className="pl-9 border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={setTypeFilter} open={isTypeOpen} onOpenChange={setIsTypeOpen}>
               <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
                 <SelectValue placeholder="Tipo de ação" />
               </SelectTrigger>
@@ -252,13 +327,13 @@ export default function AcoesCiveisPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={setStatusFilter} open={isStatusOpen} onOpenChange={setIsStatusOpen}>
               <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="Em andamento">Em andamento</SelectItem>
+              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
               <SelectItem value="Finalizado">Finalizado</SelectItem>
               </SelectContent>
             </Select>
@@ -364,38 +439,34 @@ export default function AcoesCiveisPage() {
                         </Badge>
                       </div>
 
-                      <div className="flex items-center gap-6 text-sm flex-wrap">
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <div className="p-1.5 bg-purple-100 dark:bg-purple-900 rounded">
-                            <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <span className="font-medium">Tipo: {caseItem.type}</span>
+                      <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                          <span className="font-medium">Tipo de ação:</span>
+                          <span>{caseItem.type}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded">
-                            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <span className="font-medium">Passo {caseItem.currentStep}</span>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                          <span className="font-medium">Fluxo atual:</span>
+                          <span>{getStepTitle(caseItem.type, caseItem.currentStep)}</span>
                         </div>
-                        
-                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <div className="p-1.5 bg-slate-100 dark:bg-slate-700 rounded">
-                            <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                          </div>
-                          <span>
-                            {new Date(caseItem.createdAt).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "long",
-                              year: "numeric"
-                            })}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                          <span className="font-medium">Responsável:</span>
+                          <span>{caseAssignments[caseItem.id]?.responsibleName || "—"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                          <span className="font-medium">Prazo:</span>
+                          <span>{caseAssignments[caseItem.id]?.dueDate ? new Date(caseAssignments[caseItem.id]!.dueDate!).toLocaleDateString("pt-BR") : "—"}</span>
                         </div>
                       </div>
 
+                      
+
                       {caseItem.notes && (
                         <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                          {caseItem.notes}
+                          {`Observações: ${caseItem.notes}`}
                         </p>
                       )}
                     </div>
@@ -406,6 +477,68 @@ export default function AcoesCiveisPage() {
           ))
         )}
       </div>
+
+      <AlertDialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <AlertDialogContent className="sm:max-w-[380px] p-4">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base">Editar responsável/prazo</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Atualize o responsável pela tarefa e a data limite.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Responsável</Label>
+              <Input className="h-8 text-sm" value={editResponsibleName} onChange={(e) => setEditResponsibleName(e.target.value)} placeholder="Nome do responsável" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Prazo</Label>
+              <Input className="h-8 text-sm" type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 px-3 text-sm">Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="h-8 px-3 text-sm" onClick={handleUpdateAssignment}>Salvar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+  const openEditAssignment = (cid: number) => {
+    setEditingCaseId(cid);
+    const a = caseAssignments[cid];
+    setEditResponsibleName(a?.responsibleName || "");
+    setEditDueDate(a?.dueDate ? new Date(a.dueDate).toISOString().slice(0, 10) : "");
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateAssignment = async () => {
+    if (!editingCaseId) return;
+    const c = cases.find((x: any) => x.id === editingCaseId);
+    const stepIndex = c?.currentStep ?? 0;
+    try {
+      const res = await fetch('/api/step-assignments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          moduleType: 'acoes_civeis',
+          recordId: editingCaseId,
+          stepIndex,
+          responsibleName: editResponsibleName,
+          dueDate: editDueDate || null,
+        })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setCaseAssignments(prev => ({
+          ...prev,
+          [editingCaseId]: {
+            responsibleName: updated.responsibleName,
+            dueDate: updated.dueDate,
+          }
+        }));
+        setIsEditOpen(false);
+      }
+    } catch {}
+  };

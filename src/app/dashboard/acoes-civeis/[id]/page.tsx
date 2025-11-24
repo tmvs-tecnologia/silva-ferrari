@@ -52,12 +52,13 @@ const WORKFLOWS = {
     "Processo Finalizado",
   ],
   "Alteração de Nome": [
-    "Cadastro dos Documentos",
-    "Fazer Procuração (WENDEL/GUILHERME/FÁBIO)",
-    "Enviar Procuração (JESSICA → JAILDA)",
-    "Petição (WENDEL/GUILHERME/FÁBIO)",
-    "Protocolar Processo (WENDEL/GUILHERME/FÁBIO)",
-    "Exigências do Juiz",
+    "Cadastro Documentos",
+    "Emissão da Guia Judicial",
+    "Elaboração Procuração",
+    "Aguardar procuração assinada",
+    "Peticionar",
+    "À Protocolar",
+    "Processo Protocolado",
     "Processo Finalizado",
   ],
   "Guarda": [
@@ -150,6 +151,7 @@ interface CaseData {
   comprovanteEndereco?: string;
   passaporte?: string;
   numeroProtocolo?: string;
+  dataExameDna?: string;
 }
 
 interface Document {
@@ -168,7 +170,7 @@ export default function CaseDetailPage() {
 
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState("Em andamento");
+  const [status, setStatus] = useState("Em Andamento");
   const [notes, setNotes] = useState("");
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -179,6 +181,10 @@ export default function CaseDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | number | null>(null);
   const [editingDocumentName, setEditingDocumentName] = useState("");
+  const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
+  const [stepObservations, setStepObservations] = useState<Record<number, string>>({});
+  const [dnaExamDate, setDnaExamDate] = useState("");
+  const [dnaExamTime, setDnaExamTime] = useState("");
 
   // Load case data
   useEffect(() => {
@@ -188,7 +194,7 @@ export default function CaseDetailPage() {
         if (response.ok) {
           const data = await response.json();
           setCaseData(data);
-          setStatus(data.status || "Em andamento");
+          setStatus(data.status || "Em Andamento");
           setNotes(data.notes || "");
         }
       } catch (error) {
@@ -201,6 +207,24 @@ export default function CaseDetailPage() {
     if (id) {
       loadCase();
     }
+  }, [id]);
+
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/step-assignments?moduleType=acoes_civeis&recordId=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+          (data || []).forEach((a: any) => { map[a.stepIndex] = { responsibleName: a.responsibleName, dueDate: a.dueDate }; });
+          setAssignments(map);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar assignments:", e);
+      }
+    };
+    loadAssignments();
   }, [id]);
 
   // Load documents
@@ -225,8 +249,25 @@ export default function CaseDetailPage() {
     loadDocuments();
   }, [id]);
 
+  const refreshDocuments = async () => {
+    if (!id) return;
+    setLoadingDocuments(true);
+    try {
+      const response = await fetch(`/api/documents/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar documentos:", error);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus);
+    setCaseData(prev => prev ? { ...prev, status: newStatus } : prev);
     try {
       const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
@@ -265,6 +306,45 @@ export default function CaseDetailPage() {
       }
     } catch (error) {
       console.error("Erro ao atualizar etapa:", error);
+    }
+  };
+
+  const handleUncompleteStep = async (stepIndex: number) => {
+    try {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStep: stepIndex }),
+      });
+      if (response.ok) {
+        const updatedCase = { ...caseData!, currentStep: stepIndex };
+        setCaseData(updatedCase);
+        setExpandedStep(null);
+      }
+    } catch (error) {
+      console.error("Erro ao desfazer conclusão da etapa:", error);
+    }
+  };
+
+
+  const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
+    try {
+      const res = await fetch(`/api/step-assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleType: "acoes_civeis", recordId: id, stepIndex: index, responsibleName, dueDate })
+      });
+      if (res.ok) {
+        setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
+        return true;
+      } else {
+        const err = await safeJson(res);
+        console.error("Falha ao salvar assignment:", err);
+        return false;
+      }
+    } catch (e) {
+      console.error("Erro ao salvar assignment:", e);
+      return false;
     }
   };
 
@@ -326,6 +406,30 @@ export default function CaseDetailPage() {
     setIsDragOver(false);
   };
 
+  const uploadCaseFile = async (file: File, fieldName: string) => {
+    if (!file) return;
+    setUploadingFile(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("caseId", id);
+    formData.append("fieldName", fieldName);
+    formData.append("clientName", caseData?.clientName || "");
+    formData.append("moduleType", "acoes_civeis");
+    try {
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (response.ok) {
+        await refreshDocuments();
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload do arquivo:", error);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(true);
@@ -334,6 +438,61 @@ export default function CaseDetailPage() {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+  };
+
+  const handleDnaResultUpload = async (file: File) => {
+    if (!file) return;
+    setUploadingFile(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("caseId", id);
+    formData.append("fieldName", "resultadoExameDnaFile");
+    formData.append("clientName", caseData?.clientName || "");
+    formData.append("moduleType", "acoes_civeis");
+    try {
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (response.ok) {
+        const result = await response.json();
+        if (result?.fileUrl) {
+          setDocuments(prev => [...prev, {
+            id: result.document?.id,
+            module_type: "acoes_civeis",
+            record_id: parseInt(id),
+            client_name: caseData?.clientName || "",
+            field_name: "resultadoExameDnaFile",
+            document_name: "Resultado do Exame de DNA",
+            file_name: result.fileName,
+            file_path: result.fileUrl,
+            file_type: file.type,
+            file_size: file.size,
+            uploaded_at: new Date().toISOString(),
+          } as any]);
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload do exame de DNA:", error);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleSaveDnaSchedule = async () => {
+    const combined = dnaExamDate && dnaExamTime ? `${dnaExamDate} ${dnaExamTime}` : dnaExamDate || "";
+    try {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataExameDna: combined }),
+      });
+      if (response.ok) {
+        setCaseData(prev => prev ? { ...prev, dataExameDna: combined } : prev);
+      }
+    } catch (error) {
+      console.error("Erro ao salvar agendamento do exame de DNA:", error);
+    }
   };
 
   const handleDocumentDownload = (document: Document) => {
@@ -399,14 +558,67 @@ export default function CaseDetailPage() {
     setEditingDocumentName(document.document_name || document.file_name || '');
   };
 
+  const getProcessFlowSteps = (type: string) => {
+    const STANDARD_CIVIL_STEPS = [
+      "Cadastro Documentos",
+      "Agendar Exame DNA",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "À Protocolar",
+      "Processo Protocolado",
+      "Processo Finalizado",
+    ];
+    const EXAME_DNA_STEPS = [
+      "Cadastro Documentos",
+      "Agendar Exame DNA",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "À Protocolar",
+      "Processo Protocolado",
+      "Processo Finalizado",
+    ];
+    const ALTERACAO_NOME_STEPS = [
+      "Cadastro Documentos",
+      "Emissão da Guia Judicial",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "Peticionar",
+      "À Protocolar",
+      "Processo Protocolado",
+      "Processo Finalizado",
+    ];
+    return type === "Exame DNA" ? EXAME_DNA_STEPS : type === "Alteração de Nome" ? ALTERACAO_NOME_STEPS : STANDARD_CIVIL_STEPS;
+  };
+
+  const handleObservationChange = (index: number, value: string) => {
+    setStepObservations(prev => ({ ...prev, [index]: value }));
+  };
+
+  const handleSaveStepObservation = async (index: number) => {
+    const stepTitle = getProcessFlowSteps(caseData?.type || "")[index] || `Etapa ${index + 1}`;
+    const currentText = stepObservations[index] || "";
+    const existing = notes || "";
+    const divider = existing ? "\n" : "";
+    const newNotes = `${existing}${divider}[${stepTitle}] ${currentText}`;
+    setNotes(newNotes);
+    try {
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: newNotes }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCaseData(prev => prev ? { ...prev, notes: data.notes } : prev);
+      }
+    } catch (error) {
+      console.error("Erro ao salvar observações da etapa:", error);
+    }
+  };
+
   const renderStepContent = (stepIndex: number) => {
     const isCurrent = stepIndex === caseData?.currentStep;
     const isCompleted = stepIndex < (caseData?.currentStep || 0);
-    
-    // Only render content for current and completed steps
-    if (!isCurrent && !isCompleted) {
-      return null;
-    }
 
     switch (stepIndex) {
       case 0:
@@ -421,14 +633,6 @@ export default function CaseDetailPage() {
               <div className="space-y-1">
                 <Label>Tipo de Ação</Label>
                 <Input value={caseData?.type || ""} readOnly className="bg-white" />
-              </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Input value={(caseData?.status || "").toLowerCase() === "em andamento" ? "Em andamento" : caseData?.status || ""} readOnly className="bg-white" />
-              </div>
-              <div className="space-y-1 md:col-span-2">
-                <Label>Observações</Label>
-                <Textarea value={notes || ""} readOnly className="bg-white" rows={3} />
               </div>
               {caseData?.rnmMae !== undefined && (
                 <div className="space-y-1">
@@ -503,35 +707,20 @@ export default function CaseDetailPage() {
                 </div>
               )}
             </div>
-            <div className="border-t pt-4 space-y-2">
-              <h5 className="font-semibold text-slate-900">Anexos</h5>
-              <div className="space-y-2">
-                {documents.length === 0 ? (
-                  <p className="text-sm text-slate-600">Nenhum documento anexado ainda.</p>
-                ) : (
-                  documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-2 border rounded-md bg-white">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-slate-600" />
-                        <span className="text-sm font-medium">{doc.document_name || doc.file_name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleDocumentDownload(doc as any)}>
-                          <Download className="h-4 w-4 mr-1" /> Download
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
             <div className="grid gap-3">
               <div className="flex items-center gap-2">
-                <Input type="file" className="flex-1" accept=".pdf,.jpg,.jpeg,.png" />
-                <Button size="sm" className="bg-slate-900 text-white hover:bg-slate-800">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Anexar
-                </Button>
+                <Input
+                  type="file"
+                  className="flex-1"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  aria-label="Selecionar arquivo para anexar"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) {
+                      handleDrop([f]);
+                    }
+                  }}
+                />
               </div>
               <p className="text-sm text-slate-600">Formatos aceitos: PDF, JPG, PNG</p>
             </div>
@@ -546,15 +735,76 @@ export default function CaseDetailPage() {
               <div className="grid gap-3">
                 <div>
                   <Label>Data do Exame</Label>
-                  <Input type="date" className="bg-white" />
+                  <Input type="date" className="bg-white" value={dnaExamDate} onChange={(e) => setDnaExamDate(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Hora do Exame</Label>
+                  <Input type="time" className="bg-white" value={dnaExamTime} onChange={(e) => setDnaExamTime(e.target.value)} />
                 </div>
                 <div>
                   <Label>Local do Exame</Label>
                   <Input type="text" placeholder="Nome do laboratório" className="bg-white" />
                 </div>
                 <div>
+                  <Label>Arquivo do Exame de DNA</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="bg-white"
+                    aria-label="Selecionar arquivo do exame de DNA"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleDnaResultUpload(f);
+                    }}
+                  />
+                </div>
+                <div>
                   <Label>Observações</Label>
                   <Textarea placeholder="Informações adicionais sobre o agendamento..." className="bg-white" rows={3} />
+                </div>
+                <div>
+                  <Button onClick={handleSaveDnaSchedule}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Agendamento
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        if (caseData?.type === "Alteração de Nome") {
+          return (
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900">Emissão da Guia Judicial</h4>
+              <div className="grid gap-3">
+                <div>
+                  <Label>Guia Judicial</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="bg-white"
+                    aria-label="Selecionar arquivo da guia judicial"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'guiaPagaFile');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Informações sobre a guia judicial..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[1] || ''}
+                    onChange={(e) => handleObservationChange(1, e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Button onClick={() => handleSaveStepObservation(1)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
                 </div>
               </div>
             </div>
@@ -567,6 +817,360 @@ export default function CaseDetailPage() {
           </div>
         );
       
+      case 2:
+        return (
+          <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+            <h4 className="font-semibold text-slate-900">Elaboração Procuração</h4>
+            <div className="grid gap-3">
+              <div>
+                <Label>Procuração</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  className="bg-white"
+                  aria-label="Selecionar arquivo de procuração"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadCaseFile(f, 'procuracaoAnexadaFile');
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+            <h4 className="font-semibold text-slate-900">Aguardar Procuração Assinada</h4>
+            <div className="grid gap-3">
+              <div>
+                <Label>Procuração Assinada</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  className="bg-white"
+                  aria-label="Selecionar arquivo da procuração assinada"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadCaseFile(f, 'procuracaoAnexadaFile');
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4:
+        if (caseData?.type === "Alteração de Nome") {
+          return (
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900">Peticionar</h4>
+              <div className="grid gap-3">
+                <div>
+                  <Label>Petição</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="bg-white"
+                    aria-label="Selecionar arquivo da petição"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'peticaoAnexadaFile');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Adicione observações sobre esta etapa..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[4] || ''}
+                    onChange={(e) => handleObservationChange(4, e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Button onClick={() => handleSaveStepObservation(4)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+            <h4 className="font-semibold text-slate-900">À Protocolar</h4>
+            <div className="grid gap-3">
+              <div>
+                <Label>Processo</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="bg-white"
+                  aria-label="Selecionar arquivo do processo"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadCaseFile(f, 'processoAnexadoFile');
+                  }}
+                />
+              </div>
+              <div>
+                <Label>Observações</Label>
+                <Textarea
+                  placeholder="Adicione observações sobre esta etapa..."
+                  className="bg-white"
+                  rows={3}
+                  value={stepObservations[4] || ''}
+                  onChange={(e) => handleObservationChange(4, e.target.value)}
+                />
+              </div>
+              <div>
+                <Button onClick={() => handleSaveStepObservation(4)}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Observações
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 5:
+        if (caseData?.type === "Alteração de Nome") {
+          return (
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900">À Protocolar</h4>
+              <div className="grid gap-3">
+                <div>
+                  <Label>Processo</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="bg-white"
+                    aria-label="Selecionar arquivo do processo"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'processoAnexadoFile');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Adicione observações sobre esta etapa..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[5] || ''}
+                    onChange={(e) => handleObservationChange(5, e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Button onClick={() => handleSaveStepObservation(5)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+            <h4 className="font-semibold text-slate-900">Protocolado</h4>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Label>Documento Protocolado</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="bg-white"
+                  aria-label="Selecionar documento protocolado"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadCaseFile(f, 'processoAnexadoFile');
+                  }}
+                />
+              </div>
+              <div>
+                <Label>Número do Protocolo</Label>
+                <Input
+                  type="text"
+                  placeholder="Digite o número do protocolo"
+                  className="bg-white"
+                  value={String(caseData?.numeroProtocolo || '')}
+                  onChange={(e) => setCaseData(prev => prev ? { ...prev, numeroProtocolo: e.target.value } : prev)}
+                  onBlur={async (e) => {
+                    try {
+                      await fetch(`/api/acoes-civeis/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ numeroProtocolo: e.target.value }),
+                      });
+                    } catch (error) {
+                      console.error('Erro ao salvar número de protocolo:', error);
+                    }
+                  }}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Observações</Label>
+                <Textarea
+                  placeholder="Adicione observações sobre esta etapa..."
+                  className="bg-white"
+                  rows={3}
+                  value={stepObservations[5] || ''}
+                  onChange={(e) => handleObservationChange(5, e.target.value)}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Button onClick={() => handleSaveStepObservation(5)}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Observações
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6:
+        if (caseData?.type === "Alteração de Nome") {
+          return (
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900">Processo Protocolado</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <Label>Documento Protocolado</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="bg-white"
+                    aria-label="Selecionar documento protocolado"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'processoAnexadoFile');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Número do Protocolo</Label>
+                  <Input
+                    type="text"
+                    placeholder="Digite o número do protocolo"
+                    className="bg-white"
+                    value={String(caseData?.numeroProtocolo || '')}
+                    onChange={(e) => setCaseData(prev => prev ? { ...prev, numeroProtocolo: e.target.value } : prev)}
+                    onBlur={async (e) => {
+                      try {
+                        await fetch(`/api/acoes-civeis/${id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ numeroProtocolo: e.target.value }),
+                        });
+                      } catch (error) {
+                        console.error('Erro ao salvar número de protocolo:', error);
+                      }
+                    }}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Adicione observações sobre esta etapa..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[6] || ''}
+                    onChange={(e) => handleObservationChange(6, e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Button onClick={() => handleSaveStepObservation(6)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+            <h4 className="font-semibold text-slate-900">Processo Finalizado</h4>
+            <div className="grid gap-3">
+              <div>
+                <Label>Documento Final</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  className="bg-white"
+                  aria-label="Selecionar documento de finalização"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadCaseFile(f, 'documentosProcessoFinalizadoFile');
+                  }}
+                />
+              </div>
+              <div>
+                <Label>Observações</Label>
+                <Textarea
+                  placeholder="Adicione observações sobre a finalização..."
+                  className="bg-white"
+                  rows={3}
+                  value={stepObservations[6] || ''}
+                  onChange={(e) => handleObservationChange(6, e.target.value)}
+                />
+              </div>
+              <div>
+                <Button onClick={() => handleSaveStepObservation(6)}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Observações
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 7:
+        if (caseData?.type === "Alteração de Nome") {
+          return (
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <h4 className="font-semibold text-slate-900">Processo Finalizado</h4>
+              <div className="grid gap-3">
+                <div>
+                  <Label>Documento Final</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="bg-white"
+                    aria-label="Selecionar documento de finalização"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'documentosProcessoFinalizadoFile');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Adicione observações sobre a finalização..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[7] || ''}
+                    onChange={(e) => handleObservationChange(7, e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Button onClick={() => handleSaveStepObservation(7)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
       default:
         return (
           <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
@@ -596,7 +1200,7 @@ export default function CaseDetailPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl font-semibold">{caseData.clientName}</CardTitle>
               <Badge className="border-blue-200 text-blue-700">
-                {(caseData.status || '').toLowerCase() === 'em andamento' ? 'Em andamento' : caseData.status}
+                {(caseData.status || '').toLowerCase() === 'em andamento' ? 'Em Andamento' : caseData.status}
               </Badge>
             </div>
             <div className="text-sm text-muted-foreground mt-1">{caseData.type}</div>
@@ -623,21 +1227,24 @@ export default function CaseDetailPage() {
         subtitle={caseData.type}
         onDelete={handleDelete}
         left={
-          <ProcessFlow
-            caseType={caseData.type}
-            currentStep={caseData.currentStep}
-            expandedStep={expandedStep}
-            onStepToggle={handleStepClick}
-            onStepComplete={handleCompleteStep}
-            renderStepContent={renderStepContent}
-          />
+            <ProcessFlow
+              caseType={caseData.type}
+              currentStep={caseData.currentStep}
+              expandedStep={expandedStep}
+              onStepToggle={handleStepClick}
+              onStepComplete={handleCompleteStep}
+              onStepUncomplete={handleUncompleteStep}
+              renderStepContent={renderStepContent}
+              assignments={assignments}
+              onSaveAssignment={handleSaveAssignment}
+            />
         }
         right={
           <div className="space-y-6">
             <StatusPanel
               status={status}
               onStatusChange={handleStatusChange}
-              currentStep={caseData.currentStep + 1}
+              currentStep={(caseData.currentStep ?? 0) + 1}
               totalSteps={workflow.length}
               createdAt={caseData.createdAt}
               updatedAt={caseData.updatedAt}

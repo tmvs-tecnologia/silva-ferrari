@@ -8,6 +8,7 @@ function mapDbFieldsToFrontend(record: any) {
   return {
     id: record.id,
     clientName: record.client_name,
+    currentStep: record.current_step,
     status: record.status,
     notes: record.notes,
     createdAt: record.created_at,
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
         }, { status: 404 });
       }
 
-      return NextResponse.json(record, { status: 200 });
+      return NextResponse.json(mapDbFieldsToFrontend(record), { status: 200 });
     }
 
     // List with pagination, search, and filters
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     );
 
     const body = await request.json();
-    const { clientName, status, notes } = body;
+    const { clientName, status, notes, currentStep } = body;
 
     // Validate required fields
     if (!clientName || clientName.trim() === '') {
@@ -119,6 +120,7 @@ export async function POST(request: NextRequest) {
     const insertData: any = {
       client_name: clientName.trim(),
       status: status || 'Em Andamento',
+      current_step: currentStep !== undefined ? currentStep : 0,
     };
 
     if (notes !== undefined) {
@@ -138,8 +140,21 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-    return NextResponse.json(newRecord, { status: 201 });
+    try {
+      await supabase
+        .from('alerts')
+        .insert({
+          module_type: 'acoes_trabalhistas',
+          record_id: newRecord.id,
+          alert_for: 'admin',
+          message: `Nova ação trabalhista criada: ${clientName.trim()}`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+    } catch {}
 
+    return NextResponse.json(mapDbFieldsToFrontend(newRecord), { status: 201 });
+  
   } catch (error) {
     console.error('POST error:', error);
     return NextResponse.json({ 
@@ -168,12 +183,12 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { clientName, status, notes } = body;
+    const { clientName, status, notes, currentStep } = body;
 
     // Check if record exists
     const { data: existing, error: existingError } = await supabase
       .from('acoes_trabalhistas')
-      .select('id')
+      .select('id, current_step, client_name')
       .eq('id', parseInt(id))
       .single();
 
@@ -205,6 +220,10 @@ export async function PUT(request: NextRequest) {
       updateData.notes = notes;
     }
 
+    if (currentStep !== undefined) {
+      updateData.current_step = currentStep;
+    }
+
     // Perform update
     const { data: updated, error } = await supabase
       .from('acoes_trabalhistas')
@@ -220,7 +239,22 @@ export async function PUT(request: NextRequest) {
       }, { status: 500 });
     }
 
-    return NextResponse.json(updated, { status: 200 });
+    if (currentStep !== undefined && typeof existing?.current_step === 'number' && currentStep > existing.current_step) {
+      try {
+        await supabase
+          .from('alerts')
+          .insert({
+            module_type: 'acoes_trabalhistas',
+            record_id: parseInt(id),
+            alert_for: 'admin',
+            message: `Passo ${currentStep} concluído para: ${existing.client_name}`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+      } catch {}
+    }
+
+    return NextResponse.json(mapDbFieldsToFrontend(updated), { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);

@@ -154,11 +154,26 @@ export default function VistoDetailsPage() {
 
   // Estados para uploads de arquivos específicos
   const [fileUploads, setFileUploads] = useState<{ [key: string]: File | null }>({});
+  const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
 
   useEffect(() => {
     if (params.id) {
       fetchCaseData();
       fetchDocuments();
+      const loadAssignments = async () => {
+        try {
+          const res = await fetch(`/api/step-assignments?moduleType=vistos&recordId=${params.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+            (data || []).forEach((a: any) => { map[a.stepIndex] = { responsibleName: a.responsibleName, dueDate: a.dueDate }; });
+            setAssignments(map);
+          }
+        } catch (e) {
+          console.error("Erro ao carregar assignments:", e);
+        }
+      };
+      loadAssignments();
     }
   }, [params.id]);
 
@@ -376,6 +391,27 @@ export default function VistoDetailsPage() {
     setStatus(newStatus);
     if (caseData) {
       setCaseData(prev => prev ? { ...prev, status: newStatus } : prev);
+    }
+  };
+
+  const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
+    try {
+      const res = await fetch(`/api/step-assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleType: "vistos", recordId: params.id as string, stepIndex: index, responsibleName, dueDate })
+      });
+      if (res.ok) {
+        setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
+        return true;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error("Falha ao salvar assignment:", err);
+        return false;
+      }
+    } catch (e) {
+      console.error("Erro ao salvar assignment:", e);
+      return false;
     }
   };
 
@@ -1240,6 +1276,8 @@ export default function VistoDetailsPage() {
                     expanded={expandedSteps[step.id] || false}
                     onToggle={() => toggleStepExpansion(step.id)}
                     onMarkComplete={() => handleStepCompletion(step.id)}
+                    assignment={assignments[index]}
+                    onSaveAssignment={(a) => handleSaveAssignment(index, a.responsibleName, a.dueDate)}
                   >
                     {renderStepContent(step)}
                   </StepItem>

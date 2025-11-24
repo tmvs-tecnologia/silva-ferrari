@@ -21,9 +21,11 @@ import {
   Target
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState({
     acoesCiveis: 0,
     acoesTrabalhistas: 0,
@@ -98,13 +100,14 @@ export default function DashboardPage() {
         } catch (err) {
           console.error('Erro ao buscar total de processos:', err);
         }
-        
-        // Simulate recent activity
-        setRecentActivity([
-          { id: 1, action: "Processo criado", type: "Ação Civil", time: "2 horas atrás", user: "João Silva" },
-          { id: 2, action: "Documento enviado", type: "Compra e Venda", time: "4 horas atrás", user: "Maria Santos" },
-          { id: 3, action: "Audiência agendada", type: "Ação Trabalhista", time: "1 dia atrás", user: "Pedro Oliveira" },
-        ]);
+        try {
+          const raRes = await fetch('/api/recent-activities?limit=10');
+          if (raRes.ok) {
+            const ct = raRes.headers.get('content-type') || '';
+            const raJson = ct.includes('application/json') ? await raRes.json() : [];
+            setRecentActivity(Array.isArray(raJson) ? raJson : []);
+          }
+        } catch {}
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -192,6 +195,52 @@ export default function DashboardPage() {
 
   const totalProcessos = Object.values(stats).reduce((a, b) => a + b, 0);
 
+  const formatModule = (m: string) => {
+    switch (m) {
+      case 'acoes_civeis': return 'Ações Cíveis';
+      case 'acoes_trabalhistas': return 'Ações Trabalhistas';
+      case 'acoes_criminais': return 'Ações Criminais';
+      case 'compra_venda_imoveis': return 'Compra e Venda';
+      case 'perda_nacionalidade': return 'Perda de Nacionalidade';
+      case 'vistos': return 'Vistos';
+      default: return m;
+    }
+  };
+
+  const formatTypeLabel = (t: string) => {
+    if (t === 'criado') return 'Nova ação criada';
+    if (t === 'finalizado') return 'Processo finalizado';
+    if (t === 'responsavel_definido') return 'Responsável definido';
+    return t;
+  };
+
+  const formatDetail = (item: any) => {
+    if (item.type === 'responsavel_definido') {
+      return item.detail ? `Prazo: ${new Date(item.detail).toLocaleDateString('pt-BR')}` : '';
+    }
+    return item.detail ? `Tipo: ${item.detail}` : '';
+  };
+
+  const clearAlerts = async () => {
+    try {
+      await Promise.all(
+        (alerts || []).map((a: any) =>
+          fetch(`/api/alerts?id=${a.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isRead: true })
+          }).catch(() => undefined)
+        )
+      );
+    } finally {
+      setAlerts([]);
+    }
+  };
+
+  const clearRecentActivity = () => {
+    setRecentActivity([]);
+  };
+
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -218,41 +267,26 @@ export default function DashboardPage() {
             <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-600">Taxa de Sucesso</div>
-                    <div className="text-xl font-bold text-slate-900">87%</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-600">Clientes Ativos</div>
+                    <div className="text-sm text-slate-600">Ações</div>
                     <div className="text-xl font-bold text-slate-900">{loading ? '...' : totalCount}</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50">
+            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 cursor-pointer" onClick={() => router.push('/dashboard/pendencias')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Target className="w-5 h-5 text-purple-600" />
+                    <Calendar className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-600">Meta do Mês</div>
-                    <div className="text-xl font-bold text-slate-900">92%</div>
-                    <Progress value={92} className="h-2 mt-2" />
+                    <div className="text-sm text-slate-600">Pendências</div>
+                    <div className="text-xs text-slate-500">Acesse o calendário de pendências</div>
                   </div>
                 </div>
               </CardContent>
@@ -308,23 +342,26 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Alerts Section */}
         <Card className="border-slate-200/50 bg-white/80 backdrop-blur-sm">
           <CardHeader className="border-b border-slate-200/50">
-            <CardTitle className="flex items-center gap-3 text-lg">
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Bell className="w-5 h-5 text-amber-600" />
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-amber-600" />
+                </div>
+                <span className="text-slate-900">Alertas Recentes</span>
+                {alerts.length > 0 && (
+                  <Badge className="bg-red-500 text-white border-0">{alerts.length}</Badge>
+                )}
               </div>
-              <span className="text-slate-900">Alertas Recentes</span>
-              {alerts.length > 0 && (
-                <Badge className="bg-red-500 text-white border-0">
-                  {alerts.length}
-                </Badge>
-              )}
+              <Button variant="outline" size="sm" onClick={clearAlerts}>Limpar tudo</Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 h-80 overflow-y-auto">
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -336,16 +373,12 @@ export default function DashboardPage() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
                   <Bell className="w-8 h-8 text-green-600" />
                 </div>
-                <p className="text-slate-600 font-medium">
-                  Nenhum alerta pendente
-                </p>
-                <p className="text-sm text-slate-500 mt-2">
-                  Todos os alertas foram processados
-                </p>
+                <p className="text-slate-600 font-medium">Nenhum alerta pendente</p>
+                <p className="text-sm text-slate-500 mt-2">Todos os alertas foram processados</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {alerts.slice(0, 3).map((alert) => (
+                {alerts.map((alert) => (
                   <div
                     key={alert.id}
                     className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors"
@@ -356,12 +389,8 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 mb-1">{alert.message}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <Badge className="text-xs bg-slate-200 text-slate-700 border-0">
-                          {alert.alertFor}
-                        </Badge>
-                        <Badge className="text-xs bg-slate-200 text-slate-700 border-0">
-                          {alert.moduleType}
-                        </Badge>
+                        <Badge className="text-xs bg-slate-200 text-slate-700 border-0">{alert.alertFor}</Badge>
+                        <Badge className="text-xs bg-slate-200 text-slate-700 border-0">{alert.moduleType}</Badge>
                       </div>
                     </div>
                   </div>
@@ -371,40 +400,58 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
         <Card className="border-slate-200/50 bg-white/80 backdrop-blur-sm">
           <CardHeader className="border-b border-slate-200/50">
-            <CardTitle className="flex items-center gap-3 text-lg">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-600" />
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-slate-900">Atividade Recente</span>
               </div>
-              <span className="text-slate-900">Atividade Recente</span>
+              <Button variant="outline" size="sm" onClick={clearRecentActivity}>Limpar tudo</Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-3">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200"
-                >
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900">
-                      {activity.action}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {activity.type} • {activity.time}
-                    </p>
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {activity.user}
-                  </div>
+          <CardContent className="pt-6 h-80 overflow-y-auto">
+            {loading ? (
+              <div className="space-y-4">
+                {[1,2,3].map((i) => (
+                  <Skeleton key={i} className="h-20 w-full bg-slate-200" />
+                ))}
+              </div>
+            ) : recentActivity.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                  <Clock className="w-8 h-8 text-blue-600" />
                 </div>
-              ))}
-            </div>
+                <p className="text-slate-600 font-medium">Nenhuma atividade recente</p>
+                <p className="text-sm text-slate-500 mt-2">As atividades aparecerão aqui</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentActivity.map((activity: any) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200"
+                  >
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Activity className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">
+                        {formatTypeLabel(activity.type)}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {activity.title} • {formatModule(activity.moduleType)} • {new Date(activity.time).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {formatDetail(activity)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -24,7 +24,7 @@ export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, c
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Em andamento">Em andamento</SelectItem>
+            <SelectItem value="Em Andamento">Em Andamento</SelectItem>
             <SelectItem value="Finalizado">Finalizado</SelectItem>
           </SelectContent>
         </Select>

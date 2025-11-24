@@ -273,6 +273,19 @@ export default function NovaAcaoCivelPage() {
         // Converter uploads temporários em permanentes
         if (data.id) {
           await convertTemporaryUploads(data.id);
+          try {
+            await fetch('/api/alerts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                moduleType: 'acoes_civeis',
+                recordId: data.id,
+                alertFor: 'admin',
+                message: `Passo 1 concluído para: ${formData.clientName} - ${formData.type}`,
+                isRead: false
+              })
+            });
+          } catch {}
         }
         
         toast.success("Ação criada com sucesso!");

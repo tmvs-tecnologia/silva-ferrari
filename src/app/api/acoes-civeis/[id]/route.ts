@@ -6,11 +6,11 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(
   request: Request,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { id } = context.params;
+    const { id } = params;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
@@ -37,7 +37,48 @@ export async function GET(
       throw error;
     }
 
-    return NextResponse.json(data, { status: 200 });
+    const mapped = {
+      id: data.id,
+      clientName: data.client_name,
+      type: data.type,
+      currentStep: data.current_step,
+      status: data.status,
+      notes: data.notes,
+      nomeMae: data.nome_mae,
+      nomePaiRegistral: data.nome_pai_registral,
+      nomeSupostoPai: data.nome_suposto_pai,
+      rnmMae: data.rnm_mae,
+      rnmMaeDoc: data.rnm_mae_doc,
+      rnmPai: data.rnm_pai,
+      rnmPaiDoc: data.rnm_pai_doc,
+      rnmSupostoPai: data.rnm_suposto_pai,
+      rnmSupostoPaiDoc: data.rnm_suposto_pai_doc,
+      cpfMae: data.cpf_mae,
+      cpfPai: data.cpf_pai,
+      certidaoNascimento: data.certidao_nascimento,
+      certidaoNascimentoDoc: data.certidao_nascimento_doc,
+      comprovanteEndereco: data.comprovante_endereco,
+      comprovanteEnderecoDoc: data.comprovante_endereco_doc,
+      passaporte: data.passaporte,
+      passaporteDoc: data.passaporte_doc,
+      guiaPaga: data.guia_paga,
+      numeroProtocolo: data.numero_protocolo,
+      dataExameDna: data.data_exame_dna,
+      resultadoExameDna: data.resultado_exame_dna,
+      resultadoExameDnaDoc: data.resultado_exame_dna_doc,
+      procuracaoAnexada: data.procuracao_anexada,
+      procuracaoAnexadaDoc: data.procuracao_anexada_doc,
+      peticaoAnexada: data.peticao_anexada,
+      peticaoAnexadaDoc: data.peticao_anexada_doc,
+      processoAnexado: data.processo_anexado,
+      processoAnexadoDoc: data.processo_anexado_doc,
+      documentosFinaisAnexados: data.documentos_finais_anexados,
+      documentosFinaisAnexadosDoc: data.documentos_finais_anexados_doc,
+      documentosProcessoFinalizadoDoc: data.documentos_processo_finalizado_doc,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+    return NextResponse.json(mapped, { status: 200 });
   } catch (error) {
     console.error('GET error:', error);
     return NextResponse.json(
@@ -49,11 +90,11 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { id } = context.params;
+    const { id } = params;
     const body = await request.json();
 
     // Validate ID
@@ -81,13 +122,36 @@ export async function PATCH(
       throw existError;
     }
 
-    // Update the record
+    const updateData: any = {};
+    if (body.clientName !== undefined) updateData.client_name = String(body.clientName).trim();
+    if (body.type !== undefined) updateData.type = String(body.type).trim();
+    if (body.currentStep !== undefined) updateData.current_step = body.currentStep;
+    if (body.status !== undefined) updateData.status = String(body.status).trim();
+    if (body.notes !== undefined) updateData.notes = body.notes ?? null;
+    if (body.nomeMae !== undefined) updateData.nome_mae = body.nomeMae ?? null;
+    if (body.nomePaiRegistral !== undefined) updateData.nome_pai_registral = body.nomePaiRegistral ?? null;
+    if (body.nomeSupostoPai !== undefined) updateData.nome_suposto_pai = body.nomeSupostoPai ?? null;
+    if (body.rnmMae !== undefined) updateData.rnm_mae = body.rnmMae ?? null;
+    if (body.rnmPai !== undefined) updateData.rnm_pai = body.rnmPai ?? null;
+    if (body.rnmSupostoPai !== undefined) updateData.rnm_suposto_pai = body.rnmSupostoPai ?? null;
+    if (body.cpfMae !== undefined) updateData.cpf_mae = body.cpfMae ?? null;
+    if (body.cpfPai !== undefined) updateData.cpf_pai = body.cpfPai ?? null;
+    if (body.certidaoNascimento !== undefined) updateData.certidao_nascimento = body.certidaoNascimento ?? null;
+    if (body.comprovanteEndereco !== undefined) updateData.comprovante_endereco = body.comprovanteEndereco ?? null;
+    if (body.passaporte !== undefined) updateData.passaporte = body.passaporte ?? null;
+    if (body.guiaPaga !== undefined) updateData.guia_paga = body.guiaPaga ?? null;
+    if (body.numeroProtocolo !== undefined) updateData.numero_protocolo = body.numeroProtocolo ?? null;
+    if (body.dataExameDna !== undefined) updateData.data_exame_dna = body.dataExameDna ?? null;
+    if (body.resultadoExameDna !== undefined) updateData.resultado_exame_dna = body.resultadoExameDna ?? null;
+    if (body.procuracaoAnexada !== undefined) updateData.procuracao_anexada = body.procuracaoAnexada ?? null;
+    if (body.peticaoAnexada !== undefined) updateData.peticao_anexada = body.peticaoAnexada ?? null;
+    if (body.processoAnexado !== undefined) updateData.processo_anexado = body.processoAnexado ?? null;
+    if (body.documentosFinaisAnexados !== undefined) updateData.documentos_finais_anexados = body.documentosFinaisAnexados ?? null;
+    updateData.updated_at = new Date().toISOString();
+
     const { data, error } = await supabase
       .from('acoes_civeis')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', parseInt(id))
       .select()
       .single();
@@ -96,7 +160,48 @@ export async function PATCH(
       throw error;
     }
 
-    return NextResponse.json(data, { status: 200 });
+    const mapped = {
+      id: data.id,
+      clientName: data.client_name,
+      type: data.type,
+      currentStep: data.current_step,
+      status: data.status,
+      notes: data.notes,
+      nomeMae: data.nome_mae,
+      nomePaiRegistral: data.nome_pai_registral,
+      nomeSupostoPai: data.nome_suposto_pai,
+      rnmMae: data.rnm_mae,
+      rnmMaeDoc: data.rnm_mae_doc,
+      rnmPai: data.rnm_pai,
+      rnmPaiDoc: data.rnm_pai_doc,
+      rnmSupostoPai: data.rnm_suposto_pai,
+      rnmSupostoPaiDoc: data.rnm_suposto_pai_doc,
+      cpfMae: data.cpf_mae,
+      cpfPai: data.cpf_pai,
+      certidaoNascimento: data.certidao_nascimento,
+      certidaoNascimentoDoc: data.certidao_nascimento_doc,
+      comprovanteEndereco: data.comprovante_endereco,
+      comprovanteEnderecoDoc: data.comprovante_endereco_doc,
+      passaporte: data.passaporte,
+      passaporteDoc: data.passaporte_doc,
+      guiaPaga: data.guia_paga,
+      numeroProtocolo: data.numero_protocolo,
+      dataExameDna: data.data_exame_dna,
+      resultadoExameDna: data.resultado_exame_dna,
+      resultadoExameDnaDoc: data.resultado_exame_dna_doc,
+      procuracaoAnexada: data.procuracao_anexada,
+      procuracaoAnexadaDoc: data.procuracao_anexada_doc,
+      peticaoAnexada: data.peticao_anexada,
+      peticaoAnexadaDoc: data.peticao_anexada_doc,
+      processoAnexado: data.processo_anexado,
+      processoAnexadoDoc: data.processo_anexado_doc,
+      documentosFinaisAnexados: data.documentos_finais_anexados,
+      documentosFinaisAnexadosDoc: data.documentos_finais_anexados_doc,
+      documentosProcessoFinalizadoDoc: data.documentos_processo_finalizado_doc,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+    };
+    return NextResponse.json(mapped, { status: 200 });
   } catch (error) {
     console.error('PATCH error:', error);
     return NextResponse.json(
@@ -108,11 +213,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  context: any
+  { params }: { params: { id: string } }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { id } = context.params;
+    const { id } = params;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {

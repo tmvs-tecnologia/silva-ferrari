@@ -93,7 +93,7 @@ export function DocumentPanel({
             <Upload className={`h-8 w-8 mx-auto mb-2 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
             <p className={`text-sm ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`}>
               {uploading 
-                ? 'Fazendo upload...' 
+                ? 'Enviando...' 
                 : isDragOver 
                   ? 'Solte os arquivos aqui' 
                   : 'Arraste e solte arquivos aqui para anexar'
@@ -101,7 +101,7 @@ export function DocumentPanel({
             </p>
             {!uploading && (
               <p className="text-xs text-muted-foreground mt-1">
-                Ou clique nos botões de upload nas etapas acima
+                Ou use os botões de envio nas etapas acima
               </p>
             )}
           </div>
