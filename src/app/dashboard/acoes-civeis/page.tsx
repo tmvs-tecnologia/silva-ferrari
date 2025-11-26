@@ -67,37 +67,63 @@ export default function AcoesCiveisPage() {
   const [caseAssignments, setCaseAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
 
   useEffect(() => {
-    // Only set up event listeners on the client side
     if (typeof window !== 'undefined') {
-      // Listen for status updates from other pages
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === 'acoes-civeis-status-update') {
           const updateData = JSON.parse(e.newValue || '{}');
           if (updateData.id && updateData.status) {
-            // Refetch dados para refletir mudanças
             refetch();
-            // Clear the localStorage item
             localStorage.removeItem('acoes-civeis-status-update');
+          }
+        }
+        if (e.key === 'acoes-civeis-case-update') {
+          const updateData = JSON.parse(e.newValue || '{}');
+          if (updateData.id && typeof updateData.currentStep === 'number') {
+            refetch();
+            localStorage.removeItem('acoes-civeis-case-update');
+          }
+        }
+        if (e.key === 'step-assignments-update') {
+          const updateData = JSON.parse(e.newValue || '{}');
+          if (updateData.moduleType === 'acoes_civeis' && updateData.recordId) {
+            const rid = typeof updateData.recordId === 'string' ? parseInt(updateData.recordId) : updateData.recordId;
+            setCaseAssignments(prev => ({
+              ...prev,
+              [rid]: { responsibleName: updateData.responsibleName, dueDate: updateData.dueDate }
+            }));
+            localStorage.removeItem('step-assignments-update');
           }
         }
       };
 
-      // Listen for storage events
       window.addEventListener('storage', handleStorageChange);
 
-      // Also listen for custom events (for same-tab updates)
       const handleCustomEvent = (e: CustomEvent) => {
-        const updateData = e.detail;
+        const updateData: any = e.detail;
         if (updateData.id && updateData.status) {
           refetch();
+        }
+        if (updateData.id && typeof updateData.currentStep === 'number') {
+          refetch();
+        }
+        if (updateData.moduleType === 'acoes_civeis' && updateData.recordId) {
+          const rid = typeof updateData.recordId === 'string' ? parseInt(updateData.recordId) : updateData.recordId;
+          setCaseAssignments(prev => ({
+            ...prev,
+            [rid]: { responsibleName: updateData.responsibleName, dueDate: updateData.dueDate }
+          }));
         }
       };
 
       window.addEventListener('acoes-civeis-status-updated', handleCustomEvent as EventListener);
+      window.addEventListener('acoes-civeis-case-updated', handleCustomEvent as EventListener);
+      window.addEventListener('step-assignments-updated', handleCustomEvent as EventListener);
 
       return () => {
         window.removeEventListener('storage', handleStorageChange);
         window.removeEventListener('acoes-civeis-status-updated', handleCustomEvent as EventListener);
+        window.removeEventListener('acoes-civeis-case-updated', handleCustomEvent as EventListener);
+        window.removeEventListener('step-assignments-updated', handleCustomEvent as EventListener);
       };
     }
   }, [refetch]);
@@ -193,26 +219,40 @@ export default function AcoesCiveisPage() {
   };
 
   const getStepTitle = (type: string, index: number) => {
-    const standard = [
-      "Cadastro de Informações",
-      "Agendar Exame DNA",
-      "Elaboração Procuração",
-      "Aguardar procuração assinada",
-      "À Protocolar",
-      "Protocolado",
-      "Processo Finalizado",
-    ];
-    const exameDna = [
+    const STANDARD_CIVIL_STEPS = [
       "Cadastro Documentos",
       "Agendar Exame DNA",
       "Elaboração Procuração",
       "Aguardar procuração assinada",
       "À Protocolar",
-      "Protocolado",
+      "Processo Protocolado",
       "Processo Finalizado",
     ];
-    const steps = type === "Exame DNA" ? exameDna : standard;
-    return steps[index] ?? `Passo ${index}`;
+    const EXAME_DNA_STEPS = [
+      "Cadastro Documentos",
+      "Agendar Exame DNA",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "À Protocolar",
+      "Processo Protocolado",
+      "Processo Finalizado",
+    ];
+    const ALTERACAO_NOME_STEPS = [
+      "Cadastro Documentos",
+      "Emissão da Guia Judicial",
+      "Elaboração Procuração",
+      "Aguardar procuração assinada",
+      "Peticionar",
+      "À Protocolar",
+      "Processo Protocolado",
+      "Processo Finalizado",
+    ];
+    const steps = type === "Exame DNA"
+      ? EXAME_DNA_STEPS
+      : (type === "Alteração de Nome" || type === "Guarda" || type === "Acordos de Guarda")
+      ? ALTERACAO_NOME_STEPS
+      : STANDARD_CIVIL_STEPS;
+    return steps[index] || `Passo ${index}`;
   };
 
   const getStatusColor = (status: string) => {

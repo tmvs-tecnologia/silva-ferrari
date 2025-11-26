@@ -315,6 +315,8 @@ export default function CaseDetailPage() {
         setExpandedStep(null);
         try { localStorage.setItem('alerts-updated', JSON.stringify({ t: Date.now() })); } catch {}
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('alerts-updated'));
+        try { localStorage.setItem('acoes-civeis-case-update', JSON.stringify({ id, currentStep: stepIndex + 1, t: Date.now() })); } catch {}
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('acoes-civeis-case-updated', { detail: { id, currentStep: stepIndex + 1 } }));
       }
     } catch (error) {
       console.error("Erro ao atualizar etapa:", error);
@@ -332,6 +334,8 @@ export default function CaseDetailPage() {
         const updatedCase = { ...caseData!, currentStep: stepIndex };
         setCaseData(updatedCase);
         setExpandedStep(null);
+        try { localStorage.setItem('acoes-civeis-case-update', JSON.stringify({ id, currentStep: stepIndex, t: Date.now() })); } catch {}
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('acoes-civeis-case-updated', { detail: { id, currentStep: stepIndex } }));
       }
     } catch (error) {
       console.error("Erro ao desfazer conclusão da etapa:", error);
@@ -369,6 +373,8 @@ export default function CaseDetailPage() {
           try { localStorage.setItem('alerts-updated', JSON.stringify({ t: Date.now() })); } catch {}
           if (typeof window !== 'undefined') window.dispatchEvent(new Event('alerts-updated'));
         } catch {}
+        try { localStorage.setItem('step-assignments-update', JSON.stringify({ moduleType: 'acoes_civeis', recordId: id, stepIndex: index, responsibleName, dueDate, t: Date.now() })); } catch {}
+        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('step-assignments-updated', { detail: { moduleType: 'acoes_civeis', recordId: id, stepIndex: index, responsibleName, dueDate } }));
         return true;
       } else {
         const err = await safeJson(res);
