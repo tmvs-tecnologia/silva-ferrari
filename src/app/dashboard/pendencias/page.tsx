@@ -353,7 +353,12 @@ export default function PendenciasPage() {
                             <div className="text-sm font-medium">{t.clientName || t.moduleType}</div>
                             <div className="text-xs text-slate-600">{getStepTitle(t)}</div>
                             {t.moduleType === "acoes_civeis" && t.caseType ? (
-                              <div className="text-xs text-slate-500">{t.caseType}</div>
+                              <Badge
+                                variant="outline"
+                                className="mt-1 border-blue-500 text-blue-700 bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:bg-blue-950 w-fit"
+                              >
+                                {t.caseType}
+                              </Badge>
                             ) : null}
                           </div>
                         </div>
