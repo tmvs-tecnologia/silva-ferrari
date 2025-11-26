@@ -70,20 +70,23 @@ export default function AcoesCriminaisPage() {
   const fetchCase = async () => {
     try {
       setLoading(true)
-      // Simular busca de dados do caso
-      const mockCase = {
-        id: id,
-        title: `Ação Criminal #${id}`,
-        type: 'Ação Criminal',
-        status: 'Em andamento',
-        currentStep: 0,
-        notes: 'Notas do caso...',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const response = await fetch(`/api/acoes-criminais?id=${id}`)
+      if (response.ok) {
+        const rec = await response.json()
+        const data = {
+          id: rec.id,
+          title: rec.client_name || rec.clientName || `Ação Criminal #${id}`,
+          type: 'Ação Criminal',
+          status: rec.status || 'Em andamento',
+          currentStep: rec.current_step || rec.currentStep || 0,
+          notes: rec.notes || '',
+          createdAt: rec.created_at || rec.createdAt,
+          updatedAt: rec.updated_at || rec.updatedAt,
+        }
+        setCaseData(data)
+        setNotes(data.notes)
+        setStatus(data.status)
       }
-      setCaseData(mockCase)
-      setNotes(mockCase.notes)
-      setStatus(mockCase.status)
     } catch (error) {
       console.error('Erro ao buscar caso:', error)
     } finally {
@@ -93,12 +96,11 @@ export default function AcoesCriminaisPage() {
 
   const fetchDocuments = async () => {
     try {
-      // Simular busca de documentos
-      const mockDocuments = [
-        { id: '1', name: 'Documento1.pdf', type: 'application/pdf', size: 1024000, uploadedAt: new Date().toISOString(), step: 0 },
-        { id: '2', name: 'Documento2.pdf', type: 'application/pdf', size: 2048000, uploadedAt: new Date().toISOString(), step: 1 }
-      ]
-      setDocuments(mockDocuments)
+      const res = await fetch(`/api/documents?moduleType=acoes_criminais&recordId=${id}`)
+      if (res.ok) {
+        const docs = await res.json()
+        setDocuments(docs || [])
+      }
     } catch (error) {
       console.error('Erro ao buscar documentos:', error)
     }
@@ -106,7 +108,10 @@ export default function AcoesCriminaisPage() {
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
-      setDocuments(documents.filter(doc => doc.id !== documentId))
+      const res = await fetch(`/api/documents/delete/${documentId}`, { method: 'DELETE' })
+      if (res.ok) {
+        await fetchDocuments()
+      }
     } catch (error) {
       console.error('Erro ao deletar documento:', error)
     }
@@ -123,13 +128,17 @@ export default function AcoesCriminaisPage() {
 
   const handleDocumentNameSave = async () => {
     try {
-      setDocuments(documents.map(doc => 
-        doc.id === editingDocument 
-          ? { ...doc, name: editingName }
-          : doc
-      ))
-      setEditingDocument(null)
-      setEditingName('')
+      if (!editingDocument) return
+      const res = await fetch(`/api/documents/rename/${editingDocument}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_name: editingName })
+      })
+      if (res.ok) {
+        await fetchDocuments()
+        setEditingDocument(null)
+        setEditingName('')
+      }
     } catch (error) {
       console.error('Erro ao salvar nome do documento:', error)
     }
@@ -174,20 +183,16 @@ export default function AcoesCriminaisPage() {
   const uploadDroppedFile = async (file: File) => {
     try {
       setUploadingFiles((prev: { [key: string]: boolean }) => ({ ...prev, [file.name]: true }))
-      
-      // Simular upload
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const newDocument = {
-        id: Date.now().toString(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
-        step: caseData?.currentStep || 0
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('caseId', String(id))
+      fd.append('moduleType', 'acoes_criminais')
+      fd.append('fieldName', 'documentoAnexado')
+      if (caseData?.title) fd.append('clientName', String(caseData.title))
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd })
+      if (res.ok) {
+        await fetchDocuments()
       }
-      
-      setDocuments((prev: any[]) => [...prev, newDocument])
     } catch (error) {
       console.error('Erro ao fazer upload:', error)
     } finally {
@@ -198,12 +203,20 @@ export default function AcoesCriminaisPage() {
   const handleFileUpload = async (file: File, fieldName: string) => {
     try {
       setUploadStatus((prev: { [key: string]: 'idle' | 'uploading' | 'success' | 'error' }) => ({ ...prev, [fieldName]: 'uploading' }))
-      
-      // Simular upload
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      setFileUploads((prev: { [key: string]: File | null }) => ({ ...prev, [fieldName]: file }))
-      setUploadStatus((prev: { [key: string]: 'idle' | 'uploading' | 'success' | 'error' }) => ({ ...prev, [fieldName]: 'success' }))
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('caseId', String(id))
+      fd.append('moduleType', 'acoes_criminais')
+      fd.append('fieldName', fieldName)
+      if (caseData?.title) fd.append('clientName', String(caseData.title))
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd })
+      if (res.ok) {
+        setFileUploads((prev: { [key: string]: File | null }) => ({ ...prev, [fieldName]: file }))
+        setUploadStatus((prev: { [key: string]: 'idle' | 'uploading' | 'success' | 'error' }) => ({ ...prev, [fieldName]: 'success' }))
+        await fetchDocuments()
+      } else {
+        setUploadStatus((prev: { [key: string]: 'idle' | 'uploading' | 'success' | 'error' }) => ({ ...prev, [fieldName]: 'error' }))
+      }
     } catch (error) {
       console.error('Erro ao fazer upload:', error)
       setUploadStatus((prev: { [key: string]: 'idle' | 'uploading' | 'success' | 'error' }) => ({ ...prev, [fieldName]: 'error' }))
@@ -242,9 +255,20 @@ export default function AcoesCriminaisPage() {
     }))
   }
 
-  const handleSaveNotes = () => {
-    setPendingNotes(notes)
-    setShowNotesDialog(true)
+  const handleSaveNotes = async () => {
+    try {
+      const response = await fetch(`/api/acoes-criminais?id=${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      })
+      if (response.ok) {
+        setPendingNotes('')
+        setShowNotesDialog(false)
+      }
+    } catch (e) {
+      console.error('Erro ao salvar observações:', e)
+    }
   }
 
   const confirmSaveNotes = () => {
@@ -848,7 +872,7 @@ export default function AcoesCriminaisPage() {
             isDragOver={isDragOver}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            onDocumentDownload={(doc) => console.log('Download', doc)}
+            onDocumentDownload={(doc) => { if (doc?.file_path) window.open(doc.file_path, '_blank') }}
             onDocumentDelete={(doc) => {
               setDocumentToDelete(doc)
               setDeleteDialogOpen(true)
@@ -934,7 +958,19 @@ export default function AcoesCriminaisPage() {
         </CardHeader>
         <CardContent>
           {workflow.map((step, stepIndex) => {
-            const stepDocuments = documents.filter(doc => doc.step === stepIndex)
+            const fieldMap: Record<number, string[]> = {
+              0: ['rnmMaeFile','rnmPaiFile','rnmSupostoPaiFile','certidaoNascimentoFile','comprovanteEnderecoFile','passaporteFile','guiaPagaFile'],
+              1: ['analiseCaso','estrategiaDefesa'],
+              2: ['peticaoInicial','procuracaoClienteFile','procuracaoAnexadaFile'],
+              3: ['processoProtocolado','numeroProtocolo'],
+              4: ['citacaoRecebida','dataCitacao'],
+              5: ['respostaAcusacao','documentosDefesa'],
+              6: ['ataAudiencia','provasTestemunhas'],
+              7: ['alegacoesFinais','memoriais'],
+              8: ['sentenca','resultadoSentenca'],
+              9: ['recurso','documentosFinaisAnexadosFile','documentosProcessoFinalizadoFile'],
+            }
+            const stepDocuments = (documents || []).filter((doc: any) => (fieldMap[stepIndex] || []).includes(doc?.field_name))
             if (stepDocuments.length === 0) return null
 
             return (

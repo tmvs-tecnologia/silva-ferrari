@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
     // Save document metadata to database (only for permanent uploads)
     console.log('💾 Salvando metadados no banco de dados...');
-    const { error: insertError } = await supabaseAdmin
+    const { data: insertedDoc, error: insertError } = await supabaseAdmin
       .from('documents')
       .insert({
         module_type: moduleType,
@@ -240,16 +240,18 @@ export async function POST(request: NextRequest) {
         file_type: file.type,
         file_size: file.size,
         uploaded_at: new Date().toISOString(),
-      });
+      })
+      .select('*')
+      .single();
 
     if (insertError) {
       console.error('❌ Erro ao salvar metadados:', insertError);
       throw insertError;
     }
 
-    // Update the case with the file URL (skip for generic document uploads)
-    // Skip table update for generic document uploads (documentoAnexado)
-    if (fieldName !== 'documentoAnexado') {
+    // Update the case with the file URL (skip for generic uploads or modules without doc columns)
+    const skipModuleUpdate = moduleType === 'acoes_trabalhistas' || moduleType === 'acoes_criminais';
+    if (fieldName !== 'documentoAnexado' && !skipModuleUpdate) {
       const updateData: any = {};
       updateData[fieldName] = publicUrl;
 
@@ -322,10 +324,10 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('❌ Erro ao atualizar registro:', updateError);
-        throw updateError;
+        // Log and continue: some modules may not have dedicated doc columns
       }
     } else {
-      console.log('📄 Upload genérico de documento - não atualizando tabela principal');
+      console.log('📄 Upload sem atualização de tabela principal (genérico ou módulo sem colunas de documento)');
     }
 
     console.log('✅ Upload completo!');
@@ -335,6 +337,7 @@ export async function POST(request: NextRequest) {
       fileName: originalName,
       fileUrl: publicUrl,
       filePath: filePath,
+      document: insertedDoc,
     });
   } catch (error) {
     console.error('❌ Erro inesperado no upload:', error);

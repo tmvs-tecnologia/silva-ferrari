@@ -349,9 +349,7 @@ export default function AcaoTrabalhistaDetailPage() {
 
   const handleDocumentDelete = async (document: Document) => {
     try {
-      const response = await fetch(`/api/documents/${document.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(`/api/documents/delete/${document.id}`, { method: "DELETE" });
       if (response.ok) {
         setDocuments(prev => prev.filter(doc => doc.id !== document.id));
         setDeleteDialogOpen(false);
@@ -368,14 +366,12 @@ export default function AcaoTrabalhistaDetailPage() {
 
   const handleDocumentNameSave = async () => {
     if (!editingDocumentId || !editingDocumentName.trim()) return;
-
     try {
-      const response = await fetch(`/api/documents/${editingDocumentId}/name`, {
-        method: "PATCH",
+      const response = await fetch(`/api/documents/rename/${editingDocumentId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editingDocumentName }),
+        body: JSON.stringify({ document_name: editingDocumentName }),
       });
-      
       if (response.ok) {
         setDocuments(prev => prev.map(doc => 
           doc.id === editingDocumentId 

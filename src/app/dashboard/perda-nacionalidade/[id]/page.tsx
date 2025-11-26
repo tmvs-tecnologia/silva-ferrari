@@ -132,10 +132,10 @@ export default function PerdaNacionalidadeDetailPage() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`/api/perda-nacionalidade/${params.id}/documents`);
+      const response = await fetch(`/api/documents?moduleType=perda_nacionalidade&recordId=${params.id}`);
       if (response.ok) {
         const data = await response.json();
-        setDocuments(data);
+        setDocuments(data || []);
       }
     } catch (error) {
       console.error("Erro ao buscar documentos:", error);
@@ -144,11 +144,9 @@ export default function PerdaNacionalidadeDetailPage() {
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/perda-nacionalidade/${params.id}/documents/${documentId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(`/api/documents/delete/${documentId}`, { method: 'DELETE' });
       if (response.ok) {
-        fetchDocuments();
+        await fetchDocuments();
       }
     } catch (error) {
       console.error("Erro ao deletar documento:", error);
@@ -157,15 +155,13 @@ export default function PerdaNacionalidadeDetailPage() {
 
   const handleRenameDocument = async (documentId: string, newName: string) => {
     try {
-      const response = await fetch(`/api/perda-nacionalidade/${params.id}/documents/${documentId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: newName }),
+      const response = await fetch(`/api/documents/rename/${documentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_name: newName })
       });
       if (response.ok) {
-        fetchDocuments();
+        await fetchDocuments();
         setEditingDocument(null);
         setNewDocumentName("");
       }
@@ -184,17 +180,19 @@ export default function PerdaNacionalidadeDetailPage() {
     Array.from(files).forEach((file) => {
       formData.append("files", file);
     });
-    
-    if (step !== undefined) formData.append("step", step.toString());
-    if (field) formData.append("field", field);
+    // Use general upload route
+    const file = files[0];
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('caseId', String(params.id));
+    fd.append('moduleType', 'perda_nacionalidade');
+    fd.append('fieldName', field || 'documentoAnexado');
+    fd.append('clientName', caseData?.clientName || 'Cliente');
 
     try {
-      const response = await fetch(`/api/perda-nacionalidade/${params.id}/documents`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch('/api/documents/upload', { method: 'POST', body: fd });
       if (response.ok) {
-        fetchDocuments();
+        await fetchDocuments();
       }
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
@@ -244,8 +242,8 @@ export default function PerdaNacionalidadeDetailPage() {
     setStepData(newStepData);
     
     try {
-      await fetch(`/api/perda-nacionalidade/${params.id}`, {
-        method: "PATCH",
+      await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -261,8 +259,8 @@ export default function PerdaNacionalidadeDetailPage() {
     setStepNotes(newStepNotes);
     
     try {
-      await fetch(`/api/perda-nacionalidade/${params.id}`, {
-        method: "PATCH",
+      await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -275,8 +273,8 @@ export default function PerdaNacionalidadeDetailPage() {
 
   const saveNotes = async () => {
     try {
-      await fetch(`/api/perda-nacionalidade/${params.id}`, {
-        method: "PATCH",
+      await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
@@ -290,8 +288,8 @@ export default function PerdaNacionalidadeDetailPage() {
   const saveStatus = async (newStatus: string) => {
     setStatus(newStatus);
     try {
-      const res = await fetch(`/api/perda-nacionalidade/${params.id}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },

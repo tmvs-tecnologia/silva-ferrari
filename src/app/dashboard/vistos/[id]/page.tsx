@@ -179,36 +179,46 @@ export default function VistoDetailsPage() {
 
   const fetchCaseData = async () => {
     try {
-      // Simulando dados do caso
-      const mockData: CaseData = {
-        id: params.id as string,
-        title: `Visto ${params.id}`,
-        type: "Visto de Trabalho",
-        status: "Em Andamento",
-        createdAt: "2024-01-15",
-        updatedAt: "2024-01-20",
-        clientName: "Cliente Exemplo",
-        description: "Processo de visto de trabalho",
-        steps: WORKFLOWS["Visto de Trabalho"].map((title, index) => ({
+      const res = await fetch(`/api/vistos?id=${params.id}`);
+      if (res.ok) {
+        const record = await res.json();
+        const flowType = record.type || "Visto de Trabalho";
+        const steps = (WORKFLOWS[flowType] || WORKFLOWS["Visto de Trabalho"]).map((title: string, index: number) => ({
           id: index,
           title,
           description: `Descrição da etapa ${title}`,
-          completed: index < 2,
-          completedAt: index < 2 ? "2024-01-20" : undefined,
-          notes: ""
-        }))
-      };
-      
-      setCaseData(mockData);
-      setStatus(mockData.status);
-      
-      // Inicializar notas
-      const initialNotes: { [key: number]: string } = {};
-      mockData.steps.forEach(step => {
-        initialNotes[step.id] = step.notes || "";
-      });
-      setNotes(initialNotes);
-      
+          completed: false,
+          notes: "",
+        }));
+        const data: CaseData = {
+          id: String(record.id),
+          title: `Visto ${record.id}`,
+          type: flowType,
+          status: record.status || "Em Andamento",
+          createdAt: record.createdAt || record.created_at,
+          updatedAt: record.updatedAt || record.updated_at,
+          clientName: record.clientName || record.client_name,
+          description: `Processo de ${flowType}`,
+          steps,
+        };
+        setCaseData(data);
+        setStatus(data.status);
+        // Parse aggregated notes into step map if present
+        const initialNotes: { [key: number]: string } = {};
+        if (record.notes) {
+          const text = String(record.notes);
+          (steps || []).forEach((s) => {
+            const header = `[${s.title}]`;
+            const idx = text.indexOf(header);
+            if (idx >= 0) {
+              const nextIdx = text.indexOf("[", idx + header.length);
+              const block = text.substring(idx + header.length).slice(0, nextIdx > idx ? nextIdx - (idx + header.length) : undefined).trim();
+              initialNotes[s.id] = block;
+            }
+          });
+        }
+        setNotes(initialNotes);
+      }
     } catch (error) {
       console.error("Erro ao buscar dados do caso:", error);
     } finally {
@@ -218,19 +228,11 @@ export default function VistoDetailsPage() {
 
   const fetchDocuments = async () => {
     try {
-      // Simulando documentos
-      const mockDocuments: Document[] = [
-        {
-          id: "1",
-          name: "Passaporte.pdf",
-          type: "application/pdf",
-          size: 1024000,
-          uploadedAt: "2024-01-15",
-          url: "/documents/passaporte.pdf",
-          stepId: 0
-        }
-      ];
-      setDocuments(mockDocuments);
+      const res = await fetch(`/api/documents?moduleType=vistos&recordId=${params.id}`);
+      if (res.ok) {
+        const docs = await res.json();
+        setDocuments(docs || []);
+      }
     } catch (error) {
       console.error("Erro ao buscar documentos:", error);
     }
@@ -243,11 +245,13 @@ export default function VistoDetailsPage() {
 
   const confirmDeleteDocument = async () => {
     if (!documentToDelete) return;
-    
     try {
-      setDocuments(prev => prev.filter(doc => doc.id !== documentToDelete.id));
-      setShowDeleteDialog(false);
-      setDocumentToDelete(null);
+      const res = await fetch(`/api/documents/delete/${documentToDelete.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchDocuments();
+        setShowDeleteDialog(false);
+        setDocumentToDelete(null);
+      }
     } catch (error) {
       console.error("Erro ao deletar documento:", error);
     }
@@ -261,18 +265,18 @@ export default function VistoDetailsPage() {
 
   const confirmRenameDocument = async () => {
     if (!editingDocument || !newDocumentName.trim()) return;
-    
     try {
-      setDocuments(prev => 
-        prev.map(doc => 
-          doc.id === editingDocument.id 
-            ? { ...doc, name: newDocumentName.trim() }
-            : doc
-        )
-      );
-      setShowEditDialog(false);
-      setEditingDocument(null);
-      setNewDocumentName("");
+      const res = await fetch(`/api/documents/rename/${editingDocument.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_name: newDocumentName.trim() })
+      });
+      if (res.ok) {
+        await fetchDocuments();
+        setShowEditDialog(false);
+        setEditingDocument(null);
+        setNewDocumentName("");
+      }
     } catch (error) {
       console.error("Erro ao renomear documento:", error);
     }
@@ -280,27 +284,20 @@ export default function VistoDetailsPage() {
 
   const handleFileUpload = async (files: FileList | null, stepId?: number) => {
     if (!files || files.length === 0) return;
-
     const file = files[0];
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
-    
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
-
     try {
-      // Simulando upload
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newDocument: Document = {
-        id: Date.now().toString(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
-        url: URL.createObjectURL(file),
-        stepId
-      };
-
-      setDocuments(prev => [...prev, newDocument]);
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caseId', String(params.id));
+      fd.append('moduleType', 'vistos');
+      fd.append('fieldName', 'documentoAnexado');
+      fd.append('clientName', caseData?.clientName || 'Cliente');
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        await fetchDocuments();
+      }
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
     } finally {
@@ -311,23 +308,18 @@ export default function VistoDetailsPage() {
   const handleSpecificFileUpload = async (file: File, fieldKey: string, stepId: number) => {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
-
     try {
-      // Simulando upload
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newDocument: Document = {
-        id: Date.now().toString(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString(),
-        url: URL.createObjectURL(file),
-        stepId
-      };
-
-      setDocuments(prev => [...prev, newDocument]);
-      setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caseId', String(params.id));
+      fd.append('moduleType', 'vistos');
+      fd.append('fieldName', fieldKey);
+      fd.append('clientName', caseData?.clientName || 'Cliente');
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        await fetchDocuments();
+        setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
+      }
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
     } finally {
@@ -363,34 +355,54 @@ export default function VistoDetailsPage() {
     });
   };
 
-  const saveStepData = (stepId: number, data: any) => {
+  const saveStepData = async (stepId: number, data: any) => {
     setStepData(prev => ({
       ...prev,
       [stepId]: { ...prev[stepId], ...data }
     }));
+    const stepTitle = (WORKFLOWS[caseData?.type || 'Visto de Trabalho'] || [])[stepId] || `Etapa ${stepId + 1}`;
+    const entries = Object.entries(data || {})
+      .filter(([_, v]) => typeof v === 'string' && v.trim() !== '')
+      .map(([k, v]) => `- ${k}: ${v}`);
+    if (entries.length) {
+      const block = `\n[${stepTitle}]\n${entries.join('\n')}\n`;
+      try {
+        await fetch(`/api/vistos?id=${params.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: `${block}` })
+        });
+      } catch (e) {
+        console.error('Erro ao persistir dados da etapa:', e);
+      }
+    }
   };
 
-  const saveStepNotes = (stepId: number) => {
-    if (!caseData) return;
-    
-    setCaseData(prev => {
-      if (!prev) return prev;
-      
-      return {
-        ...prev,
-        steps: prev.steps.map(step => 
-          step.id === stepId 
-            ? { ...step, notes: notes[stepId] }
-            : step
-        )
-      };
-    });
+  const saveStepNotes = async (stepId: number) => {
+    const stepTitle = (WORKFLOWS[caseData?.type || 'Visto de Trabalho'] || [])[stepId] || `Etapa ${stepId + 1}`;
+    const text = notes[stepId] || '';
+    const block = `\n[${stepTitle}]\n${text.trim()}\n`;
+    try {
+      await fetch(`/api/vistos?id=${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: `${block}` })
+      });
+    } catch (error) {
+      console.error('Erro ao salvar notas da etapa:', error);
+    }
   };
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus);
-    if (caseData) {
-      setCaseData(prev => prev ? { ...prev, status: newStatus } : prev);
+    try {
+      await fetch(`/api/vistos?id=${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (e) {
+      console.error('Erro ao atualizar status:', e);
     }
   };
 
