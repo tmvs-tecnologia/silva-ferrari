@@ -13,6 +13,8 @@ function mapDbToFrontend(record: any) {
     stepIndex: record.step_index,
     responsibleName: record.responsible_name,
     dueDate: record.due_date,
+    isDone: !!record.is_done,
+    completedAt: record.completed_at,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
   }
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const body = await request.json()
-    const { moduleType, recordId, stepIndex, responsibleName, dueDate } = body
+    const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone } = body
 
     if (!moduleType || !recordId || stepIndex === undefined) {
       return NextResponse.json({ error: 'moduleType, recordId e stepIndex são obrigatórios' }, { status: 400 })
@@ -101,6 +103,8 @@ export async function POST(request: NextRequest) {
           step_index: parseInt(stepIndex),
           responsible_name: responsibleName ?? null,
           due_date: dueDate ?? null,
+          is_done: !!isDone,
+          completed_at: isDone ? now : null,
           created_at: now,
           updated_at: now,
         })
@@ -121,7 +125,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const body = await request.json()
-    const { moduleType, recordId, stepIndex, responsibleName, dueDate } = body
+    const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone } = body
 
     if (!moduleType || !recordId || stepIndex === undefined) {
       return NextResponse.json({ error: 'moduleType, recordId e stepIndex são obrigatórios' }, { status: 400 })
@@ -132,6 +136,10 @@ export async function PATCH(request: NextRequest) {
     const updateData: any = { updated_at: now }
     if (responsibleName !== undefined) updateData.responsible_name = responsibleName ?? null
     if (dueDate !== undefined) updateData.due_date = dueDate ?? null
+    if (isDone !== undefined) {
+      updateData.is_done = !!isDone
+      updateData.completed_at = isDone ? now : null
+    }
 
     const { data: updated, error } = await supabase
       .from('step_assignments')

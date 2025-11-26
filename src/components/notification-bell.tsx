@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/lib/supabase";
+// Supabase import movido para carga dinâmica no cliente para evitar erro em SSR
 
 interface Alert {
   id: number;
@@ -62,53 +62,64 @@ export const NotificationBell = () => {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, 30000);
 
-    const channel = supabase
-      .channel("alerts-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "alerts" },
-        (payload: any) => {
-          const a = payload?.new;
-          if (!a) return;
-          if (a.is_read) return;
-          const mapped = {
-            id: a.id,
-            message: a.message,
-            moduleType: a.module_type,
-            alertFor: a.alert_for,
-            isRead: a.is_read,
-            createdAt: a.created_at,
-          } as Alert;
-          setAlerts((prev) => {
-            const exists = prev.some((p) => p.id === mapped.id);
-            const next = exists ? prev.map((p) => (p.id === mapped.id ? mapped : p)) : [mapped, ...prev];
-            return next.filter((p) => !p.isRead);
-          });
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "alerts" },
-        (payload: any) => {
-          const a = payload?.new;
-          if (!a) return;
-          const mapped = {
-            id: a.id,
-            message: a.message,
-            moduleType: a.module_type,
-            alertFor: a.alert_for,
-            isRead: a.is_read,
-            createdAt: a.created_at,
-          } as Alert;
-          setAlerts((prev) => {
-            const next = prev.map((p) => (p.id === mapped.id ? mapped : p)).filter((p) => !p.isRead);
-            return next;
-          });
-          if (a.is_read) setUnreadCount((prev) => Math.max(0, prev - 1));
-        }
-      )
-      .subscribe();
+    let channel: any | null = null;
+    let supabaseClient: any | null = null;
+    const setupRealtime = async () => {
+      try {
+        if (typeof window === "undefined") return;
+        const mod = await import("@/lib/supabase");
+        supabaseClient = mod.supabase;
+        channel = supabaseClient
+          .channel("alerts-realtime")
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "alerts" },
+            (payload: any) => {
+              const a = payload?.new;
+              if (!a || a.is_read) return;
+              const mapped = {
+                id: a.id,
+                message: a.message,
+                moduleType: a.module_type,
+                alertFor: a.alert_for,
+                isRead: a.is_read,
+                createdAt: a.created_at,
+              } as Alert;
+              setAlerts((prev) => {
+                const exists = prev.some((p) => p.id === mapped.id);
+                const next = exists ? prev.map((p) => (p.id === mapped.id ? mapped : p)) : [mapped, ...prev];
+                return next.filter((p) => !p.isRead);
+              });
+              setUnreadCount((prev) => prev + 1);
+            }
+          )
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "alerts" },
+            (payload: any) => {
+              const a = payload?.new;
+              if (!a) return;
+              const mapped = {
+                id: a.id,
+                message: a.message,
+                moduleType: a.module_type,
+                alertFor: a.alert_for,
+                isRead: a.is_read,
+                createdAt: a.created_at,
+              } as Alert;
+              setAlerts((prev) => {
+                const next = prev.map((p) => (p.id === mapped.id ? mapped : p)).filter((p) => !p.isRead);
+                return next;
+              });
+              if (a.is_read) setUnreadCount((prev) => Math.max(0, prev - 1));
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.error("Erro ao inicializar realtime de alertas:", err);
+      }
+    };
+    setupRealtime();
 
     const onStorage = (e: StorageEvent) => {
       if (e.key === "alerts-updated") fetchAlerts();
@@ -121,7 +132,9 @@ export const NotificationBell = () => {
 
     return () => {
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      if (channel && supabaseClient) {
+        try { supabaseClient.removeChannel(channel); } catch {}
+      }
       if (typeof window !== "undefined") {
         window.removeEventListener("storage", onStorage);
         window.removeEventListener("alerts-updated", onCustom as EventListener);

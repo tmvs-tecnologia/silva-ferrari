@@ -17,7 +17,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase.from('step_assignments').select('*')
 
-    if (responsible) query = query.ilike('responsible_name', `%${responsible}%`)
+    if (responsible === '__none__') {
+      // Somente tarefas sem responsável (null ou string vazia)
+      query = query.or('responsible_name.is.null,responsible_name.eq.')
+    } else if (responsible) {
+      query = query.ilike('responsible_name', `%${responsible}%`)
+    }
     if (moduleType) query = query.eq('module_type', moduleType)
     if (from) query = query.gte('due_date', from)
     if (to) query = query.lte('due_date', to)
@@ -34,6 +39,8 @@ export async function GET(request: NextRequest) {
       stepIndex: number;
       responsibleName?: string;
       dueDate?: string;
+      isDone?: boolean;
+      completedAt?: string | null;
       createdAt: string;
       updatedAt: string;
       clientName?: string | null;
@@ -47,6 +54,8 @@ export async function GET(request: NextRequest) {
       stepIndex: r.step_index,
       responsibleName: r.responsible_name,
       dueDate: r.due_date,
+      isDone: !!r.is_done,
+      completedAt: r.completed_at ?? null,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       clientName: null,

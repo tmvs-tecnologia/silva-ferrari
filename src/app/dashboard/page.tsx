@@ -303,6 +303,20 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 cursor-pointer" onClick={() => router.push('/dashboard/procuracao/novo')}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-slate-600">Elaborar Procuração</div>
+                    <div className="text-xs text-slate-500">Criar rapidamente uma procuração</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
         
