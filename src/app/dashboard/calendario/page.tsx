@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Calendar as CalendarIcon, User, FileText } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
 import { ptBR } from "date-fns/locale";
 import "react-day-picker/dist/style.css";
 
@@ -193,7 +193,7 @@ export default function CalendarPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-md border p-2">
               <label className="text-sm font-medium">De</label>
-              <DayPicker
+              <Calendar
                 mode="single"
                 selected={from}
                 onSelect={setFrom}
@@ -201,12 +201,12 @@ export default function CalendarPage() {
                 captionLayout="buttons"
                 locale={ptBR}
                 className="w-full"
-                style={{ "--rdp-cell-size": "3rem" } as React.CSSProperties }
+                style={{ "--cell-size": "2.9rem" } as React.CSSProperties }
               />
             </div>
             <div className="rounded-md border p-2">
               <label className="text-sm font-medium">Até</label>
-              <DayPicker
+              <Calendar
                 mode="single"
                 selected={to}
                 onSelect={setTo}
@@ -214,7 +214,7 @@ export default function CalendarPage() {
                 captionLayout="buttons"
                 locale={ptBR}
                 className="w-full"
-                style={{ "--rdp-cell-size": "3rem" } as React.CSSProperties }
+                style={{ "--cell-size": "2.9rem" } as React.CSSProperties }
               />
             </div>
           </div>
