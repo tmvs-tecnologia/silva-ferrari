@@ -643,7 +643,7 @@ export default function CaseDetailPage() {
     ];
     return type === "Exame DNA"
       ? EXAME_DNA_STEPS
-      : (type === "Alteração de Nome" || type === "Guarda")
+      : (type === "Alteração de Nome" || type === "Guarda" || type === "Acordos de Guarda")
       ? ALTERACAO_NOME_STEPS
       : STANDARD_CIVIL_STEPS;
   };
@@ -898,7 +898,7 @@ export default function CaseDetailPage() {
             </div>
           );
         }
-        if (caseData?.type === 'Alteração de Nome' || caseData?.type === 'Guarda') {
+        if (caseData?.type === 'Alteração de Nome' || caseData?.type === 'Guarda' || caseData?.type === 'Acordos de Guarda') {
           return (
             <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
               <h4 className="font-semibold text-slate-900">Cadastro de Documentos</h4>
@@ -1118,7 +1118,7 @@ export default function CaseDetailPage() {
             </div>
           );
         }
-        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda") {
+        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda" || caseData?.type === "Acordos de Guarda") {
           return (
             <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
               <h4 className="font-semibold text-slate-900">Emissão da Guia Judicial</h4>
@@ -1244,7 +1244,7 @@ export default function CaseDetailPage() {
         );
 
       case 4:
-        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda") {
+        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda" || caseData?.type === "Acordos de Guarda") {
           return (
             <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
               <h4 className="font-semibold text-slate-900">Peticionar</h4>
@@ -1320,7 +1320,7 @@ export default function CaseDetailPage() {
         );
 
       case 5:
-        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda") {
+        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda" || caseData?.type === "Acordos de Guarda") {
           return (
             <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
               <h4 className="font-semibold text-slate-900">À Protocolar</h4>
@@ -1417,7 +1417,7 @@ export default function CaseDetailPage() {
         );
 
       case 6:
-        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda") {
+        if (caseData?.type === "Alteração de Nome" || caseData?.type === "Guarda" || caseData?.type === "Acordos de Guarda") {
           return (
             <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
               <h4 className="font-semibold text-slate-900">Processo Protocolado</h4>

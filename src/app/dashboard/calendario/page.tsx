@@ -49,7 +49,7 @@ export default function CalendarPage() {
       "Processo Protocolado",
       "Processo Finalizado",
     ];
-    const steps = (caseType === "Alteração de Nome" || caseType === "Guarda") ? ALTERACAO_NOME_STEPS : STANDARD_CIVIL_STEPS;
+    const steps = (caseType === "Alteração de Nome" || caseType === "Guarda" || caseType === "Acordos de Guarda") ? ALTERACAO_NOME_STEPS : STANDARD_CIVIL_STEPS;
     return steps[stepIndex] || `Etapa ${stepIndex + 1}`;
   };
 
