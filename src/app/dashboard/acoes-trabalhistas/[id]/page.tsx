@@ -465,6 +465,25 @@ export default function AcaoTrabalhistaDetailPage() {
     }
   };
 
+  const renderDocLinks = (fieldKey: string) => {
+    const list = (documents || []).filter((d: any) => (d.field_name || (d as any).fieldName) === fieldKey);
+    if (!list.length) return null as any;
+    return (
+      <div className="mt-2">
+        <Label>Documento anexado</Label>
+        <ul className="list-disc pl-5">
+          {list.map((doc: any) => (
+            <li key={String(doc.id)}>
+              <a href={doc.file_path || doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {doc.document_name || doc.name || doc.file_name || "Documento"}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const renderStepContent = (stepIndex: number) => {
     if (!caseData) return null;
     
@@ -490,25 +509,26 @@ export default function AcaoTrabalhistaDetailPage() {
                   placeholder="Status dos documentos iniciais"
                   className="bg-white"
                 />
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, "documentosIniciaisFile")}
-                    disabled={uploadingFields.documentosIniciaisFile}
-                    className="flex-1"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  />
-                  {uploadingFields.documentosIniciaisFile && (
-                    <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {caseData.documentosIniciaisFile && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Arquivo anexado: {caseData.documentosIniciaisFile}
-                  </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  onChange={(e) => handleFileUpload(e, "documentosIniciaisFile")}
+                  disabled={uploadingFields.documentosIniciaisFile}
+                  className="flex-1"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                />
+                {uploadingFields.documentosIniciaisFile && (
+                  <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {caseData.documentosIniciaisFile && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Arquivo anexado: {caseData.documentosIniciaisFile}
+                </p>
+              )}
+              {renderDocLinks("documentosIniciaisFile")}
+            </div>
 
               <div className="space-y-2">
                 <Label>Contrato de Trabalho</Label>
@@ -518,25 +538,26 @@ export default function AcaoTrabalhistaDetailPage() {
                   placeholder="Status do contrato de trabalho"
                   className="bg-white"
                 />
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, "contratoTrabalhoFile")}
-                    disabled={uploadingFields.contratoTrabalhoFile}
-                    className="flex-1"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  />
-                  {uploadingFields.contratoTrabalhoFile && (
-                    <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {caseData.contratoTrabalhoFile && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Arquivo anexado: {caseData.contratoTrabalhoFile}
-                  </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  onChange={(e) => handleFileUpload(e, "contratoTrabalhoFile")}
+                  disabled={uploadingFields.contratoTrabalhoFile}
+                  className="flex-1"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                />
+                {uploadingFields.contratoTrabalhoFile && (
+                  <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {caseData.contratoTrabalhoFile && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Arquivo anexado: {caseData.contratoTrabalhoFile}
+                </p>
+              )}
+              {renderDocLinks("contratoTrabalhoFile")}
+            </div>
 
               <div className="space-y-2">
                 <Label>Carteira de Trabalho</Label>
@@ -546,25 +567,26 @@ export default function AcaoTrabalhistaDetailPage() {
                   placeholder="Status da carteira de trabalho"
                   className="bg-white"
                 />
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, "carteiraTrabalhistaFile")}
-                    disabled={uploadingFields.carteiraTrabalhistaFile}
-                    className="flex-1"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  />
-                  {uploadingFields.carteiraTrabalhistaFile && (
-                    <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {caseData.carteiraTrabalhistaFile && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Arquivo anexado: {caseData.carteiraTrabalhistaFile}
-                  </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  onChange={(e) => handleFileUpload(e, "carteiraTrabalhistaFile")}
+                  disabled={uploadingFields.carteiraTrabalhistaFile}
+                  className="flex-1"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                />
+                {uploadingFields.carteiraTrabalhistaFile && (
+                  <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {caseData.carteiraTrabalhistaFile && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Arquivo anexado: {caseData.carteiraTrabalhistaFile}
+                </p>
+              )}
+              {renderDocLinks("carteiraTrabalhistaFile")}
+            </div>
 
               <div className="space-y-2">
                 <Label>Comprovantes Salariais</Label>
@@ -574,25 +596,26 @@ export default function AcaoTrabalhistaDetailPage() {
                   placeholder="Status dos comprovantes salariais"
                   className="bg-white"
                 />
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, "comprovantesSalariaisFile")}
-                    disabled={uploadingFields.comprovantesSalariaisFile}
-                    className="flex-1"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  />
-                  {uploadingFields.comprovantesSalariaisFile && (
-                    <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {caseData.comprovantesSalariaisFile && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Arquivo anexado: {caseData.comprovantesSalariaisFile}
-                  </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  onChange={(e) => handleFileUpload(e, "comprovantesSalariaisFile")}
+                  disabled={uploadingFields.comprovantesSalariaisFile}
+                  className="flex-1"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                />
+                {uploadingFields.comprovantesSalariaisFile && (
+                  <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+              {caseData.comprovantesSalariaisFile && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Arquivo anexado: {caseData.comprovantesSalariaisFile}
+                </p>
+              )}
+              {renderDocLinks("comprovantesSalariaisFile")}
+            </div>
             </div>
             <Button 
               onClick={() => {
@@ -646,6 +669,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.peticaoInicialFile}
                 </p>
               )}
+              {renderDocLinks("peticaoInicialFile")}
             </div>
             <div className="space-y-2">
               <Label>Procuração</Label>
@@ -673,6 +697,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.procuracaoTrabalhistaFile}
                 </p>
               )}
+              {renderDocLinks("procuracaoTrabalhistaFile")}
             </div>
             <Button 
               onClick={() => {
@@ -723,6 +748,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.citacaoEmpregadorFile}
                 </p>
               )}
+              {renderDocLinks("citacaoEmpregadorFile")}
             </div>
             <Button 
               onClick={() => {
@@ -772,6 +798,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.contestacaoRecebidaFile}
                 </p>
               )}
+              {renderDocLinks("contestacaoRecebidaFile")}
             </div>
             <Button 
               onClick={() => {
@@ -821,6 +848,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.ataAudienciaInicialFile}
                 </p>
               )}
+              {renderDocLinks("ataAudienciaInicialFile")}
             </div>
             <Button 
               onClick={() => {
@@ -870,6 +898,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.provasTestemunhasFile}
                 </p>
               )}
+              {renderDocLinks("provasTestemunhasFile")}
             </div>
             <Button 
               onClick={() => {
@@ -923,6 +952,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.alegacoesFinaisFile}
                 </p>
               )}
+              {renderDocLinks("alegacoesFinaisFile")}
               <p className="text-xs text-muted-foreground">
                 Formatos aceitos: PDF, DOC, DOCX, JPG, PNG
               </p>
@@ -979,6 +1009,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.sentencaTrabalhistaFile}
                 </p>
               )}
+              {renderDocLinks("sentencaTrabalhistaFile")}
               <p className="text-xs text-muted-foreground">
                 Formatos aceitos: PDF, DOC, DOCX, JPG, PNG
               </p>
@@ -1035,6 +1066,7 @@ export default function AcaoTrabalhistaDetailPage() {
                   Arquivo anexado: {caseData.execucaoRecursoFile}
                 </p>
               )}
+              {renderDocLinks("execucaoRecursoFile")}
               <p className="text-xs text-muted-foreground">
                 Formatos aceitos: PDF, DOC, DOCX, JPG, PNG
               </p>

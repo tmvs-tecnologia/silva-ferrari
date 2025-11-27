@@ -152,6 +152,8 @@ interface CaseData {
   passaporte?: string;
   numeroProtocolo?: string;
   dataExameDna?: string;
+  localExameDna?: string;
+  observacoesExameDna?: string;
 }
 
 interface Document {
@@ -185,6 +187,41 @@ export default function CaseDetailPage() {
   const [stepObservations, setStepObservations] = useState<Record<number, string>>({});
   const [dnaExamDate, setDnaExamDate] = useState("");
   const [dnaExamTime, setDnaExamTime] = useState("");
+  const [dnaExamLocation, setDnaExamLocation] = useState("");
+  const [dnaExamNotes, setDnaExamNotes] = useState("");
+  const [dnaSaveSuccess, setDnaSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    const raw = (caseData as any)?.dataExameDna || caseData?.dataExameDna || "";
+    if (!raw) return;
+    if (typeof raw === 'string') {
+      const iso = raw.replace('T', ' ');
+      const m = iso.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+      if (m) {
+        setDnaExamDate(m[1]);
+        setDnaExamTime(m[2]);
+        return;
+      }
+      try {
+        const d = new Date(raw);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const mm = pad(d.getMonth() + 1);
+        const dd = pad(d.getDate());
+        const hh = pad(d.getHours());
+        const mi = pad(d.getMinutes());
+        setDnaExamDate(`${yyyy}-${mm}-${dd}`);
+        setDnaExamTime(`${hh}:${mi}`);
+      } catch {}
+    }
+  }, [caseData?.dataExameDna]);
+
+  useEffect(() => {
+    const loc = (caseData as any)?.localExameDna || '';
+    const obs = (caseData as any)?.observacoesExameDna || '';
+    setDnaExamLocation(String(loc || ''));
+    setDnaExamNotes(String(obs || ''));
+  }, [caseData?.localExameDna, caseData?.observacoesExameDna]);
 
   // Load case data
   useEffect(() => {
@@ -347,6 +384,25 @@ export default function CaseDetailPage() {
     } catch {
       return { ok: res.ok, status: res.status } as any;
     }
+  };
+
+  const renderDocLinks = (fieldKey: string) => {
+    const list = documents.filter((d) => d.field_name === fieldKey);
+    if (!list.length) return null;
+    return (
+      <div>
+        <Label>Documento anexado</Label>
+        <ul className="list-disc pl-5">
+          {list.map((doc) => (
+            <li key={String(doc.id)}>
+              <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {doc.document_name || doc.file_name || 'Documento'}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
@@ -543,10 +599,17 @@ export default function CaseDetailPage() {
       const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataExameDna: combined }),
+        body: JSON.stringify({
+          dataExameDna: combined || null,
+          localExameDna: dnaExamLocation || null,
+          observacoesExameDna: dnaExamNotes || null,
+        }),
       });
       if (response.ok) {
-        setCaseData(prev => prev ? { ...prev, dataExameDna: combined } : prev);
+        const updated = await response.json();
+        setCaseData(prev => prev ? { ...prev, dataExameDna: updated.dataExameDna, localExameDna: updated.localExameDna, observacoesExameDna: updated.observacoesExameDna } : prev);
+        setDnaSaveSuccess(true);
+        setTimeout(() => setDnaSaveSuccess(false), 4000);
       }
     } catch (error) {
       console.error("Erro ao salvar agendamento do exame de DNA:", error);
@@ -561,7 +624,7 @@ export default function CaseDetailPage() {
 
   const handleDocumentDelete = async (document: Document) => {
     try {
-      const response = await fetch(`/api/documents/${document.id}`, {
+      const response = await fetch(`/api/documents/delete/${document.id}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -582,16 +645,16 @@ export default function CaseDetailPage() {
     if (!editingDocumentId || !editingDocumentName.trim()) return;
 
     try {
-      const response = await fetch(`/api/documents/${editingDocumentId}/name`, {
-        method: "PATCH",
+      const response = await fetch(`/api/documents/rename/${editingDocumentId}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editingDocumentName }),
+        body: JSON.stringify({ document_name: editingDocumentName }),
       });
       
       if (response.ok) {
         setDocuments(prev => prev.map(doc => 
           doc.id === editingDocumentId 
-            ? { ...doc, document_name: editingDocumentName, file_name: editingDocumentName }
+            ? { ...doc, document_name: editingDocumentName }
             : doc
         ));
         setEditingDocumentId(null);
@@ -849,30 +912,33 @@ export default function CaseDetailPage() {
                         aria-label="Selecionar documento de passaporte da mãe"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) uploadCaseFile(f, 'passaporteMaeFile');
-                        }}
-                      />
-                    </div>
+                      if (f) uploadCaseFile(f, 'passaporteMaeFile');
+                    }}
+                  />
+                  {renderDocLinks('passaporteMaeFile')}
+                </div>
                     <div className="space-y-1">
                       <Label>Passaporte do Pai Registral</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         aria-label="Selecionar documento de passaporte do pai registral"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) uploadCaseFile(f, 'passaportePaiRegistralFile');
-                        }}
-                      />
-                    </div>
+                      if (f) uploadCaseFile(f, 'passaportePaiRegistralFile');
+                    }}
+                  />
+                  {renderDocLinks('passaportePaiRegistralFile')}
+                </div>
                     <div className="space-y-1">
                       <Label>Passaporte do Suposto Pai</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         aria-label="Selecionar documento de passaporte do suposto pai"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) uploadCaseFile(f, 'passaporteSupostoPaiFile');
-                        }}
-                      />
-                    </div>
+                      if (f) uploadCaseFile(f, 'passaporteSupostoPaiFile');
+                    }}
+                  />
+                  {renderDocLinks('passaporteSupostoPaiFile')}
+                </div>
                   </div>
                 </div>
 
@@ -966,6 +1032,7 @@ export default function CaseDetailPage() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'ownerRnmFile'); }}
                       />
+                      {renderDocLinks('ownerRnmFile')}
                     </div>
                   </div>
                 </div>
@@ -990,6 +1057,7 @@ export default function CaseDetailPage() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'comprovanteEnderecoFile'); }}
                       />
+                      {renderDocLinks('comprovanteEnderecoFile')}
                     </div>
                   </div>
                 </div>
@@ -1002,30 +1070,35 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'declaracaoVizinhosFile'); }}
                       />
+                      {renderDocLinks('declaracaoVizinhosFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>Matrícula do Imóvel</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'matriculaImovelFile'); }}
                       />
+                      {renderDocLinks('matriculaImovelFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>Conta de Água</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'contaAguaFile'); }}
                       />
+                      {renderDocLinks('contaAguaFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>Conta de Luz</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'contaLuzFile'); }}
                       />
+                      {renderDocLinks('contaLuzFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>IPTU</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'iptuFile'); }}
                       />
+                      {renderDocLinks('iptuFile')}
                     </div>
                   </div>
                 </div>
@@ -1088,6 +1161,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'rnmMaeFile'); }}
                       />
+                      {renderDocLinks('rnmMaeFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>RNM / RNE / RG Pai</Label>
@@ -1098,6 +1172,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'rnmPaiFile'); }}
                       />
+                      {renderDocLinks('rnmPaiFile')}
                     </div>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1110,6 +1185,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'cpfMaeFile'); }}
                       />
+                      {renderDocLinks('cpfMaeFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>CPF Pai</Label>
@@ -1120,6 +1196,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'cpfPaiFile'); }}
                       />
+                      {renderDocLinks('cpfPaiFile')}
                     </div>
                   </div>
                 </div>
@@ -1136,6 +1213,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'certidaoNascimentoFile'); }}
                       />
+                      {renderDocLinks('certidaoNascimentoFile')}
                     </div>
                   </div>
                 </div>
@@ -1152,6 +1230,7 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'comprovanteEnderecoFile'); }}
                       />
+                      {renderDocLinks('comprovanteEnderecoFile')}
                     </div>
                   </div>
                 </div>
@@ -1164,18 +1243,21 @@ export default function CaseDetailPage() {
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'passaporteMaeFile'); }}
                       />
+                      {renderDocLinks('passaporteMaeFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>Passaporte do Pai</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'passaportePaiRegistralFile'); }}
                       />
+                      {renderDocLinks('passaportePaiRegistralFile')}
                     </div>
                     <div className="space-y-1">
                       <Label>Passaporte da Criança</Label>
                       <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
                         onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'passaporteFile'); }}
                       />
+                      {renderDocLinks('passaporteFile')}
                     </div>
                   </div>
                 </div>
@@ -1260,18 +1342,20 @@ export default function CaseDetailPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Certidão de Nascimento da Criança</Label>
-                    <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'certidaoNascimentoFile'); }}
-                    />
-                  </div>
+                      <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'certidaoNascimentoFile'); }}
+                      />
+                      {renderDocLinks('certidaoNascimentoFile')}
+                    </div>
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Guarda (caso tiver filhos)</Label>
-                    <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'documentosFinaisAnexadosFile'); }}
-                    />
-                  </div>
+                      <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'documentosFinaisAnexadosFile'); }}
+                      />
+                      {renderDocLinks('documentosFinaisAnexadosFile')}
+                    </div>
                 </div>
               </div>
 
@@ -1280,10 +1364,11 @@ export default function CaseDetailPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Comprovante de Endereço</Label>
-                    <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'comprovanteEnderecoFile'); }}
-                    />
-                  </div>
+                      <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'comprovanteEnderecoFile'); }}
+                      />
+                      {renderDocLinks('comprovanteEnderecoFile')}
+                    </div>
                 </div>
               </div>
 
@@ -1292,10 +1377,11 @@ export default function CaseDetailPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Termo de Partilhas</Label>
-                    <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'documentosFinaisAnexadosFile'); }}
-                    />
-                  </div>
+                      <Input type="file" className="bg-white" accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCaseFile(f, 'documentosFinaisAnexadosFile'); }}
+                      />
+                      {renderDocLinks('documentosFinaisAnexadosFile')}
+                    </div>
                 </div>
               </div>
             </div>
@@ -1332,33 +1418,53 @@ export default function CaseDetailPage() {
                   <Label>Hora do Exame</Label>
                   <Input type="time" className="bg-white" value={dnaExamTime} onChange={(e) => setDnaExamTime(e.target.value)} />
                 </div>
-                <div>
-                  <Label>Local do Exame</Label>
-                  <Input type="text" placeholder="Nome do laboratório" className="bg-white" />
-                </div>
-                <div>
-                  <Label>Arquivo do Exame de DNA</Label>
-                  <Input
-                    type="file"
+              <div>
+                <Label>Local do Exame</Label>
+                <Input type="text" placeholder="Nome do laboratório" className="bg-white" value={dnaExamLocation} onChange={(e) => setDnaExamLocation(e.target.value)} />
+              </div>
+              <div>
+                <Label>Arquivo do Exame de DNA</Label>
+                <Input
+                  type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
                     className="bg-white"
                     aria-label="Selecionar arquivo do exame de DNA"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) handleDnaResultUpload(f);
-                    }}
-                  />
-                </div>
+                    if (f) handleDnaResultUpload(f);
+                  }}
+                />
+              </div>
+              {documents.filter((d) => d.field_name === 'resultadoExameDnaFile').length > 0 && (
                 <div>
-                  <Label>Observações</Label>
-                  <Textarea placeholder="Informações adicionais sobre o agendamento..." className="bg-white" rows={3} />
+                  <Label>Documento anexado</Label>
+                  <ul className="list-disc pl-5">
+                    {documents.filter((d) => d.field_name === 'resultadoExameDnaFile').map((doc) => (
+                      <li key={String(doc.id)}>
+                        <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          {doc.document_name || doc.file_name || 'Documento'}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div>
-                  <Button onClick={handleSaveDnaSchedule}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar Agendamento
-                  </Button>
-                </div>
+              )}
+              <div>
+                <Label>Observações</Label>
+                <Textarea placeholder="Informações adicionais sobre o agendamento..." className="bg-white" rows={3} value={dnaExamNotes} onChange={(e) => setDnaExamNotes(e.target.value)} />
+              </div>
+              <div>
+                <Button onClick={handleSaveDnaSchedule}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Agendamento
+                </Button>
+                {dnaSaveSuccess && (
+                  <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Agendamento salvo com sucesso
+                  </p>
+                )}
+              </div>
               </div>
             </div>
           );
@@ -1409,6 +1515,9 @@ export default function CaseDetailPage() {
                       }}
                     />
                   </div>
+                  {renderDocLinks('procuracaoAnexadaFile')}
+                  {renderDocLinks('peticaoAnexadaFile')}
+                  {renderDocLinks('guiaPagaFile')}
                 </div>
                 <div className="grid gap-3">
                   <div>
@@ -1441,26 +1550,27 @@ export default function CaseDetailPage() {
                 <div className="grid gap-3">
                   <div>
                     <Label>Procuração</Label>
-                    <Input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      className="bg-white"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) uploadCaseFile(f, 'procuracaoAnexadaFile');
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label>Observações</Label>
-                    <Textarea
-                      placeholder="Adicione observações sobre esta etapa..."
-                      className="bg-white"
-                      rows={3}
-                      value={stepObservations[1] || ''}
-                      onChange={(e) => handleObservationChange(1, e.target.value)}
-                    />
-                  </div>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    className="bg-white"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'procuracaoAnexadaFile');
+                    }}
+                  />
+                </div>
+                {renderDocLinks('procuracaoAnexadaFile')}
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea
+                    placeholder="Adicione observações sobre esta etapa..."
+                    className="bg-white"
+                    rows={3}
+                    value={stepObservations[1] || ''}
+                    onChange={(e) => handleObservationChange(1, e.target.value)}
+                  />
+                </div>
                   <div>
                     <Button onClick={() => handleSaveStepObservation(1)}>
                       <Save className="h-4 w-4 mr-2" />
@@ -1490,6 +1600,7 @@ export default function CaseDetailPage() {
                     }}
                   />
                 </div>
+                {renderDocLinks('guiaPagaFile')}
                 <div>
                   <Label>Observações</Label>
                   <Textarea
@@ -1576,10 +1687,11 @@ export default function CaseDetailPage() {
                       className="bg-white"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) uploadCaseFile(f, 'contratoEngenheiroFile');
-                      }}
-                    />
-                  </div>
+                      if (f) uploadCaseFile(f, 'contratoEngenheiroFile');
+                    }}
+                  />
+                  {renderDocLinks('contratoEngenheiroFile')}
+                </div>
                   <div>
                     <Label>Observações</Label>
                     <Textarea
@@ -1617,6 +1729,7 @@ export default function CaseDetailPage() {
                     if (f) uploadCaseFile(f, 'procuracaoAnexadaFile');
                   }}
                 />
+                {renderDocLinks('procuracaoAnexadaFile')}
               </div>
             </div>
             <div className="grid gap-3">
@@ -1781,6 +1894,7 @@ export default function CaseDetailPage() {
                       if (f) uploadCaseFile(f, 'peticaoAnexadaFile');
                     }}
                   />
+                  {renderDocLinks('peticaoAnexadaFile')}
                 </div>
                 <div>
                   <Label>Observações</Label>
@@ -1811,16 +1925,17 @@ export default function CaseDetailPage() {
                 <div className="grid gap-3">
                   <div>
                     <Label>Guia Judicial</Label>
-                    <Input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="bg-white"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) uploadCaseFile(f, 'guiaPagaFile');
-                      }}
-                    />
-                  </div>
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="bg-white"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadCaseFile(f, 'guiaPagaFile');
+                    }}
+                  />
+                  {renderDocLinks('guiaPagaFile')}
+                </div>
                   <div>
                     <Label>Observações</Label>
                     <Textarea
@@ -1858,6 +1973,7 @@ export default function CaseDetailPage() {
                     if (f) uploadCaseFile(f, 'processoAnexadoFile');
                   }}
                 />
+                {renderDocLinks('processoAnexadoFile')}
               </div>
               <div>
                 <Label>Observações</Label>
@@ -1897,6 +2013,7 @@ export default function CaseDetailPage() {
                       if (f) uploadCaseFile(f, 'processoAnexadoFile');
                     }}
                   />
+                  {renderDocLinks('processoAnexadoFile')}
                 </div>
                 <div>
                   <Label>Observações</Label>

@@ -94,6 +94,25 @@ export default function AcoesCriminaisPage() {
     }
   }
 
+  const renderDocLinks = (fieldKey: string) => {
+    const list = documents.filter((d) => d.field_name === fieldKey);
+    if (!list.length) return null;
+    return (
+      <div>
+        <Label>Documento anexado</Label>
+        <ul className="list-disc pl-5">
+          {list.map((doc) => (
+            <li key={String(doc.id)}>
+              <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {doc.document_name || doc.file_name || 'Documento'}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   const fetchDocuments = async () => {
     try {
       const res = await fetch(`/api/documents?moduleType=acoes_criminais&recordId=${id}`)
@@ -371,6 +390,7 @@ export default function AcoesCriminaisPage() {
                   />
                   {uploadStatus.boletimOcorrencia === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                   {uploadStatus.boletimOcorrencia === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                  {renderDocLinks('boletimOcorrencia')}
                 </div>
               </div>
 
@@ -388,6 +408,7 @@ export default function AcoesCriminaisPage() {
                   />
                   {uploadStatus.documentosIdentidade === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                   {uploadStatus.documentosIdentidade === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                  {renderDocLinks('documentosIdentidade')}
                 </div>
               </div>
 
@@ -405,6 +426,7 @@ export default function AcoesCriminaisPage() {
                   />
                   {uploadStatus.comprovanteResidencia === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                   {uploadStatus.comprovanteResidencia === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                  {renderDocLinks('comprovanteResidencia')}
                 </div>
               </div>
             </div>
@@ -455,6 +477,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.documentosAnalise === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.documentosAnalise === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('documentosAnalise')}
               </div>
             </div>
 
@@ -482,6 +505,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.peticaoInicial === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.peticaoInicial === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('peticaoInicial')}
               </div>
             </div>
 
@@ -499,6 +523,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.procuracaoCriminal === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.procuracaoCriminal === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('procuracaoCriminal')}
               </div>
             </div>
 
@@ -526,6 +551,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.processoProtocolado === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.processoProtocolado === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('processoProtocolado')}
               </div>
             </div>
 
@@ -563,6 +589,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.citacaoRecebida === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.citacaoRecebida === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('citacaoRecebida')}
               </div>
             </div>
 
@@ -600,6 +627,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.respostaAcusacao === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.respostaAcusacao === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('respostaAcusacao')}
               </div>
             </div>
 
@@ -617,6 +645,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.documentosDefesa === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.documentosDefesa === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('documentosDefesa')}
               </div>
             </div>
 
@@ -644,6 +673,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.ataAudiencia === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.ataAudiencia === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('ataAudiencia')}
               </div>
             </div>
 
@@ -661,6 +691,7 @@ export default function AcoesCriminaisPage() {
                 />
                 {uploadStatus.provasTestemunhas === 'uploading' && <span className="text-sm text-blue-600">Enviando...</span>}
                 {uploadStatus.provasTestemunhas === 'success' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+              {renderDocLinks('provasTestemunhas')}
               </div>
             </div>
 

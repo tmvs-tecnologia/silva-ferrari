@@ -80,6 +80,8 @@ export async function GET(
       guiaPaga: data.guia_paga,
       numeroProtocolo: data.numero_protocolo,
       dataExameDna: data.data_exame_dna,
+      localExameDna: (data as any).local_exame_dna,
+      observacoesExameDna: (data as any).observacoes_exame_dna,
       resultadoExameDna: data.resultado_exame_dna,
       resultadoExameDnaDoc: data.resultado_exame_dna_doc,
       procuracaoAnexada: data.procuracao_anexada,
@@ -164,6 +166,8 @@ export async function PATCH(
     if (body.guiaPaga !== undefined) updateData.guia_paga = body.guiaPaga ?? null;
     if (body.numeroProtocolo !== undefined) updateData.numero_protocolo = body.numeroProtocolo ?? null;
     if (body.dataExameDna !== undefined) updateData.data_exame_dna = body.dataExameDna ?? null;
+    if (body.localExameDna !== undefined) updateData.local_exame_dna = body.localExameDna ?? null;
+    if (body.observacoesExameDna !== undefined) updateData.observacoes_exame_dna = body.observacoesExameDna ?? null;
     if (body.resultadoExameDna !== undefined) updateData.resultado_exame_dna = body.resultadoExameDna ?? null;
     if (body.procuracaoAnexada !== undefined) updateData.procuracao_anexada = body.procuracaoAnexada ?? null;
     if (body.peticaoAnexada !== undefined) updateData.peticao_anexada = body.peticaoAnexada ?? null;
@@ -209,6 +213,8 @@ export async function PATCH(
       guiaPaga: data.guia_paga,
       numeroProtocolo: data.numero_protocolo,
       dataExameDna: data.data_exame_dna,
+      localExameDna: (data as any).local_exame_dna,
+      observacoesExameDna: (data as any).observacoes_exame_dna,
       resultadoExameDna: data.resultado_exame_dna,
       resultadoExameDnaDoc: data.resultado_exame_dna_doc,
       procuracaoAnexada: data.procuracao_anexada,

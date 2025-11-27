@@ -202,6 +202,25 @@ export default function PerdaNacionalidadeDetailPage() {
     }
   };
 
+  const renderDocLinks = (fieldKey: string) => {
+    const list = (documents || []).filter((d: any) => (d.field_name || d.fieldName) === fieldKey);
+    if (!list.length) return null as any;
+    return (
+      <div className="mt-2">
+        <Label>Documento anexado</Label>
+        <ul className="list-disc pl-5">
+          {list.map((doc: any) => (
+            <li key={String(doc.id)}>
+              <a href={doc.file_path || doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {doc.document_name || doc.name || doc.file_name || 'Documento'}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(true);
@@ -347,6 +366,7 @@ export default function PerdaNacionalidadeDetailPage() {
             <div className="text-sm text-muted-foreground">Enviando...</div>
           )}
         </div>
+        {renderDocLinks(fieldName)}
         {currentStepData[fieldName] && (
           <div className="text-sm text-green-600">✓ Arquivo enviado</div>
         )}
