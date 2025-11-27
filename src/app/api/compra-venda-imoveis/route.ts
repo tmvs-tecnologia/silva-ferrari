@@ -5,12 +5,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+// Normalize empty strings/undefined to null for database compatibility
+const toNullIfEmpty = (v: any) => (v === '' || v === undefined ? null : v);
+
 // Helper function to map database fields to frontend format
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
   
   return {
     id: record.id,
+    tipoTransacao: record.tipo_transacao,
+    clientName: record.client_name,
     numeroMatricula: record.numero_matricula,
     numeroMatriculaDoc: record.numero_matricula_doc,
     cadastroContribuinte: record.cadastro_contribuinte,
@@ -122,22 +127,24 @@ export async function POST(request: NextRequest) {
 
     // Prepare data for Supabase (map camelCase to snake_case)
     const insertData = {
-      numero_matricula: body.numeroMatricula ?? null,
-      cadastro_contribuinte: body.cadastroContribuinte ?? null,
-      endereco_imovel: body.enderecoImovel ?? null,
-      rg_vendedores: body.rgVendedores ?? null,
-      cpf_vendedores: body.cpfVendedores ?? null,
-      data_nascimento_vendedores: body.dataNascimentoVendedores ?? null,
-      rnm_comprador: body.rnmComprador ?? null,
-      cpf_comprador: body.cpfComprador ?? null,
-      endereco_comprador: body.enderecoComprador ?? null,
+      tipo_transacao: toNullIfEmpty(body.tipoTransacao),
+      client_name: toNullIfEmpty(body.clientName),
+      numero_matricula: toNullIfEmpty(body.numeroMatricula),
+      cadastro_contribuinte: toNullIfEmpty(body.cadastroContribuinte),
+      endereco_imovel: toNullIfEmpty(body.enderecoImovel),
+      rg_vendedores: toNullIfEmpty(body.rgVendedores),
+      cpf_vendedores: toNullIfEmpty(body.cpfVendedores),
+      data_nascimento_vendedores: toNullIfEmpty(body.dataNascimentoVendedores),
+      rnm_comprador: toNullIfEmpty(body.rnmComprador),
+      cpf_comprador: toNullIfEmpty(body.cpfComprador),
+      endereco_comprador: toNullIfEmpty(body.enderecoComprador),
       current_step: body.currentStep ?? 0,
       status: body.status ?? 'Em Andamento',
-      prazo_sinal: body.prazoSinal ?? null,
-      prazo_escritura: body.prazoEscritura ?? null,
-      contract_notes: body.contractNotes ?? null,
-      step_notes: body.stepNotes ?? null,
-      completed_steps: body.completedSteps ?? null,
+      prazo_sinal: toNullIfEmpty(body.prazoSinal),
+      prazo_escritura: toNullIfEmpty(body.prazoEscritura),
+      contract_notes: toNullIfEmpty(body.contractNotes),
+      step_notes: toNullIfEmpty(body.stepNotes),
+      completed_steps: toNullIfEmpty(body.completedSteps),
     };
 
     const { data: newRecord, error } = await supabase
@@ -195,22 +202,24 @@ export async function PUT(request: NextRequest) {
     // Prepare update data (only include provided fields, map camelCase to snake_case)
     const updateData: Record<string, any> = {};
 
-    if (body.numeroMatricula !== undefined) updateData.numero_matricula = body.numeroMatricula;
-    if (body.cadastroContribuinte !== undefined) updateData.cadastro_contribuinte = body.cadastroContribuinte;
-    if (body.enderecoImovel !== undefined) updateData.endereco_imovel = body.enderecoImovel;
-    if (body.rgVendedores !== undefined) updateData.rg_vendedores = body.rgVendedores;
-    if (body.cpfVendedores !== undefined) updateData.cpf_vendedores = body.cpfVendedores;
-    if (body.dataNascimentoVendedores !== undefined) updateData.data_nascimento_vendedores = body.dataNascimentoVendedores;
-    if (body.rnmComprador !== undefined) updateData.rnm_comprador = body.rnmComprador;
-    if (body.cpfComprador !== undefined) updateData.cpf_comprador = body.cpfComprador;
-    if (body.enderecoComprador !== undefined) updateData.endereco_comprador = body.enderecoComprador;
+    if (body.tipoTransacao !== undefined) updateData.tipo_transacao = toNullIfEmpty(body.tipoTransacao);
+    if (body.clientName !== undefined) updateData.client_name = toNullIfEmpty(body.clientName);
+    if (body.numeroMatricula !== undefined) updateData.numero_matricula = toNullIfEmpty(body.numeroMatricula);
+    if (body.cadastroContribuinte !== undefined) updateData.cadastro_contribuinte = toNullIfEmpty(body.cadastroContribuinte);
+    if (body.enderecoImovel !== undefined) updateData.endereco_imovel = toNullIfEmpty(body.enderecoImovel);
+    if (body.rgVendedores !== undefined) updateData.rg_vendedores = toNullIfEmpty(body.rgVendedores);
+    if (body.cpfVendedores !== undefined) updateData.cpf_vendedores = toNullIfEmpty(body.cpfVendedores);
+    if (body.dataNascimentoVendedores !== undefined) updateData.data_nascimento_vendedores = toNullIfEmpty(body.dataNascimentoVendedores);
+    if (body.rnmComprador !== undefined) updateData.rnm_comprador = toNullIfEmpty(body.rnmComprador);
+    if (body.cpfComprador !== undefined) updateData.cpf_comprador = toNullIfEmpty(body.cpfComprador);
+    if (body.enderecoComprador !== undefined) updateData.endereco_comprador = toNullIfEmpty(body.enderecoComprador);
     if (body.currentStep !== undefined) updateData.current_step = body.currentStep;
     if (body.status !== undefined) updateData.status = body.status;
-    if (body.prazoSinal !== undefined) updateData.prazo_sinal = body.prazoSinal;
-    if (body.prazoEscritura !== undefined) updateData.prazo_escritura = body.prazoEscritura;
-    if (body.contractNotes !== undefined) updateData.contract_notes = body.contractNotes;
-    if (body.stepNotes !== undefined) updateData.step_notes = body.stepNotes;
-    if (body.completedSteps !== undefined) updateData.completed_steps = body.completedSteps;
+    if (body.prazoSinal !== undefined) updateData.prazo_sinal = toNullIfEmpty(body.prazoSinal);
+    if (body.prazoEscritura !== undefined) updateData.prazo_escritura = toNullIfEmpty(body.prazoEscritura);
+    if (body.contractNotes !== undefined) updateData.contract_notes = toNullIfEmpty(body.contractNotes);
+    if (body.stepNotes !== undefined) updateData.step_notes = toNullIfEmpty(body.stepNotes);
+    if (body.completedSteps !== undefined) updateData.completed_steps = toNullIfEmpty(body.completedSteps);
 
     const { data: updated, error } = await supabase
       .from('compra_venda_imoveis')

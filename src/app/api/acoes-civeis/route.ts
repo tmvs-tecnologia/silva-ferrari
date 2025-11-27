@@ -18,7 +18,6 @@ function mapDbFieldsToFrontend(record: any) {
     ownerRnmDoc: (record as any).owner_rnm_doc,
     endereco: (record as any).endereco,
     declaracaoVizinhosDoc: (record as any).declaracao_vizinhos_doc,
-    matriculaImovelDoc: (record as any).matricula_imovel_doc,
     contaAguaDoc: (record as any).conta_agua_doc,
     contaLuzDoc: (record as any).conta_luz_doc,
     iptuDoc: (record as any).iptu_doc,

@@ -80,6 +80,7 @@ export async function GET(
       guiaPaga: data.guia_paga,
       numeroProtocolo: data.numero_protocolo,
       dataExameDna: data.data_exame_dna,
+      stepNotes: (() => { try { return (data as any).step_notes ? JSON.parse((data as any).step_notes) : {}; } catch { return {}; } })(),
       localExameDna: (data as any).local_exame_dna,
       observacoesExameDna: (data as any).observacoes_exame_dna,
       resultadoExameDna: data.resultado_exame_dna,
@@ -166,6 +167,7 @@ export async function PATCH(
     if (body.guiaPaga !== undefined) updateData.guia_paga = body.guiaPaga ?? null;
     if (body.numeroProtocolo !== undefined) updateData.numero_protocolo = body.numeroProtocolo ?? null;
     if (body.dataExameDna !== undefined) updateData.data_exame_dna = body.dataExameDna ?? null;
+    if (body.stepNotes !== undefined) updateData.step_notes = body.stepNotes ? JSON.stringify(body.stepNotes) : null;
     if (body.localExameDna !== undefined) updateData.local_exame_dna = body.localExameDna ?? null;
     if (body.observacoesExameDna !== undefined) updateData.observacoes_exame_dna = body.observacoesExameDna ?? null;
     if (body.resultadoExameDna !== undefined) updateData.resultado_exame_dna = body.resultadoExameDna ?? null;
@@ -213,6 +215,7 @@ export async function PATCH(
       guiaPaga: data.guia_paga,
       numeroProtocolo: data.numero_protocolo,
       dataExameDna: data.data_exame_dna,
+      stepNotes: (() => { try { return (data as any).step_notes ? JSON.parse((data as any).step_notes) : {}; } catch { return {}; } })(),
       localExameDna: (data as any).local_exame_dna,
       observacoesExameDna: (data as any).observacoes_exame_dna,
       resultadoExameDna: data.resultado_exame_dna,

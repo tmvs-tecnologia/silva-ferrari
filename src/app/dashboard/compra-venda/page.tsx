@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Home, Eye, AlertTriangle, Clock, CheckCircle2, AlertCircle, FileText, Building2 } from "lucide-react";
+import { Plus, Search, Home, Eye, AlertTriangle, Clock, CheckCircle2, AlertCircle, FileText, Building2, User, Users, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingState } from "@/components/loading-state";
@@ -20,6 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function CompraVendaPage() {
   const { data: propertiesData, isLoading, error, refetch } = useDataCache(
@@ -119,6 +130,17 @@ export default function CompraVendaPage() {
     return status;
   };
 
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/compra-venda-imoveis?id=${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        refetch();
+      }
+    } catch {}
+  };
+
   return (
     <div className="space-y-6 p-6">
       {/* Header com gradiente */}
@@ -140,13 +162,13 @@ export default function CompraVendaPage() {
           <Link href="/dashboard/compra-venda/novo">
             <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
               <Plus className="h-5 w-5 mr-2" />
-              Nova Transação
+              Nova Ação
             </Button>
           </Link>
         </div>
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
@@ -254,8 +276,49 @@ export default function CompraVendaPage() {
             return (
               <Card 
                 key={property.id} 
-                className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
+                className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
               >
+                <div className="absolute top-2 right-2 flex items-center gap-2">
+                  <OptimizedLink 
+                    href={`/dashboard/compra-venda/${property.id}`}
+                    prefetchData={() => prefetchCompraVendaById(property.id)}
+                  >
+                    <Button 
+                      size="sm"
+                      className="bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md h-8 px-3"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </OptimizedLink>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-600 hover:text-white hover:bg-red-500 dark:text-red-400 dark:hover:text-white dark:hover:bg-red-600 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir a transação de {property.clientName || 'Cliente'}? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(property.id)}
+                          className="bg-white text-red-600 border border-red-500 hover:bg-red-50 hover:text-red-700"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1">
@@ -276,22 +339,34 @@ export default function CompraVendaPage() {
                           </Badge>
                         </div>
 
-                        <div className="flex items-center gap-6 text-sm flex-wrap">
-                          {property.numeroMatricula && (
-                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                              <div className="p-1.5 bg-purple-100 dark:bg-purple-900 rounded">
-                                <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                              </div>
-                              <span className="font-medium">Matrícula: {property.numeroMatricula}</span>
-                            </div>
-                          )}
-                          
-                          {property.cpfComprador && (
-                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                              <span className="font-semibold">CPF Comprador:</span>
-                              <span>{property.cpfComprador}</span>
-                            </div>
-                          )}
+                        
+
+                        <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Tipo de Ação:</span>
+                            <span>Compra e Venda</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Nome do Cliente:</span>
+                            <span>{property.clientName || "Não informado"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Vendedores:</span>
+                            <span>{property.rgVendedores ? `${String(property.rgVendedores).split(',').length} vendedor(es)` : "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Comprador:</span>
+                            <span>{property.rnmComprador || property.cpfComprador || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Fluxo atual:</span>
+                            <span>Etapa {property.currentStep || 1}</span>
+                          </div>
                         </div>
 
                         {/* Prazos */}
@@ -343,25 +418,13 @@ export default function CompraVendaPage() {
 
                         {property.contractNotes && (
                           <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                            {property.contractNotes}
+                            {`Observações: ${property.contractNotes}`}
                           </p>
                         )}
                       </div>
                     </div>
 
-                    {/* Botão de ação */}
-                    <OptimizedLink 
-                      href={`/dashboard/compra-venda/${property.id}`}
-                      prefetchData={() => prefetchCompraVendaById(property.id)}
-                    >
-                      <Button 
-                        size="lg"
-                        className="bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Ver Detalhes
-                      </Button>
-                    </OptimizedLink>
+                    
                   </div>
                 </CardContent>
               </Card>

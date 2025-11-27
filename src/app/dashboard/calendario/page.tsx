@@ -198,7 +198,7 @@ export default function CalendarPage() {
                 selected={from}
                 onSelect={setFrom}
                 weekStartsOn={1}
-                captionLayout="buttons"
+                captionLayout="label"
                 locale={ptBR}
                 className="w-full"
                 style={{ "--cell-size": "2.9rem" } as React.CSSProperties }
@@ -211,7 +211,7 @@ export default function CalendarPage() {
                 selected={to}
                 onSelect={setTo}
                 weekStartsOn={1}
-                captionLayout="buttons"
+                captionLayout="label"
                 locale={ptBR}
                 className="w-full"
                 style={{ "--cell-size": "2.9rem" } as React.CSSProperties }

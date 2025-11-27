@@ -176,7 +176,7 @@ export default function PendenciasPage() {
               </div>
             </div>
           </div>
-          <Button onClick={fetchTasks} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
+          <Button onClick={() => fetchTasks()} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
             Atualizar
           </Button>
         </div>
@@ -303,7 +303,7 @@ export default function PendenciasPage() {
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2 md:justify-end">
-              <Button onClick={fetchTasks} className="bg-slate-900 hover:bg-slate-800 text-white">Buscar</Button>
+              <Button onClick={() => fetchTasks()} className="bg-slate-900 hover:bg-slate-800 text-white">Buscar</Button>
               <Button asChild variant="outline" className="border-slate-300 dark:border-slate-700">
                 <Link href="/dashboard/calendario">
                   <CalendarIcon className="h-4 w-4 mr-2" />

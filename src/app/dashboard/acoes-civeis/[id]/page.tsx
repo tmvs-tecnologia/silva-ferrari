@@ -154,6 +154,7 @@ interface CaseData {
   dataExameDna?: string;
   localExameDna?: string;
   observacoesExameDna?: string;
+  stepNotes?: Record<number, string>;
 }
 
 interface Document {
@@ -185,6 +186,7 @@ export default function CaseDetailPage() {
   const [editingDocumentName, setEditingDocumentName] = useState("");
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
   const [stepObservations, setStepObservations] = useState<Record<number, string>>({});
+  const [obsSaveSuccess, setObsSaveSuccess] = useState<Record<number, boolean>>({});
   const [dnaExamDate, setDnaExamDate] = useState("");
   const [dnaExamTime, setDnaExamTime] = useState("");
   const [dnaExamLocation, setDnaExamLocation] = useState("");
@@ -222,6 +224,13 @@ export default function CaseDetailPage() {
     setDnaExamLocation(String(loc || ''));
     setDnaExamNotes(String(obs || ''));
   }, [caseData?.localExameDna, caseData?.observacoesExameDna]);
+
+  useEffect(() => {
+    const notesMap = (caseData as any)?.stepNotes || {};
+    if (notesMap && typeof notesMap === 'object') {
+      setStepObservations(notesMap);
+    }
+  }, [caseData?.stepNotes]);
 
   // Load case data
   useEffect(() => {
@@ -739,21 +748,20 @@ export default function CaseDetailPage() {
   };
 
   const handleSaveStepObservation = async (index: number) => {
-    const stepTitle = getProcessFlowSteps(caseData?.type || "")[index] || `Etapa ${index + 1}`;
-    const currentText = stepObservations[index] || "";
-    const existing = notes || "";
-    const divider = existing ? "\n" : "";
-    const newNotes = `${existing}${divider}[${stepTitle}] ${currentText}`;
-    setNotes(newNotes);
+    const map = { ...stepObservations };
     try {
       const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: newNotes }),
+        body: JSON.stringify({ stepNotes: map }),
       });
       if (response.ok) {
         const data = await response.json();
-        setCaseData(prev => prev ? { ...prev, notes: data.notes } : prev);
+        const updatedMap = (data as any).stepNotes || map;
+        setCaseData(prev => prev ? { ...prev, stepNotes: updatedMap } : prev);
+        setStepObservations(updatedMap);
+        setObsSaveSuccess(prev => ({ ...prev, [index]: true }));
+        setTimeout(() => setObsSaveSuccess(prev => ({ ...prev, [index]: false })), 4000);
       }
     } catch (error) {
       console.error("Erro ao salvar observações da etapa:", error);
@@ -1616,6 +1624,12 @@ export default function CaseDetailPage() {
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Observações
                   </Button>
+                  {obsSaveSuccess[1] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1662,11 +1676,17 @@ export default function CaseDetailPage() {
                     />
                   </div>
                   <div>
-                    <Button onClick={() => handleSaveStepObservation(2)}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Salvar Observações
-                    </Button>
-                  </div>
+                  <Button onClick={() => handleSaveStepObservation(2)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                  {obsSaveSuccess[2] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
+                </div>
                 </div>
               </div>
             );
@@ -1787,11 +1807,17 @@ export default function CaseDetailPage() {
                     />
                   </div>
                   <div>
-                    <Button onClick={() => handleSaveStepObservation(3)}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Salvar Observações
-                    </Button>
-                  </div>
+                  <Button onClick={() => handleSaveStepObservation(3)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Salvar Observações
+                  </Button>
+                  {obsSaveSuccess[3] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
+                </div>
                 </div>
               </div>
             );
@@ -1911,6 +1937,12 @@ export default function CaseDetailPage() {
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Observações
                   </Button>
+                  {obsSaveSuccess[4] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2030,6 +2062,12 @@ export default function CaseDetailPage() {
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Observações
                   </Button>
+                  {obsSaveSuccess[5] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2188,6 +2226,12 @@ export default function CaseDetailPage() {
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Observações
                   </Button>
+                  {obsSaveSuccess[6] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2304,6 +2348,12 @@ export default function CaseDetailPage() {
                     <Save className="h-4 w-4 mr-2" />
                     Salvar Observações
                   </Button>
+                  {obsSaveSuccess[7] && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-2">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Observações salvas com sucesso
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

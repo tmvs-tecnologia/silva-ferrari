@@ -170,8 +170,9 @@ export default function PerdaNacionalidadeDetailPage() {
     }
   };
 
-  const handleFileUpload = async (files: FileList, step?: number, field?: string) => {
-    if (!files.length) return;
+  const handleFileUpload = async (files: FileList | File[], step?: number, field?: string) => {
+    const fileArray = Array.from(files as any);
+    if (!fileArray.length) return;
 
     setUploading(true);
     if (field) setUploadingField(field);
@@ -181,7 +182,7 @@ export default function PerdaNacionalidadeDetailPage() {
       formData.append("files", file);
     });
     // Use general upload route
-    const file = files[0];
+    const file = fileArray[0];
     const fd = new FormData();
     fd.append('file', file);
     fd.append('caseId', String(params.id));
@@ -710,7 +711,6 @@ export default function PerdaNacionalidadeDetailPage() {
                 key={step.id}
                 index={step.id}
                 title={step.title}
-                description={step.description}
                 isCurrent={false}
                 isCompleted={completedSteps.includes(index)}
                 isPending={false}

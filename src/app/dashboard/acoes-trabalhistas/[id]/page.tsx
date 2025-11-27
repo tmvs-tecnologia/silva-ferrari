@@ -93,9 +93,11 @@ interface CaseData {
   execucaoRecursoFile?: string;
 }
 
-interface Document {
+interface CaseDocument {
   id: string;
-  name: string;
+  name?: string;
+  document_name?: string;
+  file_name?: string;
   file_path: string;
   uploaded_at: string;
 }
@@ -110,11 +112,11 @@ export default function AcaoTrabalhistaDetailPage() {
   const [status, setStatus] = useState("Em andamento");
   const [notes, setNotes] = useState("");
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<CaseDocument[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [documentToDelete, setDocumentToDelete] = useState<CaseDocument | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [editingDocumentName, setEditingDocumentName] = useState("");
@@ -299,27 +301,17 @@ export default function AcaoTrabalhistaDetailPage() {
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDropFiles = async (files: File[]) => {
     setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length === 0) return;
-
+    if (!files.length) return;
     setUploadingFile(true);
-    
     for (const file of files) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("caseId", id);
       formData.append("moduleType", "acoes_trabalhistas");
-
       try {
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formData,
-        });
-
+        const response = await fetch("/api/documents/upload", { method: "POST", body: formData });
         if (response.ok) {
           const result = await response.json();
           setDocuments(prev => [...prev, result.document]);
@@ -337,17 +329,17 @@ export default function AcaoTrabalhistaDetailPage() {
         console.error("Erro ao fazer upload do arquivo:", error);
       }
     }
-    
     setUploadingFile(false);
   };
 
-  const handleDocumentDownload = (document: Document) => {
+  const handleDocumentDownload = (document: any) => {
     if (typeof window !== 'undefined') {
-      window.open(document.file_path, '_blank');
+      const url = document.file_path || document.url;
+      if (url) window.open(url, '_blank');
     }
   };
 
-  const handleDocumentDelete = async (document: Document) => {
+  const handleDocumentDelete = async (document: any) => {
     try {
       const response = await fetch(`/api/documents/delete/${document.id}`, { method: "DELETE" });
       if (response.ok) {
@@ -395,9 +387,9 @@ export default function AcaoTrabalhistaDetailPage() {
     }
   };
 
-  const handleDocumentDoubleClick = (document: Document) => {
+  const handleDocumentDoubleClick = (document: any) => {
     setEditingDocumentId(document.id);
-    setEditingDocumentName(document.name);
+    setEditingDocumentName(document.document_name || document.name || document.file_name || "");
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
@@ -1149,7 +1141,7 @@ export default function AcaoTrabalhistaDetailPage() {
             />
             
             <DocumentPanel
-              onDropFiles={handleDrop}
+              onDropFiles={handleDropFiles}
               uploading={uploadingFile}
               documents={documents}
               loadingDocuments={loadingDocuments}
@@ -1165,6 +1157,8 @@ export default function AcaoTrabalhistaDetailPage() {
               onDocumentNameSave={handleDocumentNameSave}
               onDocumentNameKeyPress={handleDocumentNameKeyPress}
               onDocumentDoubleClick={handleDocumentDoubleClick}
+              onDragOver={() => setIsDragOver(true)}
+              onDragLeave={() => setIsDragOver(false)}
             />
             
             <NotesPanel
@@ -1182,7 +1176,7 @@ export default function AcaoTrabalhistaDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir o documento "{documentToDelete?.document_name || documentToDelete?.name || documentToDelete?.file_name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

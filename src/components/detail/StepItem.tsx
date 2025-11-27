@@ -85,9 +85,9 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
         </button>
 
         <div className="flex-1 min-w-0">
-          <CollapsibleTrigger className="w-full text-left" onClick={onToggle}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center justify-between gap-2">
+            <CollapsibleTrigger asChild onClick={onToggle}>
+              <div className="flex items-center gap-3 flex-wrap w-full text-left cursor-pointer">
                 <span className="font-medium">{title}</span>
                 {isCurrent && (
                   <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:bg-blue-950">Atual</Badge>
@@ -97,8 +97,7 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
                 )}
                 {(assignment?.responsibleName || assignment?.dueDate) && (
                   <div className="w-full mt-1">
-                    <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}
-                    >
+                    <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
                       <User className="h-3 w-3" />
                       {assignment?.responsibleName || "—"}
                       <span className={`inline-flex items-center gap-1 ${statusColor}`}>
@@ -115,9 +114,10 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {isCurrent && <Edit2 className="h-4 w-4 text-muted-foreground" />}
-                {canAssign && (
+            </CollapsibleTrigger>
+            <div className="flex items-center gap-2 shrink-0">
+              {isCurrent && <Edit2 className="h-4 w-4 text-muted-foreground" />}
+              {canAssign && (
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">
@@ -188,15 +188,14 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
                     </div>
                   </PopoverContent>
                 </Popover>
-                )}
-                {expanded ? (
-                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                )}
-              </div>
+              )}
+              {expanded ? (
+                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              )}
             </div>
-          </CollapsibleTrigger>
+          </div>
           <CollapsibleContent>
             {children}
           </CollapsibleContent>

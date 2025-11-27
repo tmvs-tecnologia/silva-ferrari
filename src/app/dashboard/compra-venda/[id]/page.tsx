@@ -46,13 +46,12 @@ import { toast } from "sonner";
 import { DetailLayout } from "@/components/detail/DetailLayout";
 import { StepItem } from "@/components/detail/StepItem";
 import { StatusPanel } from "@/components/detail/StatusPanel";
-import { DocumentPanel } from "@/components/detail/DocumentPanel";
 import { NotesPanel } from "@/components/detail/NotesPanel";
 
 const WORKFLOW_STEPS = [
   {
     id: 1,
-    title: "Cadastro",
+    title: "Cadastro Documentos",
     description: "Informações de cadastro",
   },
   {
@@ -62,12 +61,12 @@ const WORKFLOW_STEPS = [
   },
   {
     id: 3,
-    title: "Fazer/Analisar Contrato",
+    title: "Fazer/Analisar Contrato Compra e Venda",
     description: "Elaboração e análise contratual",
   },
   {
     id: 4,
-    title: "Assinatura de Contrato",
+    title: "Assinatura de contrato",
     description: "Coleta de assinaturas",
   },
   {
@@ -77,8 +76,13 @@ const WORKFLOW_STEPS = [
   },
   {
     id: 6,
-    title: "Cobrar Matrícula do Cartório",
+    title: "Cobrar a Matrícula do Cartório",
     description: "Finalização do processo",
+  },
+  {
+    id: 7,
+    title: "Processo Finalizado",
+    description: "Encerramento da ação",
   },
 ];
 
@@ -98,6 +102,7 @@ export default function CompraVendaDetailsPage() {
   const [stepDialogOpen, setStepDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState("");
   const [pendingStep, setPendingStep] = useState(0);
+  const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
 
   useEffect(() => {
     fetchProperty();
@@ -139,6 +144,44 @@ export default function CompraVendaDetailsPage() {
       toast.error("Erro ao carregar dados da transação");
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (!id) return;
+      try {
+        const res = await fetch(`/api/step-assignments?moduleType=compra_venda_imoveis&recordId=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+          (data || []).forEach((a: any) => {
+            map[a.stepIndex] = { responsibleName: a.responsibleName, dueDate: a.dueDate };
+          });
+          setAssignments(map);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar assignments:", e);
+      }
+    };
+    loadAssignments();
+  }, [id]);
+
+  const handleSaveAssignment = async (stepId: number, responsibleName?: string, dueDate?: string) => {
+    try {
+      const res = await fetch(`/api/step-assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moduleType: "compra_venda_imoveis", recordId: id, stepIndex: stepId, responsibleName, dueDate }),
+      });
+      if (res.ok) {
+        setAssignments(prev => ({ ...prev, [stepId]: { responsibleName, dueDate } }));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Erro ao salvar assignment:", e);
+      return false;
     }
   };
 
@@ -200,11 +243,20 @@ export default function CompraVendaDetailsPage() {
   };
 
   const toggleStepCompletion = async (stepId: number) => {
-    const newCompletedSteps = completedSteps.includes(stepId)
-      ? completedSteps.filter(s => s !== stepId)
+    const wasCompleted = completedSteps.includes(stepId);
+    const newCompletedSteps = wasCompleted
+      ? completedSteps.filter((s) => s !== stepId)
       : [...completedSteps, stepId];
-    
+
+    const shouldAdvance = !wasCompleted && stepId === currentStep;
+    const nextStep = wasCompleted
+      ? stepId
+      : shouldAdvance
+        ? Math.min(stepId + 1, WORKFLOW_STEPS.length)
+        : currentStep;
+
     setCompletedSteps(newCompletedSteps);
+    setCurrentStep(nextStep);
 
     try {
       await fetch(`/api/compra-venda-imoveis?id=${id}`, {
@@ -212,9 +264,10 @@ export default function CompraVendaDetailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           completedSteps: JSON.stringify(newCompletedSteps),
+          currentStep: nextStep,
         }),
       });
-      toast.success(completedSteps.includes(stepId) ? "Etapa desmarcada" : "Etapa concluída!");
+      toast.success(wasCompleted ? "Etapa desmarcada" : "Etapa concluída!");
     } catch (error) {
       console.error("Error updating completed steps:", error);
       toast.error("Erro ao atualizar etapa");
@@ -249,8 +302,12 @@ export default function CompraVendaDetailsPage() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("entityType", "compra-venda");
+    formData.append("moduleType", "compra_venda_imoveis");
     formData.append("entityId", id);
     formData.append("fieldName", fieldName);
+    if (property?.clientName) {
+      formData.append("clientName", String(property.clientName));
+    }
 
     try {
       const response = await fetch("/api/documents/upload", {
@@ -337,12 +394,18 @@ export default function CompraVendaDetailsPage() {
   const daysUntilSinal = getDaysUntil(property.prazoSinal);
   const daysUntilEscritura = getDaysUntil(property.prazoEscritura);
 
-  // Parse sellers data
-  let sellers = [];
-  try {
-    sellers = property.sellers ? JSON.parse(property.sellers) : [];
-  } catch (e) {
-    sellers = [];
+  // Build sellers from aggregated fields
+  let sellers = [] as { rg?: string; cpf?: string; dataNascimento?: string }[];
+  const rgList = (property.rgVendedores || "").split(",").filter(Boolean);
+  const cpfList = (property.cpfVendedores || "").split(",").filter(Boolean);
+  const dobList = (property.dataNascimentoVendedores || "").split(",").filter(Boolean);
+  const maxLen = Math.max(rgList.length, cpfList.length, dobList.length);
+  if (maxLen > 0) {
+    sellers = Array.from({ length: maxLen }, (_, i) => ({
+      rg: rgList[i] || "",
+      cpf: cpfList[i] || "",
+      dataNascimento: dobList[i] || "",
+    }));
   }
 
   const renderStepContent = () => {
@@ -366,6 +429,28 @@ export default function CompraVendaDetailsPage() {
                   <p className="text-sm font-medium">{property.enderecoImovel || "-"}</p>
                 </div>
               </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="matricula-doc-upload">Documento da Matrícula</Label>
+                  <Input
+                    id="matricula-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "numeroMatriculaDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cadastro-contribuinte-doc-upload">Comprovante Cadastro Contribuinte</Label>
+                  <Input
+                    id="cadastro-contribuinte-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "cadastroContribuinteDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -377,7 +462,7 @@ export default function CompraVendaDetailsPage() {
                       <p className="text-sm font-semibold mb-3">Vendedor {index + 1}</p>
                       <div className="grid md:grid-cols-3 gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">RG ou CNH</p>
+                          <p className="text-xs text-muted-foreground">RG / CNH</p>
                           <p className="text-sm font-medium">{seller.rg || "-"}</p>
                         </div>
                         <div>
@@ -399,6 +484,28 @@ export default function CompraVendaDetailsPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">Nenhum vendedor cadastrado</p>
               )}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="rg-vendedores-doc-upload">Documento RG / CNH dos Vendedores</Label>
+                  <Input
+                    id="rg-vendedores-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "rgVendedoresDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf-vendedores-doc-upload">Documento CPF dos Vendedores</Label>
+                  <Input
+                    id="cpf-vendedores-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "cpfVendedoresDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -417,6 +524,28 @@ export default function CompraVendaDetailsPage() {
                   <p className="text-sm font-medium">{property.enderecoComprador || "-"}</p>
                 </div>
               </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="rnm-comprador-doc-upload">Documento RNM do Comprador</Label>
+                  <Input
+                    id="rnm-comprador-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "rnmCompradorDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf-comprador-doc-upload">Documento CPF do Comprador</Label>
+                  <Input
+                    id="cpf-comprador-doc-upload"
+                    type="file"
+                    onChange={(e) => handleFileUpload(e, "cpfCompradorDoc")}
+                    disabled={uploading}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -429,7 +558,7 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="certidoes-upload"
                 type="file"
-                onChange={(e) => handleFileUpload(e, "certidoes")}
+                onChange={(e) => handleFileUpload(e, "certidoesDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
@@ -445,23 +574,10 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="contrato-upload"
                 type="file"
-                onChange={(e) => handleFileUpload(e, "contrato")}
+                onChange={(e) => handleFileUpload(e, "contratoDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
-            </div>
-            <div>
-              <Label htmlFor="contract-notes">Observações do Contrato</Label>
-              <Textarea
-                id="contract-notes"
-                placeholder="Adicione observações importantes sobre o contrato..."
-                value={property.contractNotes || ""}
-                className="mt-2"
-                disabled
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Edite no formulário principal
-              </p>
             </div>
           </div>
         );
@@ -476,7 +592,7 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="contrato-assinado-upload"
                 type="file"
-                onChange={(e) => handleFileUpload(e, "contrato-assinado")}
+                onChange={(e) => handleFileUpload(e, "assinaturaContratoDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
@@ -510,7 +626,7 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="escritura-upload"
                 type="file"
-                onChange={(e) => handleFileUpload(e, "escritura")}
+                onChange={(e) => handleFileUpload(e, "escrituraDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
@@ -528,10 +644,18 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="matricula-cartorio-upload"
                 type="file"
-                onChange={(e) => handleFileUpload(e, "matricula-cartorio")}
+                onChange={(e) => handleFileUpload(e, "matriculaCartorioDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+            </div>
+          </div>
+        );
+      case 7:
+        return (
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium">Processo finalizado</p>
             </div>
           </div>
         );
@@ -561,35 +685,17 @@ export default function CompraVendaDetailsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Step Change Confirmation Dialog */}
-      <AlertDialog open={stepDialogOpen} onOpenChange={setStepDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar mudança de etapa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja ir para a etapa {pendingStep}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmStepChange}>
-              Confirmar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <DetailLayout
         backHref="/dashboard/compra-venda"
         title={property?.enderecoImovel || "Transação Imobiliária"}
-        subtitle={`Matrícula: ${property?.numeroMatricula || "N/A"}`}
+        subtitle={property?.clientName || "Cliente não informado"}
         onDelete={handleDelete}
         left={
           <div className="space-y-6">
             {/* Workflow Steps */}
             <Card>
               <CardHeader>
-                <CardTitle>Fluxo de Trabalho</CardTitle>
+                <CardTitle>Fluxo do Processo</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {WORKFLOW_STEPS.map((step) => (
@@ -597,11 +703,16 @@ export default function CompraVendaDetailsPage() {
                     key={step.id}
                     index={step.id}
                     title={step.title}
-                    description={step.description}
                     isCurrent={currentStep === step.id}
                     isCompleted={completedSteps.includes(step.id)}
                     isPending={currentStep < step.id}
+                    expanded={currentStep === step.id}
+                    onToggle={() => {}}
                     onMarkComplete={() => toggleStepCompletion(step.id)}
+                    onMarkIncomplete={() => toggleStepCompletion(step.id)}
+                    assignment={assignments[step.id]}
+                    onSaveAssignment={async (a) => handleSaveAssignment(step.id, a.responsibleName, a.dueDate)}
+                    canAssign={!step.title.toLowerCase().includes("cadastro")}
                   >
                     {currentStep === step.id && renderStepContent()}
                   </StepItem>
@@ -609,24 +720,6 @@ export default function CompraVendaDetailsPage() {
               </CardContent>
             </Card>
 
-            {/* Navigation */}
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={() => handleStepChange(Math.max(1, currentStep - 1))}
-                disabled={currentStep === 1}
-              >
-                Etapa Anterior
-              </Button>
-              <Button
-                onClick={() =>
-                  handleStepChange(Math.min(WORKFLOW_STEPS.length, currentStep + 1))
-                }
-                disabled={currentStep === WORKFLOW_STEPS.length}
-              >
-                Próxima Etapa
-              </Button>
-            </div>
           </div>
         }
         right={
@@ -698,44 +791,7 @@ export default function CompraVendaDetailsPage() {
               </Card>
             )}
 
-            {/* Contract Notes */}
-            {property?.contractNotes && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Observações do Contrato
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm whitespace-pre-wrap">{property.contractNotes}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Document Panel */}
-            <DocumentPanel
-              onDropFiles={(files) => {
-                // Handle file drop functionality
-                files.forEach(file => {
-                  const formData = new FormData();
-                  formData.append("file", file);
-                  formData.append("entityType", "compra-venda");
-                  formData.append("entityId", id);
-                  formData.append("fieldName", "documents");
-                  
-                  fetch("/api/documents/upload", {
-                    method: "POST",
-                    body: formData,
-                  }).then(() => {
-                    toast.success("Documento enviado com sucesso");
-                    fetchProperty();
-                  });
-                });
-              }}
-              uploading={uploading}
-            />
-
+            
             {/* Notes Panel */}
             <NotesPanel
               notes={stepNotes[currentStep] || ""}

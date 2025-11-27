@@ -100,7 +100,9 @@ const WORKFLOWS = {
     "Retirada do Visto",
     "Processo Finalizado"
   ]
-};
+} as const;
+
+type VistoType = keyof typeof WORKFLOWS;
 
 interface StepData {
   id: number;
@@ -182,8 +184,8 @@ export default function VistoDetailsPage() {
       const res = await fetch(`/api/vistos?id=${params.id}`);
       if (res.ok) {
         const record = await res.json();
-        const flowType = record.type || "Visto de Trabalho";
-        const steps = (WORKFLOWS[flowType] || WORKFLOWS["Visto de Trabalho"]).map((title: string, index: number) => ({
+        const flowType = (record.type || "Visto de Trabalho") as VistoType;
+        const steps: StepData[] = (WORKFLOWS[flowType] || WORKFLOWS["Visto de Trabalho"]).map((title: string, index: number) => ({
           id: index,
           title,
           description: `Descrição da etapa ${title}`,
@@ -282,9 +284,10 @@ export default function VistoDetailsPage() {
     }
   };
 
-  const handleFileUpload = async (files: FileList | null, stepId?: number) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
+  const handleFileUpload = async (files: FileList | File[] | null, stepId?: number) => {
+    const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
+    if (!arr.length) return;
+    const file = arr[0];
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
@@ -379,7 +382,8 @@ export default function VistoDetailsPage() {
       ...prev,
       [stepId]: { ...prev[stepId], ...data }
     }));
-    const stepTitle = (WORKFLOWS[caseData?.type || 'Visto de Trabalho'] || [])[stepId] || `Etapa ${stepId + 1}`;
+    const typeKey = (caseData?.type || 'Visto de Trabalho') as VistoType;
+    const stepTitle = (WORKFLOWS[typeKey] || [])[stepId] || `Etapa ${stepId + 1}`;
     const entries = Object.entries(data || {})
       .filter(([_, v]) => typeof v === 'string' && v.trim() !== '')
       .map(([k, v]) => `- ${k}: ${v}`);
@@ -398,7 +402,8 @@ export default function VistoDetailsPage() {
   };
 
   const saveStepNotes = async (stepId: number) => {
-    const stepTitle = (WORKFLOWS[caseData?.type || 'Visto de Trabalho'] || [])[stepId] || `Etapa ${stepId + 1}`;
+    const typeKey = (caseData?.type || 'Visto de Trabalho') as VistoType;
+    const stepTitle = (WORKFLOWS[typeKey] || [])[stepId] || `Etapa ${stepId + 1}`;
     const text = notes[stepId] || '';
     const block = `\n[${stepTitle}]\n${text.trim()}\n`;
     try {
@@ -434,7 +439,8 @@ export default function VistoDetailsPage() {
       });
       if (res.ok) {
         setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
-        const stepTitle = (caseData?.steps?.[index]?.title) || ((WORKFLOWS[caseData?.type || "Visto de Trabalho"] || [])[index]) || `Etapa ${index + 1}`;
+        const typeKey = (caseData?.type || "Visto de Trabalho") as VistoType;
+        const stepTitle = (caseData?.steps?.[index]?.title) || ((WORKFLOWS[typeKey] || [])[index]) || `Etapa ${index + 1}`;
         const dueBR = dueDate ? (() => { const [y, m, d] = dueDate.split("-"); return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`; })() : "—";
         const message = `Tarefa "${stepTitle}" atribuída a ${responsibleName || "—"} com prazo ${dueBR} para: ${caseData?.clientName || ""} - ${caseData?.type || ""}`;
         try {
