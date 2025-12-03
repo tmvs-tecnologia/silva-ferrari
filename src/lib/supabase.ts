@@ -65,6 +65,31 @@ export const FIELD_TO_DOCUMENT_NAME: Record<string, string> = {
   contaLuzFile: 'Conta de Luz',
   iptuFile: 'IPTU',
   contratoEngenheiroFile: 'Contrato/Laudo do Engenheiro',
+  // Compra e Venda
+  numeroMatriculaDoc: 'Documento da Matrícula',
+  cadastroContribuinteDoc: 'Comprovante Cadastro Contribuinte',
+  rgVendedoresDoc: 'Documento RG / CNH dos Vendedores',
+  cpfVendedoresDoc: 'Documento CPF dos Vendedores',
+  rnmCompradorDoc: 'Documento RNM do Comprador',
+  cpfCompradorDoc: 'Documento CPF do Comprador',
+  certidoesDoc: 'Certidões',
+  contratoDoc: 'Contrato Compra e Venda',
+  assinaturaContratoDoc: 'Contrato Assinado',
+  escrituraDoc: 'Escritura',
+  matriculaCartorioDoc: 'Matrícula do Cartório',
+  // Also support DocumentPanel mapping keys
+  numeroMatriculaDocFile: 'Documento da Matrícula',
+  cadastroContribuinteDocFile: 'Comprovante Cadastro Contribuinte',
+  rgVendedoresDocFile: 'Documento RG / CNH dos Vendedores',
+  cpfVendedoresDocFile: 'Documento CPF dos Vendedores',
+  rnmCompradorDocFile: 'Documento RNM do Comprador',
+  cpfCompradorDocFile: 'Documento CPF do Comprador',
+  certidoesDocFile: 'Certidões',
+  contratoDocFile: 'Contrato Compra e Venda',
+  assinaturaContratoDocFile: 'Contrato Assinado',
+  escrituraDocFile: 'Escritura',
+  matriculaCartorioDocFile: 'Matrícula do Cartório',
+  documentoAnexadoFile: 'Documento Anexado',
 };
 
 function sanitizeFileName(fileName: string): string {

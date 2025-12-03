@@ -187,7 +187,7 @@ export const prefetchAcaoCriminalById = async (id: string) => {
 
 export const prefetchCompraVendaById = async (id: string) => {
   try {
-    const response = await fetch(`/api/compra-venda/${id}`);
+    const response = await fetch(`/api/compra-venda-imoveis?id=${id}`);
     if (!response.ok) {
       console.warn(`Failed to prefetch Compra e Venda ${id}: HTTP ${response.status}`);
       return null;

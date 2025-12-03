@@ -17,13 +17,23 @@ interface Vendedor {
   dataNascimento: string;
 }
 
+interface Comprador {
+  rnm: string;
+  cpf: string;
+  endereco: string;
+}
+
 export default function NovaCompraVendaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [vendedores, setVendedores] = useState<Vendedor[]>([
     { rg: "", cpf: "", dataNascimento: "" }
   ]);
+  const [compradores, setCompradores] = useState<Comprador[]>([
+    { rnm: "", cpf: "", endereco: "" }
+  ]);
   const [tempUploads, setTempUploads] = useState<Record<string, string>>({});
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     clientName: "",
     tipoTransacao: "compra",
@@ -51,6 +61,9 @@ export default function NovaCompraVendaPage() {
           rgVendedores: vendedores.map(v => v.rg).filter(Boolean).join(","),
           cpfVendedores: vendedores.map(v => v.cpf).filter(Boolean).join(","),
           dataNascimentoVendedores: vendedores.map(v => v.dataNascimento).filter(Boolean).join(","),
+          rnmComprador: compradores.map(c => c.rnm).filter(Boolean).join(","),
+          cpfComprador: compradores.map(c => c.cpf).filter(Boolean).join(","),
+          enderecoComprador: compradores.map(c => c.endereco).filter(Boolean).join(","),
           currentStep: 2,
           status: "Em Andamento",
           completedSteps: JSON.stringify([1]),
@@ -112,6 +125,12 @@ export default function NovaCompraVendaPage() {
     setVendedores(updatedVendedores);
   };
 
+  const handleCompradorChange = (index: number, field: keyof Comprador, value: string) => {
+    const updatedCompradores = [...compradores];
+    updatedCompradores[index][field] = value;
+    setCompradores(updatedCompradores);
+  };
+
   const addVendedor = () => {
     setVendedores([...vendedores, { rg: "", cpf: "", dataNascimento: "" }]);
   };
@@ -119,6 +138,16 @@ export default function NovaCompraVendaPage() {
   const removeVendedor = (index: number) => {
     if (vendedores.length > 1) {
       setVendedores(vendedores.filter((_, i) => i !== index));
+    }
+  };
+
+  const addComprador = () => {
+    setCompradores([...compradores, { rnm: "", cpf: "", endereco: "" }]);
+  };
+
+  const removeComprador = (index: number) => {
+    if (compradores.length > 1) {
+      setCompradores(compradores.filter((_, i) => i !== index));
     }
   };
 
@@ -201,23 +230,40 @@ export default function NovaCompraVendaPage() {
                 />
               </div>
             </div>
-            {/* Uploads do Imóvel */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="numeroMatriculaDoc">Documento da Matrícula</Label>
-                <Input
-                  id="numeroMatriculaDoc"
-                  type="file"
-                  onChange={(e) => handleTempUpload('numeroMatriculaDoc', e.target.files?.[0] || null)}
-                />
+                <Label htmlFor="numeroMatriculaDocInput">Documento da Matrícula</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="numeroMatriculaDocInput"
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setSelectedFiles(prev => ({ ...prev, numeroMatriculaDocInput: f?.name || "" }));
+                      handleTempUpload('numeroMatriculaDoc', f);
+                    }}
+                  />
+                  <Label htmlFor="numeroMatriculaDocInput" className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                  <span className="text-xs text-muted-foreground">{selectedFiles.numeroMatriculaDocInput || "Nenhum arquivo selecionado"}</span>
+                </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cadastroContribuinteDoc">Comprovante Cadastro Contribuinte</Label>
-                <Input
-                  id="cadastroContribuinteDoc"
-                  type="file"
-                  onChange={(e) => handleTempUpload('cadastroContribuinteDoc', e.target.files?.[0] || null)}
-                />
+                <Label htmlFor="cadastroContribuinteDocInput">Comprovante Cadastro Contribuinte</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="cadastroContribuinteDocInput"
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setSelectedFiles(prev => ({ ...prev, cadastroContribuinteDocInput: f?.name || "" }));
+                      handleTempUpload('cadastroContribuinteDoc', f);
+                    }}
+                  />
+                  <Label htmlFor="cadastroContribuinteDocInput" className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                  <span className="text-xs text-muted-foreground">{selectedFiles.cadastroContribuinteDocInput || "Nenhum arquivo selecionado"}</span>
+                </div>
               </div>
             </div>
 
@@ -286,83 +332,139 @@ export default function NovaCompraVendaPage() {
                       />
                     </div>
                   </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`rgVendedorDocInput${index}`}>Documento RG / CNH do Vendedor</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`rgVendedorDocInput${index}`}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            setSelectedFiles(prev => ({ ...prev, [`rgVendedorDocInput${index}`]: f?.name || "" }));
+                            handleTempUpload(`rgVendedorDoc_${index}`, f);
+                          }}
+                        />
+                        <Label htmlFor={`rgVendedorDocInput${index}`} className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                        <span className="text-xs text-muted-foreground">{selectedFiles[`rgVendedorDocInput${index}`] || "Nenhum arquivo selecionado"}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`cpfVendedorDocInput${index}`}>Documento CPF do Vendedor</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`cpfVendedorDocInput${index}`}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            setSelectedFiles(prev => ({ ...prev, [`cpfVendedorDocInput${index}`]: f?.name || "" }));
+                            handleTempUpload(`cpfVendedorDoc_${index}`, f);
+                          }}
+                        />
+                        <Label htmlFor={`cpfVendedorDocInput${index}`} className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                        <span className="text-xs text-muted-foreground">{selectedFiles[`cpfVendedorDocInput${index}`] || "Nenhum arquivo selecionado"}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
-              {/* Uploads dos vendedores (documentos agregados) */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rgVendedoresDoc">Documento RG / CNH dos Vendedores</Label>
-                  <Input
-                    id="rgVendedoresDoc"
-                    type="file"
-                    onChange={(e) => handleTempUpload('rgVendedoresDoc', e.target.files?.[0] || null)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cpfVendedoresDoc">Documento CPF dos Vendedores</Label>
-                  <Input
-                    id="cpfVendedoresDoc"
-                    type="file"
-                    onChange={(e) => handleTempUpload('cpfVendedoresDoc', e.target.files?.[0] || null)}
-                  />
-                </div>
-              </div>
             </div>
 
-            {/* Buyer Info */}
             <div className="space-y-4">
-              <h3 className="font-semibold">Informações do Comprador</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rnmComprador">RNM</Label>
-                  <Input
-                    id="rnmComprador"
-                    value={formData.rnmComprador}
-                    onChange={(e) =>
-                      handleChange("rnmComprador", e.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cpfComprador">CPF</Label>
-                  <Input
-                    id="cpfComprador"
-                    value={formData.cpfComprador}
-                    onChange={(e) =>
-                      handleChange("cpfComprador", e.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="enderecoComprador">Endereço</Label>
-                  <Input
-                    id="enderecoComprador"
-                    value={formData.enderecoComprador}
-                    onChange={(e) =>
-                      handleChange("enderecoComprador", e.target.value)
-                    }
-                  />
-                </div>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Informações dos Compradores</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={addComprador}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
-              {/* Uploads do comprador */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rnmCompradorDoc">Documento RNM do Comprador</Label>
-                  <Input
-                    id="rnmCompradorDoc"
-                    type="file"
-                    onChange={(e) => handleTempUpload('rnmCompradorDoc', e.target.files?.[0] || null)}
-                  />
+              {compradores.map((comprador, index) => (
+                <div key={index} className="relative border rounded-lg p-4 space-y-4">
+                  {index > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6"
+                      onClick={() => removeComprador(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <div className="text-sm font-medium text-muted-foreground mb-2">
+                    Comprador {index + 1}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor={`rnmComprador${index}`}>RNM</Label>
+                      <Input
+                        id={`rnmComprador${index}`}
+                        value={comprador.rnm}
+                        onChange={(e) => handleCompradorChange(index, "rnm", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`cpfComprador${index}`}>CPF</Label>
+                      <Input
+                        id={`cpfComprador${index}`}
+                        value={comprador.cpf}
+                        onChange={(e) => handleCompradorChange(index, "cpf", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`enderecoComprador${index}`}>Endereço</Label>
+                      <Input
+                        id={`enderecoComprador${index}`}
+                        value={comprador.endereco}
+                        onChange={(e) => handleCompradorChange(index, "endereco", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`rnmCompradorDocInput${index}`}>Documento RNM do Comprador</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`rnmCompradorDocInput${index}`}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            setSelectedFiles(prev => ({ ...prev, [`rnmCompradorDocInput${index}`]: f?.name || "" }));
+                            handleTempUpload(`rnmCompradorDoc_${index}`, f);
+                          }}
+                        />
+                        <Label htmlFor={`rnmCompradorDocInput${index}`} className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                        <span className="text-xs text-muted-foreground">{selectedFiles[`rnmCompradorDocInput${index}`] || "Nenhum arquivo selecionado"}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`cpfCompradorDocInput${index}`}>Documento CPF do Comprador</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id={`cpfCompradorDocInput${index}`}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            setSelectedFiles(prev => ({ ...prev, [`cpfCompradorDocInput${index}`]: f?.name || "" }));
+                            handleTempUpload(`cpfCompradorDoc_${index}`, f);
+                          }}
+                        />
+                        <Label htmlFor={`cpfCompradorDocInput${index}`} className="rounded-md border px-2 py-1 text-xs text-slate-700 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100">Selecionar arquivo</Label>
+                        <span className="text-xs text-muted-foreground">{selectedFiles[`cpfCompradorDocInput${index}`] || "Nenhum arquivo selecionado"}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cpfCompradorDoc">Documento CPF do Comprador</Label>
-                  <Input
-                    id="cpfCompradorDoc"
-                    type="file"
-                    onChange={(e) => handleTempUpload('cpfCompradorDoc', e.target.files?.[0] || null)}
-                  />
-                </div>
-              </div>
+              ))}
             </div>
 
 
@@ -378,17 +480,15 @@ export default function NovaCompraVendaPage() {
               />
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-4 justify-end">
-              <Link href="/dashboard/compra-venda">
-                <Button type="button" variant="outline" disabled={loading}>
+            <div className="flex gap-4">
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "Salvando..." : "Criar Ação"}
+              </Button>
+              <Link href="/dashboard/compra-venda" className="flex-1">
+                <Button type="button" variant="outline" className="w-full" disabled={loading}>
                   Cancelar
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading}>
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? "Salvando..." : "Salvar Transação"}
-              </Button>
             </div>
           </CardContent>
         </Card>

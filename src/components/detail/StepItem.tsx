@@ -25,9 +25,10 @@ interface StepItemProps {
   assignment?: { responsibleName?: string; dueDate?: string };
   onSaveAssignment?: (assignment: { responsibleName?: string; dueDate?: string }) => Promise<boolean> | boolean;
   canAssign?: boolean;
+  extraBadges?: { label: string; variant?: "default" | "outline" | "secondary" }[];
 }
 
-export function StepItem({ index, title, isCurrent, isCompleted, isPending, expanded, onToggle, onMarkComplete, onMarkIncomplete, children, assignment, onSaveAssignment, canAssign = true }: StepItemProps) {
+export function StepItem({ index, title, isCurrent, isCompleted, isPending, expanded, onToggle, onMarkComplete, onMarkIncomplete, children, assignment, onSaveAssignment, canAssign = true, extraBadges = [] }: StepItemProps) {
   const [resp, setResp] = useState(assignment?.responsibleName || "");
   const [due, setDue] = useState(assignment?.dueDate || "");
   const [showRespList, setShowRespList] = useState(false);
@@ -58,7 +59,7 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
   }, [due]);
 
   return (
-    <Collapsible>
+    <Collapsible open={expanded} onOpenChange={onToggle}>
       <div className="flex items-start gap-3 p-4 rounded-lg transition-colors relative"
         data-state={isCurrent ? "current" : isCompleted ? "completed" : "pending"}
       >
@@ -86,35 +87,36 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <CollapsibleTrigger asChild onClick={onToggle}>
-              <div className="flex items-center gap-3 flex-wrap w-full text-left cursor-pointer">
-                <span className="font-medium">{title}</span>
-                {isCurrent && (
-                  <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:bg-blue-950">Atual</Badge>
-                )}
-                {isCompleted && (
-                  <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">Concluído</Badge>
-                )}
-                {(assignment?.responsibleName || assignment?.dueDate) && (
-                  <div className="w-full mt-1">
-                    <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
-                      <User className="h-3 w-3" />
-                      {assignment?.responsibleName || "—"}
-                      <span className={`inline-flex items-center gap-1 ${statusColor}`}>
-                        <CalendarIcon className="h-3 w-3" />
-                        {assignment?.dueDate ? (() => {
-                          const parts = assignment.dueDate.split("-").map((v) => parseInt(v, 10));
-                          const y = parts[0];
-                          const m = (parts[1] || 1) - 1;
-                          const day = parts[2] || 1;
-                          return new Date(y, m, day).toLocaleDateString("pt-BR");
-                        })() : "—"}
-                      </span>
+            <div className="flex items-center gap-3 flex-wrap w-full text-left">
+              <span className="font-medium">{title}</span>
+              {isCurrent && (
+                <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50 dark:border-blue-400 dark:text-blue-300 dark:bg-blue-950">Atual</Badge>
+              )}
+              {isCompleted && (
+                <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">Concluído</Badge>
+              )}
+              {extraBadges.map((b, i) => (
+                <Badge key={i} variant={b.variant || "outline"}>{b.label}</Badge>
+              ))}
+              {(assignment?.responsibleName || assignment?.dueDate) && (
+                <div className="w-full mt-1">
+                  <span className={`inline-flex items-center gap-2 text-xs px-2 py-1 rounded bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300`}>
+                    <User className="h-3 w-3" />
+                    {assignment?.responsibleName || "—"}
+                    <span className={`inline-flex items-center gap-1 ${statusColor}`}>
+                      <CalendarIcon className="h-3 w-3" />
+                      {assignment?.dueDate ? (() => {
+                        const parts = assignment.dueDate.split("-").map((v) => parseInt(v, 10));
+                        const y = parts[0];
+                        const m = (parts[1] || 1) - 1;
+                        const day = parts[2] || 1;
+                        return new Date(y, m, day).toLocaleDateString("pt-BR");
+                      })() : "—"}
                     </span>
-                  </div>
-                )}
-              </div>
-            </CollapsibleTrigger>
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 shrink-0">
               {isCurrent && <Edit2 className="h-4 w-4 text-muted-foreground" />}
               {canAssign && (
@@ -189,11 +191,15 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
                   </PopoverContent>
                 </Popover>
               )}
-              {expanded ? (
-                <ChevronUp className="h-5 w-5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              )}
+              <CollapsibleTrigger asChild>
+                <button type="button" aria-label="Alternar conteúdo">
+                  {expanded ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </button>
+              </CollapsibleTrigger>
             </div>
           </div>
           <CollapsibleContent>

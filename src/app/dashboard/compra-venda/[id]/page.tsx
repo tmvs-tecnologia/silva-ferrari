@@ -47,6 +47,8 @@ import { DetailLayout } from "@/components/detail/DetailLayout";
 import { StepItem } from "@/components/detail/StepItem";
 import { StatusPanel } from "@/components/detail/StatusPanel";
 import { NotesPanel } from "@/components/detail/NotesPanel";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DocumentPanel } from "@/components/detail/DocumentPanel";
 
 const WORKFLOW_STEPS = [
   {
@@ -103,6 +105,29 @@ export default function CompraVendaDetailsPage() {
   const [pendingStatus, setPendingStatus] = useState("");
   const [pendingStep, setPendingStep] = useState(0);
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
+  const [expandedStepId, setExpandedStepId] = useState<number | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+  const [editableSellers, setEditableSellers] = useState<{ rg?: string; cpf?: string; dataNascimento?: string }[]>([]);
+  const [editableCompradores, setEditableCompradores] = useState<{ rnm?: string; cpf?: string; endereco?: string }[]>([]);
+  const [pendingPrazoSinal, setPendingPrazoSinal] = useState<string>("");
+  const [pendingPrazoEscritura, setPendingPrazoEscritura] = useState<string>("");
+  const [prazosOpen, setPrazosOpen] = useState(false);
+  interface Document {
+    id: string | number;
+    document_name?: string;
+    file_name?: string;
+    file_path: string;
+    uploaded_at: string;
+    field_name?: string;
+  }
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | number | null>(null);
+  const [editingDocumentName, setEditingDocumentName] = useState("");
 
   useEffect(() => {
     fetchProperty();
@@ -124,7 +149,10 @@ export default function CompraVendaDetailsPage() {
       const data = await response.json();
       setProperty(data);
       setCurrentStep(data.currentStep || 1);
+      setExpandedStepId(data.currentStep || 1);
       setStatus(data.status || "Em andamento");
+      setPendingPrazoSinal(data.prazoSinal || "");
+      setPendingPrazoEscritura(data.prazoEscritura || "");
       if (data.stepNotes) {
         try {
           setStepNotes(JSON.parse(data.stepNotes));
@@ -139,6 +167,25 @@ export default function CompraVendaDetailsPage() {
           setCompletedSteps([]);
         }
       }
+      try {
+        const rgList = (data.rgVendedores || "").split(",").filter(Boolean);
+        const cpfList = (data.cpfVendedores || "").split(",").filter(Boolean);
+        const dobList = (data.dataNascimentoVendedores || "").split(",").filter(Boolean);
+        const maxLen = Math.max(rgList.length, cpfList.length, dobList.length);
+        const sellers = maxLen > 0
+          ? Array.from({ length: maxLen }, (_, i) => ({ rg: rgList[i] || "", cpf: cpfList[i] || "", dataNascimento: dobList[i] || "" }))
+          : [{ rg: "", cpf: "", dataNascimento: "" }];
+        setEditableSellers(sellers);
+
+        const rnmList = (data.rnmComprador || "").split(",").filter(Boolean);
+        const cpfCList = (data.cpfComprador || "").split(",").filter(Boolean);
+        const endList = (data.enderecoComprador || "").split(",").filter(Boolean);
+        const maxC = Math.max(rnmList.length, cpfCList.length, endList.length);
+        const compradores = maxC > 0
+          ? Array.from({ length: maxC }, (_, i) => ({ rnm: rnmList[i] || "", cpf: cpfCList[i] || "", endereco: endList[i] || "" }))
+          : [{ rnm: "", cpf: "", endereco: "" }];
+        setEditableCompradores(compradores);
+      } catch {}
     } catch (error) {
       console.error("Error fetching property:", error);
       toast.error("Erro ao carregar dados da transação");
@@ -166,6 +213,64 @@ export default function CompraVendaDetailsPage() {
     };
     loadAssignments();
   }, [id]);
+
+  useEffect(() => {
+    const loadDocuments = async () => {
+      if (!id) return;
+      setLoadingDocuments(true);
+      try {
+        const response = await fetch(`/api/documents/${id}?moduleType=compra_venda_imoveis`);
+        if (response.ok) {
+          const data = await response.json();
+          setDocuments(data || []);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar documentos:", error);
+      } finally {
+        setLoadingDocuments(false);
+      }
+    };
+    loadDocuments();
+  }, [id]);
+
+  const refreshDocuments = async () => {
+    if (!id) return;
+    setLoadingDocuments(true);
+    try {
+      const response = await fetch(`/api/documents/${id}?moduleType=compra_venda_imoveis`);
+      if (response.ok) {
+        const data = await response.json();
+        setDocuments(data || []);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar documentos:", error);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  const renderDocLinks = (fieldKey: string) => {
+    const list = documents.filter((d) => d.field_name === fieldKey);
+    if (!list.length) return null;
+    return (
+      <div className="mt-2">
+        <ul className="text-sm list-disc pl-5">
+          {list.map((doc) => (
+            <li key={String(doc.id)}>
+              <a
+                href={doc.file_path}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                {doc.document_name || doc.file_name || "Documento"}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
 
   const handleSaveAssignment = async (stepId: number, responsibleName?: string, dueDate?: string) => {
     try {
@@ -291,41 +396,217 @@ export default function CompraVendaDetailsPage() {
     }
   };
 
+  const setStepNoteLocal = (step: number, notes: string) => {
+    setStepNotes(prev => ({ ...prev, [step]: notes }));
+  };
+
+  const handlePropertyFieldChange = (field: string, value: string) => {
+    setProperty((prev: any) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const saveStep1Fields = async () => {
+    try {
+      setSaving(true);
+      const body = {
+        numeroMatricula: property?.numeroMatricula || "",
+        cadastroContribuinte: property?.cadastroContribuinte || "",
+        enderecoImovel: property?.enderecoImovel || "",
+        clientName: property?.clientName || "",
+        contractNotes: property?.contractNotes || "",
+        rgVendedores: (editableSellers || []).map(s => s.rg || "").filter(Boolean).join(","),
+        cpfVendedores: (editableSellers || []).map(s => s.cpf || "").filter(Boolean).join(","),
+        dataNascimentoVendedores: (editableSellers || []).map(s => s.dataNascimento || "").filter(Boolean).join(","),
+        rnmComprador: (editableCompradores || []).map(c => c.rnm || "").filter(Boolean).join(","),
+        cpfComprador: (editableCompradores || []).map(c => c.cpf || "").filter(Boolean).join(","),
+        enderecoComprador: (editableCompradores || []).map(c => c.endereco || "").filter(Boolean).join(","),
+      };
+      const res = await fetch(`/api/compra-venda-imoveis?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        toast.success("Dados atualizados com sucesso");
+        fetchProperty();
+      } else {
+        toast.error("Erro ao salvar dados");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao salvar dados");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     fieldName: string
   ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("entityType", "compra-venda");
-    formData.append("moduleType", "compra_venda_imoveis");
-    formData.append("entityId", id);
-    formData.append("fieldName", fieldName);
-    if (property?.clientName) {
-      formData.append("clientName", String(property.clientName));
-    }
-
     try {
-      const response = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("entityType", "compra-venda");
+        formData.append("moduleType", "compra_venda_imoveis");
+        formData.append("entityId", id);
+        formData.append("fieldName", fieldName);
+        if (property?.clientName) {
+          formData.append("clientName", String(property.clientName));
+        }
 
-      if (response.ok) {
-        toast.success("Documento enviado com sucesso");
-        fetchProperty();
-      } else {
-        toast.error("Erro ao enviar documento");
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error("upload failed");
+        }
+        const result = await response.json();
+        if (result?.document) {
+          setDocuments(prev => [...prev, result.document]);
+        }
+      }
+      toast.success("Documentos enviados com sucesso");
+      // Caso algum upload não tenha retornado o documento, sincroniza lista
+      // sem recarregar demais o layout
+      if (!Array.from(files).some(() => false)) {
+        await refreshDocuments();
       }
     } catch (error) {
-      console.error("Error uploading file:", error);
-      toast.error("Erro ao enviar documento");
+      console.error("Error uploading file(s):", error);
+      toast.error("Erro ao enviar documentos");
     } finally {
       setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDrop = async (files: File[]) => {
+    if (files.length === 0) return;
+    setUploadingFile(true);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("entityType", "compra-venda");
+        formData.append("moduleType", "compra_venda_imoveis");
+        formData.append("entityId", id);
+        formData.append("caseId", id);
+        formData.append("name", file.name);
+        formData.append("fieldName", "documentoAnexado");
+        if (property?.clientName) {
+          formData.append("clientName", String(property.clientName));
+        }
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result?.document) {
+            setDocuments(prev => [...prev, result.document]);
+          } else {
+            await refreshDocuments();
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload de arquivo(s):", error);
+    } finally {
+      setUploadingFile(false);
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDocumentDownload = (document: Document) => {
+    if (typeof window !== 'undefined') {
+      window.open(document.file_path, '_blank');
+    }
+  };
+
+  const handleDocumentDelete = async (document: Document) => {
+    try {
+      const response = await fetch(`/api/documents/delete/${document.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setDocuments(prev => prev.filter(doc => doc.id !== document.id));
+        setDeleteDialogOpen(false);
+        setDocumentToDelete(null);
+      }
+    } catch (error) {
+      console.error("Erro ao excluir documento:", error);
+    }
+  };
+
+  const handleDocumentNameChange = (name: string) => {
+    setEditingDocumentName(name);
+  };
+
+  const handleDocumentNameSave = async (documentId?: string) => {
+    const idToSave = (documentId ?? (editingDocumentId?.toString() || ""));
+    if (!idToSave || !editingDocumentName.trim()) return;
+    try {
+      const response = await fetch(`/api/documents/rename/${idToSave}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document_name: editingDocumentName }),
+      });
+      if (response.ok) {
+        setDocuments(prev => prev.map(doc => doc.id.toString() === idToSave ? { ...doc, document_name: editingDocumentName } : doc));
+        setEditingDocumentId(null);
+        setEditingDocumentName("");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar nome do documento:", error);
+    }
+  };
+
+  const handleDocumentNameKeyPress = (e: React.KeyboardEvent, documentId: string) => {
+    if (e.key === 'Enter') {
+      handleDocumentNameSave(documentId);
+    } else if (e.key === 'Escape') {
+      setEditingDocumentId(null);
+      setEditingDocumentName("");
+    }
+  };
+
+  const handleDocumentDoubleClick = (document: Document) => {
+    setEditingDocumentId(document.id);
+    setEditingDocumentName(document.document_name || document.file_name || '');
+  };
+
+  const savePrazos = async () => {
+    try {
+      const res = await fetch(`/api/compra-venda-imoveis?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prazoSinal: pendingPrazoSinal || null, prazoEscritura: pendingPrazoEscritura || null })
+      });
+      if (res.ok) {
+        toast.success("Prazos atualizados");
+        fetchProperty();
+      } else {
+        toast.error("Erro ao salvar prazos");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao salvar prazos");
     }
   };
 
@@ -408,25 +689,34 @@ export default function CompraVendaDetailsPage() {
     }));
   }
 
-  const renderStepContent = () => {
-    switch (currentStep) {
+  const renderStepContent = (stepIndex: number) => {
+    switch (stepIndex) {
       case 1:
         return (
           <div className="space-y-6">
             <div className="space-y-4">
+              <h4 className="font-semibold text-lg">Dados do Cliente</h4>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="clientName">Nome Completo</Label>
+                  <Input id="clientName" value={property?.clientName || ""} onChange={(e) => handlePropertyFieldChange("clientName", e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
               <h4 className="font-semibold text-lg">Matrícula do Imóvel</h4>
               <div className="grid md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground">Nº Matrícula</p>
-                  <p className="text-sm font-medium">{property.numeroMatricula || "-"}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="numeroMatricula">Nº Matrícula</Label>
+                  <Input id="numeroMatricula" value={property?.numeroMatricula || ""} onChange={(e) => handlePropertyFieldChange("numeroMatricula", e.target.value)} />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cadastro Contribuinte</p>
-                  <p className="text-sm font-medium">{property.cadastroContribuinte || "-"}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="cadastroContribuinte">Cadastro Contribuinte</Label>
+                  <Input id="cadastroContribuinte" value={property?.cadastroContribuinte || ""} onChange={(e) => handlePropertyFieldChange("cadastroContribuinte", e.target.value)} />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Endereço do Imóvel</p>
-                  <p className="text-sm font-medium">{property.enderecoImovel || "-"}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="enderecoImovel">Endereço do Imóvel</Label>
+                  <Input id="enderecoImovel" value={property?.enderecoImovel || ""} onChange={(e) => handlePropertyFieldChange("enderecoImovel", e.target.value)} />
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
@@ -435,94 +725,131 @@ export default function CompraVendaDetailsPage() {
                   <Input
                     id="matricula-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "numeroMatriculaDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("numeroMatriculaDoc")}
                 </div>
                 <div>
                   <Label htmlFor="cadastro-contribuinte-doc-upload">Comprovante Cadastro Contribuinte</Label>
                   <Input
                     id="cadastro-contribuinte-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "cadastroContribuinteDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("cadastroContribuinteDoc")}
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">Informações dos Vendedores</h4>
-              {sellers.length > 0 ? (
-                <div className="space-y-3">
-                  {sellers.map((seller: any, index: number) => (
-                    <div key={index} className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm font-semibold mb-3">Vendedor {index + 1}</p>
-                      <div className="grid md:grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">RG / CNH</p>
-                          <p className="text-sm font-medium">{seller.rg || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">CPF</p>
-                          <p className="text-sm font-medium">{seller.cpf || "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Data de Nascimento</p>
-                          <p className="text-sm font-medium">
-                            {seller.dataNascimento 
-                              ? new Date(seller.dataNascimento).toLocaleDateString("pt-BR")
-                              : "-"}
-                          </p>
-                        </div>
+              <div className="space-y-3">
+                {editableSellers.map((seller, index) => (
+                  <div key={index} className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm font-semibold mb-3">Vendedor {index + 1}</p>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`seller-rg-${index}`}>RG / CNH</Label>
+                        <Input id={`seller-rg-${index}`} value={seller.rg || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableSellers(prev => prev.map((s, i) => i === index ? { ...s, rg: v } : s));
+                        }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`seller-cpf-${index}`}>CPF</Label>
+                        <Input id={`seller-cpf-${index}`} value={seller.cpf || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableSellers(prev => prev.map((s, i) => i === index ? { ...s, cpf: v } : s));
+                        }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`seller-dob-${index}`}>Data de Nascimento</Label>
+                        <Input id={`seller-dob-${index}`} type="date" value={seller.dataNascimento || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableSellers(prev => prev.map((s, i) => i === index ? { ...s, dataNascimento: v } : s));
+                        }} />
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhum vendedor cadastrado</p>
-              )}
+                    {editableSellers.length > 1 && (
+                      <div className="flex justify-end mt-3">
+                        <Button variant="outline" size="sm" onClick={() => setEditableSellers(prev => prev.filter((_, i) => i !== index))}>Remover</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={() => setEditableSellers(prev => [...prev, { rg: "", cpf: "", dataNascimento: "" }])}>Adicionar Vendedor</Button>
+              </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="rg-vendedores-doc-upload">Documento RG / CNH dos Vendedores</Label>
                   <Input
                     id="rg-vendedores-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "rgVendedoresDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("rgVendedoresDoc")}
                 </div>
                 <div>
                   <Label htmlFor="cpf-vendedores-doc-upload">Documento CPF dos Vendedores</Label>
                   <Input
                     id="cpf-vendedores-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "cpfVendedoresDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("cpfVendedoresDoc")}
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <h4 className="font-semibold text-lg">Informações do Comprador</h4>
-              <div className="grid md:grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground">RNM Comprador</p>
-                  <p className="text-sm font-medium">{property.rnmComprador || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">CPF Comprador</p>
-                  <p className="text-sm font-medium">{property.cpfComprador || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Endereço Comprador</p>
-                  <p className="text-sm font-medium">{property.enderecoComprador || "-"}</p>
-                </div>
+              <div className="space-y-3">
+                {editableCompradores.map((comp, index) => (
+                  <div key={index} className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm font-semibold mb-3">Comprador {index + 1}</p>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`comprador-rnm-${index}`}>RNM</Label>
+                        <Input id={`comprador-rnm-${index}`} value={comp.rnm || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableCompradores(prev => prev.map((c, i) => i === index ? { ...c, rnm: v } : c));
+                        }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`comprador-cpf-${index}`}>CPF</Label>
+                        <Input id={`comprador-cpf-${index}`} value={comp.cpf || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableCompradores(prev => prev.map((c, i) => i === index ? { ...c, cpf: v } : c));
+                        }} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`comprador-end-${index}`}>Endereço</Label>
+                        <Input id={`comprador-end-${index}`} value={comp.endereco || ""} onChange={(e) => {
+                          const v = e.target.value;
+                          setEditableCompradores(prev => prev.map((c, i) => i === index ? { ...c, endereco: v } : c));
+                        }} />
+                      </div>
+                    </div>
+                    {editableCompradores.length > 1 && (
+                      <div className="flex justify-end mt-3">
+                        <Button variant="outline" size="sm" onClick={() => setEditableCompradores(prev => prev.filter((_, i) => i !== index))}>Remover</Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={() => setEditableCompradores(prev => [...prev, { rnm: "", cpf: "", endereco: "" }])}>Adicionar Comprador</Button>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
@@ -530,23 +857,35 @@ export default function CompraVendaDetailsPage() {
                   <Input
                     id="rnm-comprador-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "rnmCompradorDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("rnmCompradorDoc")}
                 </div>
                 <div>
                   <Label htmlFor="cpf-comprador-doc-upload">Documento CPF do Comprador</Label>
                   <Input
                     id="cpf-comprador-doc-upload"
                     type="file"
+                    multiple
                     onChange={(e) => handleFileUpload(e, "cpfCompradorDoc")}
                     disabled={uploading}
                     className="mt-2"
                   />
+                  {renderDocLinks("cpfCompradorDoc")}
                 </div>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="contractNotes">Observações</Label>
+              <Textarea id="contractNotes" rows={4} value={property?.contractNotes || ""} onChange={(e) => handlePropertyFieldChange("contractNotes", e.target.value)} />
+            </div>
+            <Button onClick={saveStep1Fields} className="w-full" disabled={saving}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Salvando..." : "Salvar Dados"}
+            </Button>
           </div>
         );
       
@@ -558,10 +897,40 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="certidoes-upload"
                 type="file"
+                multiple
                 onChange={(e) => handleFileUpload(e, "certidoesDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+              {renderDocLinks("certidoesDoc")}
+            </div>
+            <Collapsible open={prazosOpen} onOpenChange={setPrazosOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm">Prazos</Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="prazo-sinal">Prazo para Sinal</Label>
+                    <Input id="prazo-sinal" type="date" value={pendingPrazoSinal || ""} onChange={(e) => setPendingPrazoSinal(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="prazo-escritura">Prazo para Escritura</Label>
+                    <Input id="prazo-escritura" type="date" value={pendingPrazoEscritura || ""} onChange={(e) => setPendingPrazoEscritura(e.target.value)} />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <Button variant="default" size="sm" onClick={savePrazos} disabled={!pendingPrazoSinal && !pendingPrazoEscritura}>Salvar Prazos</Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+            <div className="space-y-2 mt-4">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[2] || ""} onChange={(e) => setStepNoteLocal(2, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(2, stepNotes[2] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
             </div>
           </div>
         );
@@ -574,10 +943,20 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="contrato-upload"
                 type="file"
+                multiple
                 onChange={(e) => handleFileUpload(e, "contratoDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+              {renderDocLinks("contratoDoc")}
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[3] || ""} onChange={(e) => setStepNoteLocal(3, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(3, stepNotes[3] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
             </div>
           </div>
         );
@@ -592,10 +971,20 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="contrato-assinado-upload"
                 type="file"
+                multiple
                 onChange={(e) => handleFileUpload(e, "assinaturaContratoDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+              {renderDocLinks("assinaturaContratoDoc")}
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[4] || ""} onChange={(e) => setStepNoteLocal(4, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(4, stepNotes[4] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
             </div>
           </div>
         );
@@ -626,10 +1015,20 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="escritura-upload"
                 type="file"
+                multiple
                 onChange={(e) => handleFileUpload(e, "escrituraDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+              {renderDocLinks("escrituraDoc")}
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[5] || ""} onChange={(e) => setStepNoteLocal(5, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(5, stepNotes[5] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
             </div>
           </div>
         );
@@ -644,10 +1043,20 @@ export default function CompraVendaDetailsPage() {
               <Input
                 id="matricula-cartorio-upload"
                 type="file"
+                multiple
                 onChange={(e) => handleFileUpload(e, "matriculaCartorioDoc")}
                 disabled={uploading}
                 className="mt-2"
               />
+              {renderDocLinks("matriculaCartorioDoc")}
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[6] || ""} onChange={(e) => setStepNoteLocal(6, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(6, stepNotes[6] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
             </div>
           </div>
         );
@@ -657,6 +1066,14 @@ export default function CompraVendaDetailsPage() {
             <div className="p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium">Processo finalizado</p>
             </div>
+            <div className="space-y-2 mt-2">
+              <Label>Observação da etapa</Label>
+              <Textarea rows={3} value={stepNotes[7] || ""} onChange={(e) => setStepNoteLocal(7, e.target.value)} />
+              <Button variant="default" size="sm" onClick={async () => { await handleNotesChange(7, stepNotes[7] || ""); toast.success("Notas salvas com sucesso"); }}>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Observação
+              </Button>
+            </div>
           </div>
         );
       
@@ -664,6 +1081,8 @@ export default function CompraVendaDetailsPage() {
         return null;
     }
   };
+
+  const currentStepTitle = WORKFLOW_STEPS.find((s) => s.id === currentStep)?.title || "";
 
   return (
     <div className="space-y-6 w-full">
@@ -687,8 +1106,8 @@ export default function CompraVendaDetailsPage() {
 
       <DetailLayout
         backHref="/dashboard/compra-venda"
-        title={property?.enderecoImovel || "Transação Imobiliária"}
-        subtitle={property?.clientName || "Cliente não informado"}
+        title={property?.clientName || "Cliente não informado"}
+        subtitle={property?.enderecoImovel || "Transação Imobiliária"}
         onDelete={handleDelete}
         left={
           <div className="space-y-6">
@@ -696,6 +1115,7 @@ export default function CompraVendaDetailsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Fluxo do Processo</CardTitle>
+                <div className="text-xs text-muted-foreground">Etapa {currentStep}: {currentStepTitle}</div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {WORKFLOW_STEPS.map((step) => (
@@ -706,15 +1126,19 @@ export default function CompraVendaDetailsPage() {
                     isCurrent={currentStep === step.id}
                     isCompleted={completedSteps.includes(step.id)}
                     isPending={currentStep < step.id}
-                    expanded={currentStep === step.id}
-                    onToggle={() => {}}
+                    expanded={expandedStepId === step.id}
+                    onToggle={() => setExpandedStepId((prev) => (prev === step.id ? undefined : step.id))}
                     onMarkComplete={() => toggleStepCompletion(step.id)}
                     onMarkIncomplete={() => toggleStepCompletion(step.id)}
                     assignment={assignments[step.id]}
                     onSaveAssignment={async (a) => handleSaveAssignment(step.id, a.responsibleName, a.dueDate)}
                     canAssign={!step.title.toLowerCase().includes("cadastro")}
+                    extraBadges={step.id === 2 ? [
+                      ...(property?.prazoSinal ? [{ label: `Sinal: ${new Date(property.prazoSinal).toLocaleDateString('pt-BR')}` }] : []),
+                      ...(property?.prazoEscritura ? [{ label: `Escritura: ${new Date(property.prazoEscritura).toLocaleDateString('pt-BR')}` }] : []),
+                    ] : []}
                   >
-                    {currentStep === step.id && renderStepContent()}
+                    {renderStepContent(step.id)}
                   </StepItem>
                 ))}
               </CardContent>
@@ -729,8 +1153,27 @@ export default function CompraVendaDetailsPage() {
               onStatusChange={handleStatusChange}
               currentStep={currentStep}
               totalSteps={WORKFLOW_STEPS.length}
+              currentStepTitle={currentStepTitle}
               createdAt={property?.createdAt}
               updatedAt={property?.updatedAt}
+            />
+
+            <DocumentPanel
+              onDropFiles={handleDrop}
+              uploading={uploadingFile}
+              documents={documents}
+              loadingDocuments={loadingDocuments}
+              isDragOver={isDragOver}
+              onDocumentDownload={handleDocumentDownload}
+              onDocumentDelete={(doc) => { setDocumentToDelete(doc); setDeleteDialogOpen(true); }}
+              editingDocumentId={editingDocumentId}
+              editingDocumentName={editingDocumentName}
+              onDocumentNameChange={handleDocumentNameChange}
+              onDocumentNameSave={(docId) => handleDocumentNameSave(docId)}
+              onDocumentNameKeyPress={handleDocumentNameKeyPress}
+              onDocumentDoubleClick={handleDocumentDoubleClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
             />
 
             {/* Deadlines Card */}
@@ -801,6 +1244,25 @@ export default function CompraVendaDetailsPage() {
           </div>
         }
       />
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o documento "{documentToDelete?.document_name || documentToDelete?.file_name}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => documentToDelete && handleDocumentDelete(documentToDelete)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

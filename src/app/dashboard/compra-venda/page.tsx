@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Home, Eye, AlertTriangle, Clock, CheckCircle2, AlertCircle, FileText, Building2, User, Users, Trash2 } from "lucide-react";
+import { Plus, Search, Home, Eye, AlertTriangle, Clock, CheckCircle2, AlertCircle, FileText, Building2, User, Users, Trash2, Calendar } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingState } from "@/components/loading-state";
@@ -43,6 +43,8 @@ export default function CompraVendaPage() {
   const properties = Array.isArray(propertiesData) ? propertiesData : [];
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [caseAssignments, setCaseAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
+  const lastAssignmentIdsRef = useRef<string>("");
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const handleStorageChange = (e: StorageEvent) => {
@@ -83,6 +85,94 @@ export default function CompraVendaPage() {
     emAndamento: properties.filter(p => (p.status || "").toLowerCase() === "em andamento").length,
     finalizado: properties.filter(p => (p.status || "").toLowerCase() === "finalizado").length,
   };
+
+  const WORKFLOW_STEP_TITLES = [
+    "Cadastro Documentos",
+    "Emitir Certidões",
+    "Fazer/Analisar Contrato Compra e Venda",
+    "Assinatura de contrato",
+    "Escritura",
+    "Cobrar a Matrícula do Cartório",
+    "Processo Finalizado",
+  ];
+
+  const getStepTitle = (index: number) => WORKFLOW_STEP_TITLES[(index || 1) - 1] || `Etapa ${index || 1}`;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'step-assignments-update') {
+          try {
+            const updateData = JSON.parse(e.newValue || '{}');
+            if (updateData.moduleType === 'compra_venda_imoveis' && updateData.recordId) {
+              const rid = typeof updateData.recordId === 'string' ? parseInt(updateData.recordId) : updateData.recordId;
+              setCaseAssignments(prev => ({
+                ...prev,
+                [rid]: { responsibleName: updateData.responsibleName, dueDate: updateData.dueDate }
+              }));
+              localStorage.removeItem('step-assignments-update');
+            }
+          } catch {}
+        }
+      };
+
+      const handleCustomEvent = (e: CustomEvent) => {
+        const updateData: any = e.detail;
+        if (updateData?.moduleType === 'compra_venda_imoveis' && updateData.recordId) {
+          const rid = typeof updateData.recordId === 'string' ? parseInt(updateData.recordId) : updateData.recordId;
+          setCaseAssignments(prev => ({
+            ...prev,
+            [rid]: { responsibleName: updateData.responsibleName, dueDate: updateData.dueDate }
+          }));
+        }
+      };
+
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('step-assignments-updated', handleCustomEvent as EventListener);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('step-assignments-updated', handleCustomEvent as EventListener);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    const ids = properties.map((c: any) => c.id).join(",");
+    if (ids === lastAssignmentIdsRef.current) return;
+    lastAssignmentIdsRef.current = ids;
+
+    const loadAssignments = async () => {
+      const entries = await Promise.all(
+        properties.map(async (p: any) => {
+          try {
+            const res = await fetch(`/api/step-assignments?moduleType=compra_venda_imoveis&recordId=${p.id}&stepIndex=${p.currentStep}`);
+            if (!res.ok) return [p.id, null] as const;
+            const data = await res.json();
+            const item = Array.isArray(data) ? (data[0] || null) : data;
+            return [p.id, item ? { responsibleName: item.responsibleName, dueDate: item.dueDate } : null] as const;
+          } catch {
+            return [p.id, null] as const;
+          }
+        })
+      );
+      const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+      for (const [id, a] of entries) {
+        if (a) map[id] = a;
+      }
+      const nextStr = JSON.stringify(map);
+      const prevStr = JSON.stringify(caseAssignments);
+      if (nextStr !== prevStr) {
+        setCaseAssignments(map);
+      }
+    };
+
+    if (properties.length > 0) {
+      loadAssignments();
+    } else {
+      setCaseAssignments({});
+    }
+  }, [properties]);
 
   const getDaysUntil = (dateString: string) => {
     if (!dateString) return null;
@@ -331,7 +421,7 @@ export default function CompraVendaPage() {
                       <div className="space-y-3 flex-1">
                         <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                            {property.enderecoImovel || "Endereço não informado"}
+                            {property.clientName || "Cliente não informado"}
                           </h3>
                           <Badge className={`${getStatusColor(property.status)} flex items-center gap-1.5 px-3 py-1 shadow-md`}>
                             {getStatusIcon(property.status)}
@@ -341,7 +431,7 @@ export default function CompraVendaPage() {
 
                         
 
-                        <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
+                          <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                             <span className="font-medium">Tipo de Ação:</span>
@@ -363,9 +453,19 @@ export default function CompraVendaPage() {
                             <span>{property.rnmComprador || property.cpfComprador || "—"}</span>
                           </div>
                           <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Responsável:</span>
+                            <span>{caseAssignments[property.id]?.responsibleName || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                            <span className="font-medium">Prazo:</span>
+                            <span>{caseAssignments[property.id]?.dueDate ? new Date(caseAssignments[property.id]!.dueDate!).toLocaleDateString("pt-BR") : "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                             <span className="font-medium">Fluxo atual:</span>
-                            <span>Etapa {property.currentStep || 1}</span>
+                            <span>{getStepTitle(property.currentStep || 1)}</span>
                           </div>
                         </div>
 

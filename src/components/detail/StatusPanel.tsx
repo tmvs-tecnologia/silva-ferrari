@@ -8,11 +8,12 @@ interface StatusPanelProps {
   onStatusChange: (s: string) => void;
   currentStep: number;
   totalSteps: number;
+  currentStepTitle?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, createdAt, updatedAt }: StatusPanelProps) {
+export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, currentStepTitle, createdAt, updatedAt }: StatusPanelProps) {
   return (
     <Card>
       <CardHeader>
@@ -28,6 +29,10 @@ export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, c
             <SelectItem value="Finalizado">Finalizado</SelectItem>
           </SelectContent>
         </Select>
+        <div className="pt-2 border-t">
+          <p className="text-xs text-muted-foreground">Etapa atual</p>
+          <p className="text-sm font-medium">{currentStepTitle || `Etapa ${currentStep}`}</p>
+        </div>
         {createdAt && (
           <div className="pt-2 border-t">
             <p className="text-xs text-muted-foreground">Criado em</p>
