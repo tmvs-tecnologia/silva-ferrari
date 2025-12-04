@@ -66,7 +66,7 @@ export default function NovaCompraVendaPage() {
           enderecoComprador: compradores.map(c => c.endereco).filter(Boolean).join(","),
           currentStep: 2,
           status: "Em Andamento",
-          completedSteps: JSON.stringify([1]),
+          completedSteps: [1],
         }),
       });
 

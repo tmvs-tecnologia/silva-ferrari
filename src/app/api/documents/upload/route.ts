@@ -109,22 +109,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/jpeg',
-      'image/png',
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      console.error('❌ Tipo de arquivo não permitido:', file.type);
-      return NextResponse.json(
-        { error: 'Tipo de arquivo não permitido. Use: PDF, DOC, DOCX, JPG, PNG' },
-        { status: 400 }
-      );
-    }
+    // Accept any file type; default to generic content type when missing
+    const contentType = file.type || 'application/octet-stream';
 
     // Generate file path with descriptive name
     const timestamp = Date.now();
@@ -183,7 +169,7 @@ export async function POST(request: NextRequest) {
     const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from(BUCKET_NAME)
       .upload(filePath, buffer, {
-        contentType: file.type,
+        contentType,
         upsert: true,
       });
 
@@ -237,7 +223,7 @@ export async function POST(request: NextRequest) {
         document_name: documentDisplayName,
         file_name: originalName,
         file_path: publicUrl,
-        file_type: file.type,
+        file_type: contentType,
         file_size: file.size,
         uploaded_at: new Date().toISOString(),
       })

@@ -125,6 +125,14 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const body = await request.json();
 
+    const normalizeJson = (v: any) => {
+      if (v === undefined || v === null || v === '') return null;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return v; }
+      }
+      return v;
+    };
+
     // Prepare data for Supabase (map camelCase to snake_case)
     const insertData = {
       tipo_transacao: toNullIfEmpty(body.tipoTransacao),
@@ -143,8 +151,8 @@ export async function POST(request: NextRequest) {
       prazo_sinal: toNullIfEmpty(body.prazoSinal),
       prazo_escritura: toNullIfEmpty(body.prazoEscritura),
       contract_notes: toNullIfEmpty(body.contractNotes),
-      step_notes: toNullIfEmpty(body.stepNotes),
-      completed_steps: toNullIfEmpty(body.completedSteps),
+      step_notes: normalizeJson(body.stepNotes),
+      completed_steps: normalizeJson(body.completedSteps),
     };
 
     const { data: newRecord, error } = await supabase
