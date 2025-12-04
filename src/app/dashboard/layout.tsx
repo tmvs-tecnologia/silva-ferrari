@@ -388,40 +388,35 @@ export default function DashboardLayout({
         {/* Page Content */}
         <main className="p-4 lg:p-6">
           {searchQuery.trim() ? (
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="space-y-3">
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Resultados da Busca</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {searching ? (
-                      <div className="text-sm text-slate-500">Buscando...</div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="text-sm text-slate-500">Nenhum resultado</div>
-                    ) : (
-                      searchResults.map((item, i) => (
-                        <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
-                          <Card className="border-slate-200 hover:shadow-md transition-all cursor-pointer">
-                            <CardContent className="p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold truncate">{item.title}</div>
-                                  <div className="text-xs text-slate-500 truncate">{item.subtitle || item.module}</div>
-                                </div>
-                                <Badge className={`text-xs ${item.status === 'Finalizado' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>{item.status || 'Em andamento'}</Badge>
+            <div className="space-y-4">
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Resultados da Busca</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {searching ? (
+                    <div className="text-sm text-slate-500">Buscando...</div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="text-sm text-slate-500">Nenhum resultado</div>
+                  ) : (
+                    searchResults.map((item, i) => (
+                      <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
+                        <Card className="border-slate-200 hover:shadow-md transition-all cursor-pointer">
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold truncate">{item.title}</div>
+                                <div className="text-xs text-slate-500 truncate">{item.subtitle || item.module}</div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="lg:col-span-2">
-                <div className="w-full">{children}</div>
-              </div>
+                              <Badge className={`text-xs ${item.status === 'Finalizado' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>{item.status || 'Em andamento'}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
             </div>
           ) : (
             <div className="w-full">{children}</div>
