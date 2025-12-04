@@ -401,7 +401,13 @@ export default function DashboardLayout({
                   ) : (
                     searchResults.map((item, i) => (
                       <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
-                        <Card className="border-slate-200 hover:shadow-md transition-all cursor-pointer">
+                        <Card
+                          className="border-slate-200 hover:shadow-md transition-all cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.push(item.href)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') router.push(item.href); }}
+                        >
                           <CardContent className="p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
