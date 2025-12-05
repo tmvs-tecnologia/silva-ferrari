@@ -92,6 +92,13 @@ export const FIELD_TO_DOCUMENT_NAME: Record<string, string> = {
   matriculaCartorioDocFile: 'Matrícula do Cartório',
   comprovanteEnderecoImovelDocFile: 'Comprovante de Endereço do Imóvel',
   documentoAnexadoFile: 'Documento Anexado',
+  // Perda de Nacionalidade
+  protocoloDoc: 'Protocolo no SEI',
+  extratoSeiDoc: 'Extrato do SEI',
+  douDoc: 'DOU (Diário Oficial da União)',
+  douRatificacaoDoc: 'DOU da Ratificação',
+  protocoloManifestoDoc: 'Protocolo do Manifesto no SEI',
+  documentoFinalizacaoDoc: 'Documento de Finalização',
 };
 
 function sanitizeFileName(fileName: string): string {

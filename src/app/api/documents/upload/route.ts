@@ -48,6 +48,14 @@ const FIELD_TO_STEP_MAP: Record<string, string> = {
   contaLuzFile: 'usucapiao-luz',
   iptuFile: 'usucapiao-iptu',
   contratoEngenheiroFile: 'usucapiao-engenheiro',
+  
+  // Perda de Nacionalidade
+  protocoloDoc: 'protocolo',
+  extratoSeiDoc: 'protocolo',
+  douDoc: 'deferimento',
+  douRatificacaoDoc: 'ratificacao',
+  protocoloManifestoDoc: 'protocolo',
+  documentoFinalizacaoDoc: 'finalizacao',
 };
 
 export async function POST(request: NextRequest) {

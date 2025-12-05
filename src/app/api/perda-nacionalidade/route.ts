@@ -14,6 +14,8 @@ function mapDbFieldsToFrontend(record: any) {
     createdAt: record.created_at,
     updatedAt: record.updated_at,
     currentStep: record.current_step ?? 0,
+    stepData: (record as any).step_data || {},
+    stepNotes: (record as any).step_notes || {},
     nomeMae: record.nome_mae,
     nomePai: record.nome_pai,
     nomeCrianca: record.nome_crianca,
@@ -199,6 +201,8 @@ export async function POST(request: NextRequest) {
       current_step: body.currentStep ?? 0,
       status: truncateString(body.status, 50) || 'Em Andamento',
       notes: body.notes?.trim() || null,
+      step_data: body.stepData ?? null,
+      step_notes: body.stepNotes ?? null,
     };
 
     const { data: newRecord, error } = await supabase
@@ -304,6 +308,8 @@ export async function PUT(request: NextRequest) {
     if (body.currentStep !== undefined) updateData.current_step = body.currentStep;
     if (body.status !== undefined) updateData.status = truncateString(body.status, 50) || null;
     if (body.notes !== undefined) updateData.notes = body.notes?.trim() || null;
+    if (body.stepData !== undefined) updateData.step_data = body.stepData;
+    if (body.stepNotes !== undefined) updateData.step_notes = body.stepNotes;
 
     const { data: updated, error } = await supabase
       .from('perda_nacionalidade')

@@ -54,6 +54,8 @@ const WORKFLOW_STEPS = [
   { id: 7, title: "Passaporte Chinês", description: "Solicitação e registro de passaporte chinês" },
   { id: 8, title: "Manifesto", description: "Registro do manifesto" },
   { id: 9, title: "Protocolar no SEI", description: "Protocolo do manifesto no SEI" },
+  { id: 10, title: "Processo Ratificado", description: "Registro da ratificação com DOU e data" },
+  { id: 11, title: "Processo Finalizado", description: "Arquivar documento de finalização do processo" },
 ];
 
 export default function PerdaNacionalidadeDetailPage() {
@@ -76,6 +78,8 @@ export default function PerdaNacionalidadeDetailPage() {
   const [dragActive, setDragActive] = useState(false);
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
   const [recordFields, setRecordFields] = useState<any>({});
+  const [stepSaveSuccess, setStepSaveSuccess] = useState<Record<number, boolean>>({});
+  const [recordFieldsSaved, setRecordFieldsSaved] = useState(false);
 
   useEffect(() => {
     fetchCaseData();
@@ -194,20 +198,29 @@ export default function PerdaNacionalidadeDetailPage() {
     try {
       const response = await fetch('/api/documents/upload', { method: 'POST', body: fd });
       if (response.ok) {
-        const { url } = await response.json();
-        if (field && url) {
+        const resp = await response.json();
+        const fileUrl = resp.fileUrl || resp.file_path || resp.filePath || resp.url;
+        if (field && fileUrl) {
           try {
             await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ [field]: url }),
+              body: JSON.stringify({ [field]: fileUrl }),
             });
-            setCaseData((prev: any) => ({ ...(prev || {}), [field]: url }));
+            setCaseData((prev: any) => ({ ...(prev || {}), [field]: fileUrl }));
             if (typeof step === 'number') {
-              setStepData((prev: any) => ({
-                ...prev,
-                [step]: { ...((prev || {})[step] || {}), [field]: url },
-              }));
+              setStepData((prev: any) => {
+                const next = {
+                  ...prev,
+                  [step]: { ...((prev || {})[step] || {}), [field]: fileUrl },
+                };
+                fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ stepData: next }),
+                }).catch(() => {});
+                return next;
+              });
             }
           } catch {}
         }
@@ -280,13 +293,17 @@ export default function PerdaNacionalidadeDetailPage() {
     setStepData(newStepData);
     
     try {
-      await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
+      const r = await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ stepData: newStepData }),
       });
+      if (r.ok) {
+        setStepSaveSuccess(prev => ({ ...prev, [stepIndex]: true }));
+        setTimeout(() => setStepSaveSuccess(prev => ({ ...prev, [stepIndex]: false })), 3000);
+      }
     } catch (error) {
       console.error("Erro ao salvar dados da etapa:", error);
     }
@@ -370,6 +387,7 @@ export default function PerdaNacionalidadeDetailPage() {
         ...prev,
         [stepIndex]: { ...((prev || {})[stepIndex] || {}), [field]: value },
       }));
+      setStepSaveSuccess(prev => ({ ...prev, [stepIndex]: false }));
     };
     const updateFieldLocal = (field: string, value: any) => {
       setRecordFields((prev: any) => ({ ...prev, [field]: value }));
@@ -532,10 +550,34 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={saveRecordFields}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar Dados
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre os documentos iniciais"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={saveRecordFields}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Dados
+              </Button>
+              {recordFieldsSaved && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -556,10 +598,15 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -580,10 +627,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre a coleta de assinaturas"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -612,10 +673,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre o protocolo no SEI"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -636,10 +711,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre a confirmação do protocolo"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -659,10 +748,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre o deferimento"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -683,10 +786,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre passaporte chinês e portaria"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -706,10 +823,24 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
             
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre o manifesto"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
@@ -738,10 +869,88 @@ export default function PerdaNacionalidadeDetailPage() {
               />
             </div>
 
-            <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre o protocolo do manifesto no SEI"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 9:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              {renderFileUpload("douRatificacaoDoc", "DOU (Diário Oficial da União)")}
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Data de Ratificação</Label>
+              <Input
+                type="date"
+                value={currentStepData.dataRatificacao || ""}
+                onChange={(e) => updateStepData("dataRatificacao", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre a ratificação"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 10:
+        return (
+          <div className="space-y-6">
+            <div className="space-y-4">
+              {renderFileUpload("documentoFinalizacaoDoc", "Documento de Finalização")}
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={currentStepData.observacoes || ""}
+                onChange={(e) => updateStepData("observacoes", e.target.value)}
+                placeholder="Observações sobre a finalização do processo"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button onClick={() => saveStepData(stepIndex, currentStepData)}>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              {stepSaveSuccess[stepIndex] && (
+                <span className="text-green-600 text-sm">Salvo!</span>
+              )}
+            </div>
           </div>
         );
 
