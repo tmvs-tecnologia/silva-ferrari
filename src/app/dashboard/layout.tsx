@@ -326,10 +326,12 @@ export default function DashboardLayout({
               )}
             </div>
             <div className="flex justify-center">
-              <Badge variant="outline" className="border-blue-200 text-blue-700">
-                <Calendar className="w-3 h-3 mr-1" />
-                {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </Badge>
+              {pathname === "/dashboard" && (
+                <Badge variant="outline" className="border-blue-200 text-blue-700">
+                  <Calendar className="w-3 h-3 mr-1" />
+                  {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-3 justify-end">
               {pathname === "/dashboard" && (

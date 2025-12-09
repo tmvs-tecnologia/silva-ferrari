@@ -11,6 +11,8 @@ function mapVistosDbFieldsToFrontend(record: any) {
     clientName: record.client_name,
     type: record.type,
     country: record.country,
+    currentStep: record.current_step,
+    completedSteps: record.completed_steps,
     cpf: record.cpf,
     cpfDoc: record.cpf_doc,
     rnm: record.rnm,
@@ -233,10 +235,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Prepare data for Supabase (map camelCase to snake_case)
+    const normalizeJson = (v: any) => {
+      if (v === undefined || v === null || v === '') return [];
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return []; }
+      }
+      return Array.isArray(v) ? v : [];
+    };
+
     const insertData = {
       client_name: body.clientName.trim(),
       type: body.type.trim(),
       country: body.country?.trim() || null,
+      current_step: typeof body.currentStep === 'number' ? body.currentStep : 1,
+      completed_steps: normalizeJson(body.completedSteps),
       cpf: body.cpf?.trim() || null,
       cpf_doc: body.cpfDoc?.trim() || null,
       rnm: body.rnm?.trim() || null,
@@ -397,6 +409,22 @@ export async function PUT(request: NextRequest) {
 
     if (body.country !== undefined) {
       updateData.country = body.country?.trim() || null;
+    }
+
+    if (body.currentStep !== undefined) {
+      const n = Number(body.currentStep);
+      updateData.current_step = Number.isFinite(n) ? n : null;
+    }
+
+    if (body.completedSteps !== undefined) {
+      const normalizeJson = (v: any) => {
+        if (v === undefined || v === null || v === '') return [];
+        if (typeof v === 'string') {
+          try { return JSON.parse(v); } catch { return []; }
+        }
+        return Array.isArray(v) ? v : [];
+      };
+      updateData.completed_steps = normalizeJson(body.completedSteps);
     }
 
     if (body.cpf !== undefined) {

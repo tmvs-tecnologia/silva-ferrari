@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-node_modules\.bin\next.cmd dev --turbopack
+node "%~dp0node_modules\next\dist\bin\next" dev --turbopack

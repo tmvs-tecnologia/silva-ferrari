@@ -124,6 +124,7 @@ interface CaseData {
   clientName: string;
   description: string;
   steps: StepData[];
+  currentStep: number;
 }
 
 export default function VistoDetailsPage() {
@@ -198,10 +199,23 @@ export default function VistoDetailsPage() {
         }));
         const recordCurrentStep = Number(record.currentStep ?? 0);
         const initialCurrentStep = recordCurrentStep < 1 ? 1 : recordCurrentStep;
-        // marcar como concluídas as etapas anteriores ao currentStep
-        for (let i = 0; i < steps.length; i++) {
-          steps[i].completed = i < initialCurrentStep;
+        const completedFromServer = (() => {
+          const v = (record.completedSteps ?? []) as any;
+          if (Array.isArray(v)) return v as number[];
+          if (typeof v === 'string') { try { const parsed = JSON.parse(v); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
+          return [];
+        })();
+        if (completedFromServer.length) {
+          for (let i = 0; i < steps.length; i++) {
+            steps[i].completed = completedFromServer.includes(i);
+          }
+        } else {
+          for (let i = 0; i < steps.length; i++) {
+            steps[i].completed = i < initialCurrentStep;
+          }
         }
+        let contiguousIndex = 0;
+        while (contiguousIndex < steps.length && steps[contiguousIndex].completed) contiguousIndex++;
         const data: CaseData = {
           id: String(record.id),
           title: `Visto ${record.id}`,
@@ -216,7 +230,7 @@ export default function VistoDetailsPage() {
           // garante que "Cadastro de Documentos" (0) fica concluída por padrão
           // ao abrir os detalhes quando o caso é novo
           // nota: o componente StatusPanel já adiciona +1 para exibição
-          currentStep: initialCurrentStep,
+          currentStep: contiguousIndex,
         };
         setCaseData(data);
         setStatus(data.status);
@@ -435,16 +449,16 @@ export default function VistoDetailsPage() {
             }
           : step
       );
-      const newCurrent = Math.min(updatedSteps.filter(s => s.completed).length, updatedSteps.length - 1);
-      // persistir currentStep
+      const completedCount = updatedSteps.filter(s => s.completed).length;
+      const newCurrent = Math.min(completedCount, updatedSteps.length - 1);
+      const completedStepsArr = updatedSteps.filter(s => s.completed).map(s => s.id);
       (async () => {
         try {
           await fetch(`/api/vistos?id=${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentStep: newCurrent })
+            body: JSON.stringify({ currentStep: newCurrent, completedSteps: completedStepsArr })
           });
-          // atualizar índice atual em assignments para sincronizar com a lista
           try {
             await fetch(`/api/step-assignments`, {
               method: 'POST',
