@@ -259,17 +259,14 @@ export default function VistosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      setStatusFinalOverrides((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
-      refetch();
+      // Mantém o estado otimista sem fazer refetch para evitar reset visual
     } catch (e) {
       console.error('Erro ao alternar status final:', e);
-      setStatusFinalOverrides((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
-      });
+      // Em caso de erro, reverte para o valor anterior
+      setStatusFinalOverrides((prev) => ({
+        ...prev,
+        [id]: { statusFinal: current || "", statusFinalOutro: v.statusFinalOutro ?? null }
+      }));
     }
   };
 
