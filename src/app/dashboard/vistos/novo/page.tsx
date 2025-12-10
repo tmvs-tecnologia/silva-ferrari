@@ -37,6 +37,7 @@ export default function NovoVistoPage() {
     trabalhistasTrabalhoBrasil: true,
     historicoSegurancaTrabalhoBrasil: true,
     formacaoTrabalhoBrasil: true,
+    outrasInformacoesTrabalhoBrasil: true,
     identificacaoResidenciaPrevia: true,
     residenciaAnteriorResidenciaPrevia: true,
     empresaResidenciaPrevia: true,
@@ -57,6 +58,11 @@ export default function NovoVistoPage() {
     formacaoMudanca: true,
     identificacaoInvestidor: true,
     empresaInvestidor: true,
+    outrasInformacoesResidenciaPrevia: true,
+    outrasInformacoesRenovacaoAno: true,
+    outrasInformacoesIndeterminado: true,
+    outrasInformacoesMudanca: true,
+    outrasInformacoesInvestidor: true,
   });
   const [formData, setFormData] = useState({
     clientName: "",
@@ -149,7 +155,12 @@ export default function NovoVistoPage() {
     formularioRequerimentoDoc: "",
     protocolado: "",
     protocoladoDoc: "",
+    procurador: "",
+    numeroProcesso: "",
   });
+  const [travelRangeOpen, setTravelRangeOpen] = useState(false);
+  const [tempTravelRange, setTempTravelRange] = useState<{ from?: Date; to?: Date } | undefined>(undefined);
+  const [activeTripField, setActiveTripField] = useState<'from' | 'to'>('from');
   const [uploadingDocs, setUploadingDocs] = useState<Record<string, boolean>>({});
   const [extraUploads, setExtraUploads] = useState<Record<string, string[]>>({});
 
@@ -486,48 +497,82 @@ export default function NovoVistoPage() {
               {formData.type === "Turismo" && (
                 <div className="space-y-3">
                   <Label className="text-base font-medium text-foreground">Período da Viagem</Label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Popover>
+                  <div className="grid gap-3">
+                    <Popover open={travelRangeOpen} onOpenChange={(o) => {
+                      setTravelRangeOpen(o);
+                      if (o) {
+                        const parseIso = (val?: string) => {
+                          if (!val) return undefined;
+                          const m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                          return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(val);
+                        };
+                        setTempTravelRange({ from: parseIso(formData.travelStartDate), to: parseIso(formData.travelEndDate) });
+                      }
+                    }}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="h-9 w-full border-2 border-input rounded-md px-3 py-1 text-sm bg-background shadow-none hover:bg-background hover:text-foreground hover:shadow-none transition-colors justify-between text-foreground">
-                          <span className="text-sm">{formData.travelStartDate ? format(parseISO(formData.travelStartDate), "dd/MM/yyyy", { locale: ptBR }) : "Início"}</span>
+                          <span className="text-sm">{(() => {
+                            const fmt = (s?: string) => {
+                              if (!s) return "";
+                              const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                              return m ? `${m[3]}/${m[2]}/${m[1]}` : format(new Date(s), "dd/MM/yyyy", { locale: ptBR });
+                            };
+                            const start = fmt(formData.travelStartDate);
+                            const end = fmt(formData.travelEndDate);
+                            if (start && end) return `${start} — ${end}`;
+                            return "Selecionar período";
+                          })()}</span>
                           <CalendarIcon className="h-4 w-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="p-2 w-auto">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Button
+                            variant={activeTripField === 'from' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setActiveTripField('from')}
+                          >
+                            Ida
+                          </Button>
+                          <Button
+                            variant={activeTripField === 'to' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setActiveTripField('to')}
+                          >
+                            Volta
+                          </Button>
+                        </div>
                         <Calendar
                           mode="single"
-                          selected={formData.travelStartDate ? new Date(formData.travelStartDate) : undefined}
+                          selected={(tempTravelRange ?? (() => {
+                            const parseIso = (val?: string) => {
+                              if (!val) return undefined;
+                              const m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                              return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(val);
+                            };
+                            return { from: parseIso(formData.travelStartDate), to: parseIso(formData.travelEndDate) } as any;
+                          })())[activeTripField]}
                           onSelect={(d) => {
                             const fmt = (dt?: Date) => dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}` : "";
-                            handleChange("travelStartDate", fmt(d || undefined));
+                            const next = { ...(tempTravelRange ?? {}), [activeTripField]: d || undefined } as { from?: Date; to?: Date };
+                            setTempTravelRange(next);
+                            if (activeTripField === 'from' && d) setActiveTripField('to');
+                            const f = next.from;
+                            const t = next.to;
+                            if (f && t) {
+                              handleChange("travelStartDate", fmt(f));
+                              handleChange("travelEndDate", fmt(t));
+                              setTravelRangeOpen(false);
+                              setTempTravelRange(undefined);
+                              setActiveTripField('from');
+                            }
                           }}
                           weekStartsOn={1}
-                          captionLayout="label"
+                          captionLayout="dropdown"
                           locale={ptBR}
-                          className="w-full"
-                          style={{ "--cell-size": "2.4rem" } as React.CSSProperties}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-full border-2 border-input rounded-md px-3 py-1 text-sm bg-background shadow-none hover:bg-background hover:text-foreground hover:shadow-none transition-colors justify-between text-foreground">
-                          <span className="text-sm">{formData.travelEndDate ? format(parseISO(formData.travelEndDate), "dd/MM/yyyy", { locale: ptBR }) : "Fim"}</span>
-                          <CalendarIcon className="h-4 w-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 w-auto">
-                        <Calendar
-                          mode="single"
-                          selected={formData.travelEndDate ? new Date(formData.travelEndDate) : undefined}
-                          onSelect={(d) => {
-                            const fmt = (dt?: Date) => dt ? `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}` : "";
-                            handleChange("travelEndDate", fmt(d || undefined));
-                          }}
-                          weekStartsOn={1}
-                          captionLayout="label"
-                          locale={ptBR}
+                          fromMonth={new Date(2000, 0, 1)}
+                          toMonth={new Date(2100, 11, 31)}
+                          numberOfMonths={1}
                           className="w-full"
                           style={{ "--cell-size": "2.4rem" } as React.CSSProperties}
                         />
@@ -1403,6 +1448,7 @@ export default function NovoVistoPage() {
                     </CardContent>
                   )}
                 </Card>
+                
               </div>
             )}
 
@@ -1839,6 +1885,50 @@ export default function NovoVistoPage() {
                     </CardContent>
                   )}
                 </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesTrabalhoBrasil")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">6</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesTrabalhoBrasil ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesTrabalhoBrasil && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
               </div>
             )}
             {formData.type === "Trabalho:Residência Prévia" && (
@@ -2219,6 +2309,50 @@ export default function NovoVistoPage() {
                     </CardContent>
                   )}
                 </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesResidenciaPrevia")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">6</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesResidenciaPrevia ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesResidenciaPrevia && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
               </div>
             )}
             {formData.type === "Trabalho:Renovação 1 ano" && (
@@ -2483,6 +2617,50 @@ export default function NovoVistoPage() {
                       )}
                     </div>
                   </div>
+                    </CardContent>
+                  )}
+                </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesRenovacaoAno")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">5</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesRenovacaoAno ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesRenovacaoAno && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                      </div>
                     </CardContent>
                   )}
                 </Card>
@@ -2764,6 +2942,50 @@ export default function NovoVistoPage() {
                           {formData.declaracaoAntecedentesCriminaisDoc && (
                             <DocumentPreview fileUrl={formData.declaracaoAntecedentesCriminaisDoc} onRemove={() => removeDocument("declaracaoAntecedentesCriminaisDoc")} />
                           )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesIndeterminado")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">5</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesIndeterminado ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesIndeterminado && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
                         </div>
                       </div>
                     </CardContent>
@@ -3131,6 +3353,50 @@ export default function NovoVistoPage() {
                     </CardContent>
                   )}
                 </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesMudanca")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">6</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesMudanca ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesMudanca && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
               </div>
             )}
             {formData.type === "Investidor" && (
@@ -3359,6 +3625,50 @@ export default function NovoVistoPage() {
                           {formData.publicacaoDouDoc && (
                             <DocumentPreview fileUrl={formData.publicacaoDouDoc} onRemove={() => removeDocument("publicacaoDouDoc")} />
                           )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+                <Card className="border-2 border-border shadow-md overflow-hidden">
+                  <CardHeader
+                    className="cursor-pointer bg-gradient-to-r from-muted to-muted hover:from-primary hover:to-primary transition-all duration-300 border-b-2 border-border py-4"
+                    onClick={() => toggleSection("outrasInformacoesInvestidor")}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">3</span>
+                        <CardTitle className="text-lg font-semibold">Outras Informações</CardTitle>
+                      </div>
+                      {expandedSections.outrasInformacoesInvestidor ? (
+                        <ChevronUp className="h-5 w-5 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </CardHeader>
+                  {expandedSections.outrasInformacoesInvestidor && (
+                    <CardContent className="pt-6 pb-6 bg-card">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="procurador" className="text-sm font-medium">Procurador</Label>
+                          <Input
+                            id="procurador"
+                            value={formData.procurador}
+                            onChange={(e) => handleChange("procurador", e.target.value)}
+                            placeholder="Nome do procurador responsável"
+                            className="h-11 border-2 focus:border-primary"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="numeroProcesso" className="text-sm font-medium">Número do Processo</Label>
+                          <Input
+                            id="numeroProcesso"
+                            value={formData.numeroProcesso}
+                            onChange={(e) => handleChange("numeroProcesso", e.target.value)}
+                            placeholder="0000000-00.0000.0.00.0000"
+                            className="h-11 border-2 focus:border-primary"
+                          />
                         </div>
                       </div>
                     </CardContent>
