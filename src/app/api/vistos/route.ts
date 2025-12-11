@@ -94,6 +94,8 @@ function mapVistosDbFieldsToFrontend(record: any) {
     diplomaDoc: record.diploma_doc,
     contratoTrabalhoIndeterminado: record.contrato_trabalho_indeterminado,
     contratoTrabalhoIndeterminadoDoc: record.contrato_trabalho_indeterminado_doc,
+    procurador: record.procurador,
+    numeroProcesso: record.numero_processo,
     // Renovação 1 ano
     ctps: record.ctps,
     ctpsDoc: record.ctps_doc,
@@ -334,6 +336,8 @@ export async function POST(request: NextRequest) {
       diploma_doc: body.diplomaDoc?.trim() || null,
       contrato_trabalho_indeterminado: body.contratoTrabalhoIndeterminado?.trim() || null,
       contrato_trabalho_indeterminado_doc: body.contratoTrabalhoIndeterminadoDoc?.trim() || null,
+      procurador: body.procurador?.trim() || null,
+      numero_processo: body.numeroProcesso?.trim() || null,
       // Renovação 1 ano
       ctps: body.ctps?.trim() || null,
       ctps_doc: body.ctpsDoc?.trim() || null,
@@ -718,6 +722,12 @@ export async function PUT(request: NextRequest) {
     }
     if (body.contratoTrabalhoIndeterminadoDoc !== undefined) {
       updateData.contrato_trabalho_indeterminado_doc = body.contratoTrabalhoIndeterminadoDoc?.trim() || null;
+    }
+    if (body.procurador !== undefined) {
+      updateData.procurador = body.procurador?.trim() || null;
+    }
+    if (body.numeroProcesso !== undefined) {
+      updateData.numero_processo = body.numeroProcesso?.trim() || null;
     }
     // Renovação 1 ano
     if (body.ctps !== undefined) {

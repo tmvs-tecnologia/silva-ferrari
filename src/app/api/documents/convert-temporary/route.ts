@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { FIELD_TO_DOCUMENT_NAME } from '@/lib/supabase';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,8 +101,7 @@ export async function POST(request: NextRequest) {
       
       // Extrair informações do arquivo da URL
       const fileName = fileUrl.split('/').pop() || 'document';
-      const displayKey = fieldName.endsWith('File') ? fieldName : `${fieldName}File`;
-      const documentDisplayName = FIELD_TO_DOCUMENT_NAME[displayKey] || fieldName.replace(/([A-Z])/g, ' $1').trim();
+      const documentDisplayName = fileName;
       
       // Salvar metadados na tabela documents
       const { error: insertError } = await supabaseAdmin

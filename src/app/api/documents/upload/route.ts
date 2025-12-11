@@ -125,17 +125,14 @@ export async function POST(request: NextRequest) {
     const originalName = file.name;
     const extension = originalName.split('.').pop();
     
-    // Create a descriptive file name based on document type
-    const documentDisplayName = FIELD_TO_DOCUMENT_NAME[fieldName] || fieldName || 'documento';
-    const sanitizedDocumentName = documentDisplayName
+    // Build file name based on original file name
+    const originalBaseName = originalName.replace(/\.[^/.]+$/, '');
+    const sanitizedOriginalBase = originalBaseName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .trim()
-      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
       .toLowerCase();
-    
-    const sanitizedFileName = `${sanitizedDocumentName}_${timestamp}.${extension}`;
+    const sanitizedFileName = `${sanitizedOriginalBase}_${timestamp}.${extension}`;
     
     // Construct file path based on upload type
     let filePath: string;
@@ -228,7 +225,7 @@ export async function POST(request: NextRequest) {
         record_id: parseInt(recordId),
         client_name: finalClientName || 'Cliente Desconhecido',
         field_name: fieldName,
-        document_name: documentDisplayName,
+        document_name: originalName,
         file_name: originalName,
         file_path: publicUrl,
         file_type: contentType,

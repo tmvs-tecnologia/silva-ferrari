@@ -42,6 +42,7 @@ export default function AcoesCriminaisPage() {
   const [status, setStatus] = useState('')
   const [expandedSteps, setExpandedSteps] = useState<{ [key: number]: boolean }>({})
   const [documents, setDocuments] = useState<any[]>([])
+  const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({})
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({})
   const [editingDocument, setEditingDocument] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
@@ -66,6 +67,36 @@ export default function AcoesCriminaisPage() {
     fetchCase()
     fetchDocuments()
   }, [id])
+
+  useEffect(() => {
+    const loadAssignments = async () => {
+      try {
+        const res = await fetch(`/api/step-assignments?moduleType=acoes_criminais&recordId=${id}`)
+        if (res.ok) {
+          const data = await res.json()
+          const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+          (data || []).forEach((a: any) => { map[a.stepIndex] = { responsibleName: a.responsibleName, dueDate: a.dueDate } })
+          setAssignments(map)
+        }
+      } catch {}
+    }
+    loadAssignments()
+  }, [id])
+
+  const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
+    try {
+      const r = await fetch('/api/step-assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moduleType: 'acoes_criminais', recordId: id, stepIndex: index, responsibleName, dueDate })
+      })
+      if (r.ok) {
+        setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }))
+        return true
+      }
+    } catch {}
+    return false
+  }
 
   const fetchCase = async () => {
     try {
@@ -878,6 +909,8 @@ export default function AcoesCriminaisPage() {
               expanded={expandedSteps[index]}
               onToggle={() => handleStepClick(index)}
               onMarkComplete={() => handleCompleteStep()}
+              assignment={assignments[index]}
+              onSaveAssignment={(a) => handleSaveAssignment(index, a.responsibleName, a.dueDate)}
             >
               {renderStepContent(index)}
             </StepItem>

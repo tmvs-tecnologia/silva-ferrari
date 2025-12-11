@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Globe, Eye, Plane, Briefcase, Building2, Clock, CheckCircle2, AlertCircle, FileText, CreditCard, User, Calendar, Trash2, Circle, ChevronRight } from "lucide-react";
+import { Plus, Search, Globe, Eye, Plane, Briefcase, Building2, Clock, CheckCircle2, AlertCircle, FileText, CreditCard, User, Calendar, Trash2, Circle, ChevronRight, Folder, LayoutGrid } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingState } from "@/components/loading-state";
@@ -13,6 +13,10 @@ import { useDataCache } from "@/hooks/useDataCache";
 import { usePrefetch } from "@/hooks/usePrefetch";
 import { OptimizedLink } from "@/components/optimized-link";
 import { prefetchVistoById } from "@/utils/prefetch-functions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as DateRangeCalendar } from "@/components/ui/calendar";
+import { ptBR } from "date-fns/locale";
+import "react-day-picker/dist/style.css";
 import {
   Select,
   SelectContent,
@@ -72,6 +76,33 @@ export default function VistosPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [statusFinalOverrides, setStatusFinalOverrides] = useState<Record<string, { statusFinal: string; statusFinalOutro: string | null }>>({});
+  const [datePopoverFor, setDatePopoverFor] = useState<string | null>(null);
+  const [dateRangeEdit, setDateRangeEdit] = useState<{ from?: Date; to?: Date }>({});
+  const [viewMode, setViewMode] = useState<'cards' | 'folders'>('cards');
+  const [dateEditField, setDateEditField] = useState<'from' | 'to'>('from');
+  const formatISO = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const saveTravelDates = async (id: string, from?: Date, to?: Date) => {
+    const payload: any = {};
+    if (from) payload.travelStartDate = formatISO(from);
+    if (to) payload.travelEndDate = formatISO(to);
+    try {
+      const res = await fetch(`/api/vistos?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await refetch();
+        setDatePopoverFor(null);
+        setDateRangeEdit({});
+      }
+    } catch {}
+  };
   useEffect(() => {
     // Prefetch disponível para navegação futura
   }, []);
@@ -91,6 +122,16 @@ export default function VistosPage() {
     const matchesStatus = statusFilter === "all" || normalizeStatus(v.status) === statusFilter.toLowerCase();
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  const { data: foldersData } = useDataCache(
+    "folders_vistos",
+    async () => {
+      const res = await fetch("/api/folders?moduleType=vistos");
+      return res.json();
+    }
+  );
+  const folders = Array.isArray(foldersData) ? foldersData : [] as Array<{ id: number; name: string }>;
+  const matchingFolders = folders.filter((f: any) => String(f?.name || "").toLowerCase().includes((search || "").toLowerCase()));
 
   const stats = {
     total: vistos.length,
@@ -378,7 +419,7 @@ export default function VistosPage() {
           </h2>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
@@ -413,13 +454,64 @@ export default function VistosPage() {
                 <SelectItem value="Finalizado">Finalizado</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard/vistos/pastas" className="w-fit">
+                <Button variant="outline" className="border-slate-300 dark:border-slate-600 w-fit px-3 focus:border-amber-500 focus:ring-amber-500">
+                  Pastas
+                </Button>
+              </Link>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Alternar modo de visualização"
+                className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500"
+                onClick={() => setViewMode((m) => (m === 'cards' ? 'folders' : 'cards'))}
+              >
+                {viewMode === 'cards' ? (
+                  <LayoutGrid className="h-4 w-4" />
+                ) : (
+                  <Folder className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Lista de processos */}
+      {/* Lista / Pastas */}
       <div className="grid gap-4">
-        {isLoading ? (
+        {viewMode === 'folders' ? (
+          <Card className="border-slate-200 dark:border-slate-700 shadow-md">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Folder className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-semibold">Pastas</span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(() => {
+                  const list = (search ? matchingFolders : folders) as any[];
+                  if (!list || list.length === 0) {
+                    return (
+                      <div className="text-sm text-slate-500 dark:text-slate-400">Nenhuma pasta encontrada</div>
+                    );
+                  }
+                  return list.map((f: any) => (
+                    <Link key={f.id} href={`/dashboard/vistos/pastas/${f.id}`}>
+                      <Card className="hover:shadow-md transition-all cursor-pointer">
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="p-2 bg-amber-500 rounded-md"><Folder className="h-5 w-5 text-white" /></div>
+                            <div className="text-sm font-semibold truncate">{f.name}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ));
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        ) : isLoading ? (
           <LoadingState count={3} type="card" />
         ) : filteredVistos.length === 0 ? (
           <Card className="border-slate-200 dark:border-slate-700 shadow-md">
@@ -519,12 +611,80 @@ export default function VistosPage() {
                             {(() => {
                               const fmt = (s?: string) => {
                                 if (!s) return "";
+                                const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                if (m) return `${m[3]}/${m[2]}/${m[1]}`;
                                 try { const d = new Date(s); return isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR"); } catch { return ""; }
                               };
                               const start = fmt(visto.travelStartDate);
                               const end = fmt(visto.travelEndDate);
                               const text = [start, end].filter(Boolean).join(" — ");
-                              return text ? (<span className="text-slate-500">• {text}</span>) : null;
+                              return (
+                                <Popover
+                                  open={datePopoverFor === String(visto.id)}
+                                  onOpenChange={(o) => {
+                                    setDatePopoverFor(o ? String(visto.id) : null);
+                                    if (o) {
+                                      const parseIso = (val?: string) => {
+                                        if (!val) return undefined;
+                                        const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(val);
+                                      };
+                                      setDateRangeEdit({ from: parseIso(visto.travelStartDate), to: parseIso(visto.travelEndDate) });
+                                      setDateEditField('from');
+                                    } else {
+                                      setDateRangeEdit({});
+                                    }
+                                  }}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      className="text-slate-500 hover:underline decoration-dotted"
+                                      onClick={() => setDatePopoverFor(String(visto.id))}
+                                    >
+                                      • {text || "Definir datas"}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[360px] p-3" align="start">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Button
+                                        variant={dateEditField === 'from' ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setDateEditField('from')}
+                                      >
+                                        Ida
+                                      </Button>
+                                      <Button
+                                        variant={dateEditField === 'to' ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setDateEditField('to')}
+                                      >
+                                        Volta
+                                      </Button>
+                                    </div>
+                                    <DateRangeCalendar
+                                      mode="single"
+                                      selected={dateRangeEdit?.[dateEditField] as any}
+                                      onSelect={(d: Date | undefined) => {
+                                        const next = { ...dateRangeEdit, [dateEditField]: d };
+                                        setDateRangeEdit(next);
+                                        const f = next.from;
+                                        const t = next.to;
+                                        if (dateEditField === 'from' && d) setDateEditField('to');
+                                        if (f && t) {
+                                          saveTravelDates(String(visto.id), f, t);
+                                        }
+                                      }}
+                                      weekStartsOn={1}
+                                      captionLayout="dropdown"
+                                      locale={ptBR}
+                                      fromMonth={new Date(2000, 0, 1)}
+                                      toMonth={new Date(2100, 11, 31)}
+                                      numberOfMonths={1}
+                                      style={{ "--cell-size": "2.5rem" } as React.CSSProperties}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              );
                             })()}
                           </div>
                         )}
@@ -567,6 +727,8 @@ export default function VistosPage() {
                           <span>{(() => {
                             const iso = vistosAssignments[String(visto.id)]?.dueDate;
                             if (!iso) return "—";
+                            const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                            if (m) return `${m[3]}/${m[2]}/${m[1]}`;
                             try { const d = new Date(iso); return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR"); } catch { return "—"; }
                           })()}</span>
                         </div>
