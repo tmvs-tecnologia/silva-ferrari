@@ -1,9 +1,9 @@
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 async function main() {
-    const hashedPassword = await bcrypt.hash('1234', 10);
+    const hashedPassword = bcrypt.hashSync('1234', 10);
     
     const adminUser = [
         {
