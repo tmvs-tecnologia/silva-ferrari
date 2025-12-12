@@ -469,7 +469,7 @@ export default function NovoVistoPage() {
                     value={formData.type}
                     onValueChange={(value) => handleChange("type", value)}
                   >
-                  <SelectTrigger className="h-12 w-full border-2 focus:border-cyan-500">
+                  <SelectTrigger className="h-12 w-full border-2 focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>
                     <SelectContent>
@@ -615,7 +615,7 @@ export default function NovoVistoPage() {
                             value={formData.cpf}
                             onChange={(e) => handleChange("cpf", e.target.value)}
                             placeholder="Status ou informações do documento"
-                          className="h-11 border-2 focus:border-cyan-500"
+                          className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
@@ -651,7 +651,7 @@ export default function NovoVistoPage() {
                             value={formData.rnm}
                             onChange={(e) => handleChange("rnm", e.target.value)}
                             placeholder="Status ou informações do documento"
-                          className="h-11 border-2 focus:border-cyan-500"
+                          className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
@@ -687,7 +687,7 @@ export default function NovoVistoPage() {
                             value={formData.passaporte}
                             onChange={(e) => handleChange("passaporte", e.target.value)}
                             placeholder="Status ou informações do documento"
-                          className="h-11 border-2 focus:border-cyan-500"
+                          className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
@@ -727,7 +727,7 @@ export default function NovoVistoPage() {
                               handleChange("comprovanteEndereco", e.target.value)
                             }
                             placeholder="Status ou informações do documento"
-                          className="h-11 border-2 focus:border-cyan-500"
+                          className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
@@ -814,7 +814,7 @@ export default function NovoVistoPage() {
                             />
                             <Label
                               htmlFor="foto3x4DocInput"
-                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadowsm hover:bg-slate-100"
+                              className="inline-flex items-center justify-center gap-2 rounded-md px-2.5 py-1 text-sm font-medium border bg-white shadow-sm hover:bg-slate-100"
                             >
                               <Upload className="h-4 w-4" />
                               {uploadingDocs.foto3x4Doc ? "Enviando..." : "Upload Foto"}
@@ -837,7 +837,7 @@ export default function NovoVistoPage() {
                             value={formData.documentoChines}
                             onChange={(e) => handleChange("documentoChines", e.target.value)}
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-cyan-500"
+                            className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
@@ -873,7 +873,7 @@ export default function NovoVistoPage() {
                             value={formData.antecedentesCriminais}
                             onChange={(e) => handleChange("antecedentesCriminais", e.target.value)}
                             placeholder="Status ou informações do documento"
-                            className="h-11 border-2 focus:border-cyan-500"
+                            className="h-11 border-2 focus:border-primary"
                           />
                           <div className="flex items-center gap-2">
                             <input
