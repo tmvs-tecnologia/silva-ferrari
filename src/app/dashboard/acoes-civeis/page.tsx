@@ -326,6 +326,20 @@ export default function AcoesCiveisPage() {
     return String(caseItem?.status || "");
   };
 
+  const getLastNoteContent = (notesStr: string) => {
+    if (!notesStr) return "";
+    try {
+      const parsed = JSON.parse(notesStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const last = parsed[parsed.length - 1];
+        return last.content || "";
+      }
+      return "";
+    } catch {
+      return notesStr;
+    }
+  };
+
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/acoes-civeis/${id}`, {
@@ -588,9 +602,9 @@ export default function AcoesCiveisPage() {
 
                       
 
-                      {caseItem.notes && (
+                      {caseItem.notes && getLastNoteContent(caseItem.notes) && (
                         <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                          {`Observações: ${caseItem.notes}`}
+                          <span className="font-medium">Observações:</span> {getLastNoteContent(caseItem.notes)}
                         </p>
                       )}
                     </div>

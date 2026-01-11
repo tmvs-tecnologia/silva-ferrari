@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, Upload, FileText, X, Info, Moon, Sun } from "lucide-react";
+import { toast } from "sonner";
 
 export default function NovaAcaoTrabalhistaPage() {
   const router = useRouter();
@@ -158,7 +159,11 @@ export default function NovaAcaoTrabalhistaPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.clientName.trim()) return;
+    if (!formData.clientName.trim()) {
+      toast.error("O nome do cliente é obrigatório");
+      return;
+    }
+
     setSaving(true);
     const lines: string[] = [];
     if (formData.reuName) lines.push(`Réu: ${formData.reuName}`);
@@ -170,6 +175,7 @@ export default function NovaAcaoTrabalhistaPage() {
     if (formData.acompanhamento) lines.push(`Acompanhamento: ${formData.acompanhamento}`);
     const notesBlock = `\n[Dados Iniciais]\n${lines.map((l) => `- ${l}`).join("\n")}\n`;
     const status = formData.finalizado ? "Finalizado" : "Em andamento";
+
     try {
       const res = await fetch("/api/acoes-trabalhistas", {
         method: "POST",
@@ -189,18 +195,26 @@ export default function NovaAcaoTrabalhistaPage() {
           fotoNotificacaoDoc: (formData as any)["fotoNotificacaoDoc"] || null,
         })
       });
+
       if (res.ok) {
         const created = await res.json();
         await convertTemporaryUploads(created.id);
         setCreatedSuccess(true);
-        setSaving(false);
+        toast.success("Ação trabalhista criada com sucesso!");
         setTimeout(() => {
           router.push("/dashboard/acoes-trabalhistas");
         }, 1500);
         return;
+      } else {
+        const errorData = await res.json();
+        toast.error(errorData.error || "Erro ao criar ação trabalhista");
       }
-    } catch {}
-    setSaving(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      toast.error("Erro ao conectar com o servidor");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const DocumentRow = ({ label, field, docField, placeholder = "Status ou informações do documento", readOnly = false }: { label: string; field?: string; docField: string; placeholder?: string; readOnly?: boolean }) => {

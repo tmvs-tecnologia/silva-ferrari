@@ -636,6 +636,7 @@ export default function NovoVistoPage() {
                   <DocumentRow label="Procuração da empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
                   <DocumentRow label="Formulário RN 01" field="formularioRn01" docField="formularioRn01Doc" />
                   <DocumentRow label="Guia paga" field="guiaPaga" docField="guiaPagaDoc" />
+                  <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
                   <div className="col-span-2">
                     <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
                   </div>
@@ -761,6 +762,7 @@ export default function NovoVistoPage() {
                   <DocumentRow label="Procuração da Empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
                   <DocumentRow label="Formulário RN 02" field="formularioRn01" docField="formularioRn01Doc" />
                   <DocumentRow label="Guia paga" field="guiaPaga" docField="guiaPagaDoc" />
+                  <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
                   <div className="col-span-2">
                     <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
                   </div>
@@ -854,6 +856,7 @@ export default function NovoVistoPage() {
                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
                   <DocumentRow label="Contrato Social" field="contratoEmpresa" docField="contratoEmpresaDoc" />
                   <DocumentRow label="Procuração da empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
+                  <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
                   <div className="col-span-2">
                     <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
                   </div>
@@ -948,6 +951,7 @@ export default function NovoVistoPage() {
                   <DocumentRow label="Procuração" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
                   <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
                   <DocumentRow label="Guia paga" field="guiaPaga" docField="guiaPagaDoc" />
+                  <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
                 </div>
               </div>
 
@@ -1041,6 +1045,7 @@ export default function NovoVistoPage() {
                   <DocumentRow label="Procuração da empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
                   <DocumentRow label="Formulário RN 01" field="formularioRn01" docField="formularioRn01Doc" />
                   <DocumentRow label="Guia paga" field="guiaPaga" docField="guiaPagaDoc" />
+                  <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
                   <div className="col-span-2">
                     <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
                   </div>

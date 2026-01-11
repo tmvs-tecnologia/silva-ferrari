@@ -685,16 +685,16 @@ export default function VistoDetailsPage() {
 
   const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
     try {
+      const typeKey = (caseData?.type || "Visto de Trabalho") as VistoType;
+      const stepTitle = (caseData?.steps?.[index]?.title) || ((WORKFLOWS[typeKey] || [])[index]) || `Etapa ${index + 1}`;
       const res = await fetch(`/api/step-assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleType: "vistos", recordId: params.id as string, stepIndex: index, responsibleName, dueDate })
+        body: JSON.stringify({ moduleType: "vistos", recordId: params.id as string, stepIndex: index, responsibleName, dueDate, workflowName: stepTitle, clientName: caseData?.clientName || "Cliente" })
       });
       if (res.ok) {
         setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
         setCaseData((prev) => prev ? { ...prev, updatedAt: new Date().toISOString() } : prev);
-        const typeKey = (caseData?.type || "Visto de Trabalho") as VistoType;
-        const stepTitle = (caseData?.steps?.[index]?.title) || ((WORKFLOWS[typeKey] || [])[index]) || `Etapa ${index + 1}`;
         const dueBR = dueDate ? (() => { const [y, m, d] = dueDate.split("-"); return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`; })() : "—";
         const message = `Tarefa "${stepTitle}" atribuída a ${responsibleName || "—"} com prazo ${dueBR} para: ${caseData?.clientName || ""} - ${caseData?.type || ""}`;
         try {
@@ -1406,6 +1406,7 @@ export default function VistoDetailsPage() {
                     {renderField('Formulário RN 01', 'formularioRn01', 'formularioRn01Doc', true)}
                     {renderField('Guia paga', 'guiaPaga', 'guiaPagaDoc', true)}
                     {renderField('Publicação no DOU', 'publicacaoDou', 'publicacaoDouDoc', true)}
+                    {renderField('Protocolado', 'protocolado', 'protocoladoDoc', true)}
                   </div>
                 </div>
 
@@ -1470,6 +1471,7 @@ export default function VistoDetailsPage() {
                   {renderField('Formulário RN02', 'formularioRn02', 'formularioRn02Doc')}
                   {renderField('Comprovante Residência Prévia', 'comprovanteResidenciaPrevia', 'comprovanteResidenciaPreviaDoc')}
                   {renderField('Comprovante de Atividade', 'comprovanteAtividade', 'comprovanteAtividadeDoc')}
+                  {renderField('Protocolado', 'protocolado', 'protocoladoDoc')}
                 </div>
               </div>
             ) : null}
@@ -1509,6 +1511,7 @@ export default function VistoDetailsPage() {
                   {renderField('Comprovante de Vínculo Anterior', 'comprovanteVinculoAnterior', 'comprovanteVinculoAnteriorDoc')}
                   {renderField('Justificativa Mudança de Empregador', 'justificativaMudancaEmpregador', 'justificativaMudancaEmpregadorDoc')}
                   {renderField('Declaração de Antecedentes Criminais', 'declaracaoAntecedentesCriminais', 'declaracaoAntecedentesCriminaisDoc')}
+                  {renderField('Protocolado', 'protocolado', 'protocoladoDoc')}
                 </div>
               </div>
             ) : null}
@@ -1540,6 +1543,7 @@ export default function VistoDetailsPage() {
                   {renderField('Contrato de Trabalho Anterior', 'contratoTrabalhoAnterior', 'contratoTrabalhoAnteriorDoc')}
                   {renderField('Contrato de Trabalho Atual', 'contratoTrabalhoAtual', 'contratoTrabalhoAtualDoc')}
                   {renderField('Formulário de Prorrogação', 'formularioProrrogacao', 'formularioProrrogacaoDoc')}
+                  {renderField('Protocolado', 'protocolado', 'protocoladoDoc')}
                 </div>
               </div>
             ) : null}
@@ -1554,6 +1558,7 @@ export default function VistoDetailsPage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
                   {renderField('Contrato de Trabalho Indeterminado', 'contratoTrabalhoIndeterminado', 'contratoTrabalhoIndeterminadoDoc')}
+                  {renderField('Protocolado', 'protocolado', 'protocoladoDoc')}
                 </div>
               </div>
             ) : null}

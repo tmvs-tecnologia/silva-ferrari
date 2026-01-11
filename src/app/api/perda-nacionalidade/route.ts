@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore - Supabase types will be resolved in production
 import { createClient } from '@supabase/supabase-js';
+import { NotificationService } from '@/lib/notification';
 
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
@@ -213,6 +214,22 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    try {
+      await NotificationService.createNotification(
+        'new_process',
+        {
+          moduleSlug: 'perda-nacionalidade',
+          id: newRecord.id,
+          ...mapDbFieldsToFrontend(newRecord)
+        },
+        'perda_nacionalidade',
+        newRecord.id,
+        `Novo processo de perda de nacionalidade criado: ${body.clientName.trim()}`
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
     }
 
     return NextResponse.json(newRecord, { status: 201 });

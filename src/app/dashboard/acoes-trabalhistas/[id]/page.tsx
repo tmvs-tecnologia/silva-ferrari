@@ -319,15 +319,15 @@ export default function AcaoTrabalhistaDetailPage() {
 
   const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
     try {
+      const steps = WORKFLOWS["Ação Trabalhista"] || [];
+      const stepTitle = steps[index] || `Etapa ${index + 1}`;
       const res = await fetch(`/api/step-assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleType: "acoes_trabalhistas", recordId: id, stepIndex: index, responsibleName, dueDate })
+        body: JSON.stringify({ moduleType: "acoes_trabalhistas", recordId: id, stepIndex: index, responsibleName, dueDate, workflowName: stepTitle, clientName: caseData?.clientName || "Cliente" })
       });
       if (res.ok) {
         setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
-        const steps = WORKFLOWS["Ação Trabalhista"] || [];
-        const stepTitle = steps[index] || `Etapa ${index + 1}`;
         const dueBR = dueDate ? (() => { const [y, m, d] = dueDate.split("-"); return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`; })() : "—";
         const message = `Tarefa "${stepTitle}" atribuída a ${responsibleName || "—"} com prazo ${dueBR} para: ${caseData?.clientName || ""} - ${caseData?.type || ""}`;
         try {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { NotificationService } from '@/lib/notification';
 
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
@@ -361,19 +362,19 @@ export async function POST(request: NextRequest) {
 
     // Create notification for new action
     try {
-      await supabase
-        .from('alerts')
-        .insert({
-          module_type: 'acoes_civeis',
-          record_id: newRecord.id,
-          alert_for: 'admin',
-          message: `Nova ação cível criada: ${clientName?.trim() || '—'} - ${type?.trim() || '—'}`,
-          is_read: false,
-          created_at: new Date().toISOString()
-        });
+      await NotificationService.createNotification(
+        'new_process',
+        {
+          moduleSlug: 'acoes-civeis',
+          id: newRecord.id,
+          ...mapDbFieldsToFrontend(newRecord)
+        },
+        'acoes_civeis',
+        newRecord.id,
+        `Nova ação cível criada: ${clientName?.trim() || '—'} - ${type?.trim() || '—'}`
+      );
     } catch (notificationError) {
       console.error('Error creating notification:', notificationError);
-      // Don't fail the main operation if notification fails
     }
 
     return NextResponse.json(newRecord, { 

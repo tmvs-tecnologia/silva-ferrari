@@ -9,7 +9,7 @@ async function fetchWithRetry(url: string, init?: RequestInit, retries = 2, back
   while (attempt <= retries) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(url, { ...init, signal: controller.signal });
       clearTimeout(timeout);
       if (!res.ok && shouldRetryStatus(res.status) && attempt < retries) {
@@ -19,10 +19,9 @@ async function fetchWithRetry(url: string, init?: RequestInit, retries = 2, back
       }
       return res;
     } catch (err: any) {
-      if (attempt < retries && isAbortError(err)) {
-        await sleep(backoffMs * Math.pow(2, attempt));
-        attempt++;
-        continue;
+      if (isAbortError(err)) {
+        // Do not retry on abort (navigation or timeout)
+        return null;
       }
       if (attempt < retries) {
         await sleep(backoffMs * Math.pow(2, attempt));

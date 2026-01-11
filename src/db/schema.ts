@@ -233,8 +233,12 @@ export const alerts = pgTable('alerts', {
   recordId: integer('record_id').notNull(),
   alertFor: text('alert_for').notNull(),
   message: text('message').notNull(),
+  data: text('data'),
+  status: text('status').default('pending').notNull(),
+  retryCount: integer('retry_count').default(0).notNull(),
   isRead: boolean('is_read').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Ações Trabalhistas table

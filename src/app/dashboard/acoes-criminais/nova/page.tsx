@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, Upload, FileText, X, Info, Moon, Sun } from "lucide-react";
+import { toast } from "sonner";
 
 export default function NovaAcaoCriminalPage() {
   const router = useRouter();
@@ -97,10 +98,15 @@ export default function NovaAcaoCriminalPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.clientName.trim()) return;
+    if (!formData.clientName.trim()) {
+      toast.error("O nome do cliente é obrigatório");
+      return;
+    }
+    
     setSaving(true);
     const notesBlock = `\n[Dados Iniciais]\n- Réu: ${formData.reuName}\n- Número do processo: ${formData.numeroProcesso}\n- Responsável: ${formData.responsavelName}\n- Data: ${formData.responsavelDate}\n- Contratado: ${formData.contratado}\n- Resumo: ${formData.resumo}\n- Acompanhamento: ${formData.acompanhamento}\n`;
     const status = formData.finalizado ? "Finalizado" : "Em andamento";
+
     try {
       const res = await fetch("/api/acoes-criminais", {
         method: "POST",
@@ -119,14 +125,30 @@ export default function NovaAcaoCriminalPage() {
           contratado: formData.contratado,
         }),
       });
+
       if (res.ok) {
         const created = await res.json();
         await convertTemporaryUploads(created.id);
-        router.push("/dashboard/acoes-criminais");
+        toast.success("Ação criminal criada com sucesso!");
+        setTimeout(() => {
+          router.push("/dashboard/acoes-criminais");
+        }, 1500);
         return;
+      } else {
+        const errorData = await res.json();
+        console.error("Erro na criação:", errorData);
+        toast.error(errorData.error || "Erro ao criar ação criminal");
       }
-    } catch {}
-    setSaving(false);
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      if (error instanceof Error && error.name === 'AbortError') {
+         toast.error("A conexão foi interrompida. Verifique sua internet.");
+      } else {
+         toast.error("Erro ao conectar com o servidor");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const DocumentRow = ({ label, field, docField, placeholder = "Status ou informações do documento", readOnly = false }: { label: string; field?: string; docField: string; placeholder?: string; readOnly?: boolean }) => {

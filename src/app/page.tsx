@@ -1,25 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Scale, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    // Force light mode by default to match original design
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("theme", "light");
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
@@ -32,100 +31,159 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Credenciais inválidas");
+        alert(data.error || "Credenciais inválidas");
         setLoading(false);
         return;
       }
 
-      // Store user session (only on client side)
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(data));
       }
-      
-      // Small delay to ensure localStorage is set
+
       setTimeout(() => {
         router.push("/dashboard");
       }, 100);
     } catch (err) {
       console.error("Login error:", err);
-      setError("Erro ao conectar com o servidor");
+      alert("Erro ao conectar com o servidor");
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <Image 
-            src="https://i.imgur.com/9R0VFkm.png"
-            alt="Sistema Jurídico Logo"
-            width={240}
-            height={80}
-            className="object-contain"
-            priority
-            unoptimized
-          />
-        </div>
+    <>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         
-        <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Sistema Jurídico
-            </CardTitle>
-            <CardDescription className="text-center">
-              Gestão de Ações e Processos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder=""
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  autoComplete="email"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder=""
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  autoComplete="current-password"
-                />
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Entrando..." : "Entrar"}
-              </Button>
-            </form>
+        {/* Force explicit background color to override global styles */}
+        <div className={`min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-500 font-sans selection:bg-primary-custom selection:text-white bg-background-light text-slate-800 z-0`}>
             
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              <p>Credenciais padrão:</p>
-              <p className="font-mono text-xs">admin@admin.com / 1234</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+            {/* Background Gradients & Effects */}
+            <style jsx global>{`
+                .bg-custom-gradient {
+                    background-image: 
+                        radial-gradient(at 0% 0%, hsla(217,91%,60%,0.2) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, hsla(196,91%,70%,0.2) 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, hsla(245,91%,70%,0.2) 0px, transparent 50%),
+                        radial-gradient(at 0% 100%, hsla(280,91%,70%,0.2) 0px, transparent 50%);
+                    background-attachment: fixed;
+                    background-size: cover;
+                }
+                .prism-flare {
+                    position: absolute;
+                    width: 300px;
+                    height: 300px;
+                    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+                    border-radius: 50%;
+                    pointer-events: none;
+                    z-index: 0;
+                    filter: blur(40px);
+                    mix-blend-mode: overlay;
+                }
+            `}</style>
+            
+            <div className="absolute inset-0 bg-custom-gradient -z-10"></div>
+
+            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-300/30 rounded-full blur-[100px] animate-pulse"></div>
+            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-300/30 rounded-full blur-[100px] animate-pulse delay-1000"></div>
+            <div className="prism-flare top-1/4 left-1/4 animate-float opacity-60"></div>
+            <div className="prism-flare bottom-1/4 right-1/4 animate-float delay-500 opacity-60"></div>
+
+            <main className="w-full max-w-md p-6 relative z-10 flex flex-col items-center justify-center">
+                <div className="text-center mb-8 animate-fade-in-up">
+                    <div className="flex items-center justify-center space-x-3 mb-2">
+                         <div className="relative w-[240px] h-[80px]">
+                            <Image 
+                                src="https://i.imgur.com/9R0VFkm.png"
+                                alt="Sistema Jurídico Logo"
+                                fill
+                                className="object-contain"
+                                priority
+                                unoptimized
+                            />
+                         </div>
+                    </div>
+                </div>
+
+                <div className="w-full bg-glass-light backdrop-blur-xl border border-glass-border-light rounded-3xl p-8 shadow-glass animate-fade-in-up delay-100 relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none"></div>
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-bold text-slate-800 drop-shadow-sm">Sistema Jurídico</h2>
+                        <p className="text-sm text-slate-500 mt-1 font-medium">Gestão de Ações e Processos</p>
+                    </div>
+
+                    <form className="space-y-6" onSubmit={handleLogin}>
+                        <div className="animate-fade-in-up delay-200 group/input">
+                            <label className="block text-sm font-medium text-slate-600 mb-1 ml-1" htmlFor="email">Email</label>
+                            <div className="relative transition-all duration-300 transform focus-within:scale-[1.02]">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="material-symbols-outlined text-slate-400 text-[20px] group-focus-within/input:text-primary-custom transition-colors">mail</span>
+                                </div>
+                                <input 
+                                    className="block w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-custom/50 focus:border-primary-custom transition-all shadow-inner" 
+                                    id="email" 
+                                    placeholder="seu@email.com" 
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    disabled={loading}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="animate-fade-in-up delay-300 group/input">
+                            <label className="block text-sm font-medium text-slate-600 mb-1 ml-1" htmlFor="password">Senha</label>
+                            <div className="relative transition-all duration-300 transform focus-within:scale-[1.02]">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="material-symbols-outlined text-slate-400 text-[20px] group-focus-within/input:text-primary-custom transition-colors">lock</span>
+                                </div>
+                                <input 
+                                    className="block w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-custom/50 focus:border-primary-custom transition-all shadow-inner" 
+                                    id="password" 
+                                    placeholder="••••••••" 
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    disabled={loading}
+                                />
+                                <div 
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer hover:text-primary-custom transition-colors"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    <span className="material-symbols-outlined text-slate-400 text-[20px]">
+                                        {showPassword ? "visibility_off" : "visibility"}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex justify-end mt-2">
+                                <a className="text-xs font-medium text-slate-500 hover:text-primary-custom transition-colors" href="#">Esqueceu a senha?</a>
+                            </div>
+                        </div>
+
+                        <div className="animate-fade-in-up delay-400 pt-2">
+                            <button 
+                                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary-custom to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-base shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transform hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed" 
+                                type="submit"
+                                disabled={loading}
+                            >
+                                <span className="relative z-10 flex items-center justify-center gap-2">
+                                    {loading ? "Entrando..." : "Entrar"}
+                                    {!loading && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
+                                </span>
+                                <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/20 opacity-0 hover:opacity-100 transition-opacity"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div className="mt-8 text-center animate-fade-in-up delay-500">
+                    <p className="text-xs text-slate-500 font-medium">© 2025 Silva & Ferrari Advogados Associados.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Todos os direitos reservados.</p>
+                </div>
+            </main>
+        </div>
+    </>
   );
 }

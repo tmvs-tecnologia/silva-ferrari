@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sistema Jurídico - Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Playfair+Display:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#2563EB", // Vibrant blue
+                        "primary-dark": "#1d4ed8",
+                        "background-light": "#f0f4f8", // Light grey-blueish background
+                        "background-dark": "#0f172a", // Dark navy
+                        "glass-light": "rgba(255, 255, 255, 0.7)",
+                        "glass-border-light": "rgba(255, 255, 255, 0.5)",
+                        "glass-dark": "rgba(15, 23, 42, 0.6)",
+                        "glass-border-dark": "rgba(255, 255, 255, 0.1)",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        serif: ["Playfair Display", "serif"],
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
+                        'glass-dark': '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+                        'glow': '0 0 15px rgba(37, 99, 235, 0.5)',
+                    }
+                },
+            },
+        };
+    </script>
+<style>
+        body {
+            background-image: 
+                radial-gradient(at 0% 0%, hsla(217,91%,60%,0.2) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(196,91%,70%,0.2) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(245,91%,70%,0.2) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(280,91%,70%,0.2) 0px, transparent 50%);
+            background-attachment: fixed;
+            background-size: cover;
+        }
+        .dark body {
+             background-image: 
+                radial-gradient(at 0% 0%, hsla(217,91%,15%,0.5) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(196,91%,15%,0.5) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(245,91%,15%,0.5) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, hsla(280,91%,15%,0.5) 0px, transparent 50%);
+        }
+        .backdrop-blur-xl {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        .delay-400 { animation-delay: 400ms; }
+        .delay-500 { animation-delay: 500ms; }
+        .prism-flare {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(40px);
+            mix-blend-mode: overlay;
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.1) inset !important;
+            -webkit-text-fill-color: inherit !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 min-h-screen flex items-center justify-center relative overflow-hidden transition-colors duration-500 font-sans selection:bg-primary selection:text-white">
+<div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-300/30 dark:bg-blue-900/20 rounded-full blur-[100px] animate-pulse"></div>
+<div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-300/30 dark:bg-indigo-900/20 rounded-full blur-[100px] animate-pulse delay-1000"></div>
+<div class="prism-flare top-1/4 left-1/4 animate-float opacity-60 dark:opacity-30"></div>
+<div class="prism-flare bottom-1/4 right-1/4 animate-float delay-500 opacity-60 dark:opacity-30"></div>
+<button class="fixed top-6 right-6 p-2 rounded-full bg-glass-light dark:bg-glass-dark border border-glass-border-light dark:border-glass-border-dark backdrop-blur-md shadow-lg hover:scale-110 transition-transform duration-300 z-50 text-slate-700 dark:text-slate-200" onclick="document.documentElement.classList.toggle('dark')">
+<span class="material-symbols-outlined dark:hidden">light_mode</span>
+<span class="material-symbols-outlined hidden dark:block">dark_mode</span>
+</button>
+<main class="w-full max-w-md p-6 relative z-10 flex flex-col items-center justify-center">
+<div class="text-center mb-8 opacity-0 animate-fade-in-up">
+<div class="flex items-center justify-center space-x-3 mb-2">
+<div class="w-8 h-8 rounded bg-gradient-to-tr from-yellow-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-yellow-500/30">
+<span class="material-symbols-outlined text-white text-sm">shield</span>
+</div>
+<h1 class="text-2xl font-serif font-bold text-slate-800 dark:text-yellow-100 tracking-wide uppercase">Silva <span class="text-yellow-600 dark:text-yellow-400">&amp;</span> Ferrari</h1>
+</div>
+</div>
+<div class="w-full bg-glass-light dark:bg-glass-dark backdrop-blur-xl border border-glass-border-light dark:border-glass-border-dark rounded-3xl p-8 shadow-glass dark:shadow-glass-dark opacity-0 animate-fade-in-up delay-100 relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none"></div>
+<div class="text-center mb-8">
+<h2 class="text-2xl font-bold text-slate-800 dark:text-white drop-shadow-sm">Sistema Jurídico</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">Gestão de Ações e Processos</p>
+</div>
+<form class="space-y-6">
+<div class="opacity-0 animate-fade-in-up delay-200 group/input">
+<label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1 ml-1" for="email">Email</label>
+<div class="relative transition-all duration-300 transform focus-within:scale-[1.02]">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px] group-focus-within/input:text-primary transition-colors">mail</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-inner" id="email" placeholder="seu@email.com" type="email"/>
+</div>
+</div>
+<div class="opacity-0 animate-fade-in-up delay-300 group/input">
+<label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1 ml-1" for="password">Senha</label>
+<div class="relative transition-all duration-300 transform focus-within:scale-[1.02]">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px] group-focus-within/input:text-primary transition-colors">lock</span>
+</div>
+<input class="block w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all shadow-inner" id="password" placeholder="••••••••" type="password"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-slate-400 dark:text-slate-500 text-[20px]">visibility</span>
+</div>
+</div>
+<div class="flex justify-end mt-2">
+<a class="text-xs font-medium text-slate-500 hover:text-primary dark:text-slate-400 dark:hover:text-blue-400 transition-colors" href="#">Esqueceu a senha?</a>
+</div>
+</div>
+<div class="opacity-0 animate-fade-in-up delay-400 pt-2">
+<button class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-base shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transform hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden" type="button">
+<span class="relative z-10 flex items-center justify-center gap-2">
+                            Entrar
+                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</span>
+<div class="absolute inset-0 bg-gradient-to-t from-transparent to-white/20 opacity-0 hover:opacity-100 transition-opacity"></div>
+</button>
+</div>
+</form>
+</div>
+<div class="mt-8 text-center opacity-0 animate-fade-in-up delay-500">
+<p class="text-xs text-slate-500 dark:text-slate-400 font-medium">© 2024 Silva &amp; Ferrari Advogados Associados.</p>
+<p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Todos os direitos reservados.</p>
+</div>
+</main>
+
+</body></html>

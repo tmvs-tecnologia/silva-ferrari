@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { NotificationService } from '@/lib/notification';
 
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
@@ -175,18 +176,23 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // 2. Trigger notification with error handling
     try {
-      await supabase
-        .from('alerts')
-        .insert({
-          module_type: 'acoes_criminais',
-          record_id: newRecord.id,
-          alert_for: 'admin',
-          message: `Nova ação criminal criada: ${clientName.trim()}`,
-          is_read: false,
-          created_at: new Date().toISOString()
-        });
-    } catch {}
+      await NotificationService.createNotification(
+        'new_process',
+        {
+          moduleSlug: 'acoes-criminais',
+          id: newRecord.id,
+          ...mapDbFieldsToFrontend(newRecord)
+        },
+        'acoes_criminais',
+        newRecord.id,
+        `Nova ação criminal criada: ${clientName.trim()}`
+      );
+    } catch (e) {
+      // Log notification error but don't fail the request
+      console.error('Failed to create notification for new criminal action:', e);
+    }
 
     return NextResponse.json(mapDbFieldsToFrontend(newRecord), { status: 201 });
 
@@ -236,7 +242,7 @@ export async function PUT(request: NextRequest) {
     // Check if record exists
     const { data: existing, error: existingError } = await supabase
       .from('acoes_criminais')
-      .select('id, current_step, client_name')
+      .select('id, current_step, client_name, responsavel_name')
       .eq('id', parseInt(id))
       .single();
 
@@ -285,6 +291,28 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ 
         error: 'Internal server error: ' + error.message 
       }, { status: 500 });
+    }
+
+    // Notification for responsible change
+    if (responsavelName && responsavelName !== existing.responsavel_name) {
+      try {
+        await NotificationService.createNotification(
+          'new_responsible',
+          {
+            responsibleName,
+            clientName: existing.client_name,
+            workflowName: 'Ação Criminal',
+            dueDate: responsavelDate || null,
+            moduleSlug: 'acoes-criminais',
+            recordId: parseInt(id)
+          },
+          'acoes_criminais',
+          parseInt(id),
+          `Novo responsável atribuído: ${responsavelName} para o caso de ${existing.client_name}`
+        );
+      } catch (e) {
+        console.error('Failed to notify responsible change:', e);
+      }
     }
 
     if (currentStep !== undefined && typeof existing?.current_step === 'number' && currentStep > existing.current_step) {

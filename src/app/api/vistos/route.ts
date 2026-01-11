@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore - Supabase types will be resolved in production
 import { createClient } from '@supabase/supabase-js';
+import { NotificationService } from '@/lib/notification';
 
 // Helper function to convert snake_case to camelCase for vistos
 function mapVistosDbFieldsToFrontend(record: any) {
@@ -368,6 +369,22 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    try {
+      await NotificationService.createNotification(
+        'new_process',
+        {
+          moduleSlug: 'vistos',
+          id: newRecord.id,
+          ...mapVistosDbFieldsToFrontend(newRecord)
+        },
+        'vistos',
+        newRecord.id,
+        `Novo processo de visto criado: ${body.clientName.trim()}`
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
     }
 
     return NextResponse.json(newRecord, { status: 201 });

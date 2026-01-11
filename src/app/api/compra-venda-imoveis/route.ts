@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore - Supabase types will be resolved in production
 import { createClient } from '@supabase/supabase-js';
+import { NotificationService } from '@/lib/notification';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -178,6 +179,22 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       throw error;
+    }
+
+    try {
+      await NotificationService.createNotification(
+        'new_process',
+        {
+          moduleSlug: 'compra-venda',
+          id: newRecord.id,
+          ...mapDbFieldsToFrontend(newRecord)
+        },
+        'compra_venda_imoveis',
+        newRecord.id,
+        `Nova compra e venda criada: ${body.clientName?.trim() || '—'}`
+      );
+    } catch (e) {
+      console.error('Failed to create notification:', e);
     }
 
     return NextResponse.json(newRecord, { status: 201 });

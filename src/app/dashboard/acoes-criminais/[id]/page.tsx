@@ -8,6 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
   ArrowLeft,
   CheckCircle2,
   Circle,
@@ -19,7 +27,13 @@ import {
   ChevronRight,
   X,
   Mail,
+  Check,
+  ChevronsUpDown,
+  Edit2,
+  Plus,
+  History
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPanel } from "@/components/detail/StatusPanel";
@@ -65,6 +79,24 @@ const WORKFLOWS = {
   ],
 };
 
+const CRIMINAL_TYPES = [
+  "Habeas Corpus",
+  "Relaxamento de Prisão",
+  "Liberdade Provisória",
+  "Revogação de Prisão Preventiva",
+  "Defesa Prévia",
+  "Resposta à Acusação",
+  "Memoriais",
+  "Apelação",
+  "Recurso em Sentido Estrito",
+  "Agravo em Execução",
+  "Revisão Criminal",
+  "Queixa-Crime",
+  "Acompanhamento de Inquérito",
+  "Audiência de Custódia",
+  "Outro"
+];
+
 const RESPONSAVEIS = [
   "Secretária – Jessica Cavallaro",
   "Advogada – Jailda Silva",
@@ -89,10 +121,11 @@ interface CaseData {
   responsavelName?: string | null;
   responsavelDate?: string | null;
   resumo?: string | null;
-  acompanhamento?: string | null;
+  acompanhamento?: string | null; // Stores JSON history
   contratado?: string | null;
   fotoNotificacaoDoc?: string;
-  // Campos específicos podem ser adicionados conforme necessário
+  finalizadoText?: string;
+  actionSubtype?: string;
 }
 
 interface CaseDocument {
@@ -102,6 +135,9 @@ interface CaseDocument {
   file_name?: string;
   file_path: string;
   uploaded_at: string;
+  // Metadata fields (can be inferred or stored in notes if DB doesn't support)
+  responsible?: string;
+  status?: string;
 }
 
 export default function AcaoCriminalDetailPage() {
@@ -120,33 +156,54 @@ export default function AcaoCriminalDetailPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<CaseDocument | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
-  const [editingDocumentName, setEditingDocumentName] = useState("");
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
-  const [isEditingGeral, setIsEditingGeral] = useState(false);
+  
+  // States for new features
   const [isEditingCadastro, setIsEditingCadastro] = useState(false);
+  const [actionTypeOpen, setActionTypeOpen] = useState(false);
+  
+  // Resumo
   const [isEditingResumo, setIsEditingResumo] = useState(false);
+  const [resumoText, setResumoText] = useState("");
+  
+  // Acompanhamento
+  const [acompanhamentoText, setAcompanhamentoText] = useState("");
   const [isEditingAcompanhamento, setIsEditingAcompanhamento] = useState(false);
-  const [isEditingFinalizado, setIsEditingFinalizado] = useState(false);
+  
+  // Finalizado
+  const [finalizadoText, setFinalizadoText] = useState("");
+  const [confirmFinalizeOpen, setConfirmFinalizeOpen] = useState(false);
+
+  // Document Editing
+  const [editingDoc, setEditingDoc] = useState<CaseDocument | null>(null);
+  const [isEditingDocOpen, setIsEditingDocOpen] = useState(false);
+  const [editDocName, setEditDocName] = useState("");
 
   const handleCaseFieldChange = (key: keyof CaseData, value: any) => {
     setCaseData(prev => prev ? { ...prev, [key]: value } as CaseData : prev);
   };
 
-  const saveCaseFields = async () => {
+  const saveGenericField = async (field: string, value: any) => {
     if (!caseData) return;
     try {
-      const response = await fetch(`/api/acoes-criminais?id=${id}`, {
+      // Optimistic update
+      setCaseData(prev => prev ? { ...prev, [field]: value } : prev);
+      
+      const payload: any = { [field]: value };
+      
+      // If saving history, ensure it's JSON string
+      if (field === 'acompanhamento' && typeof value !== 'string') {
+        payload[field] = JSON.stringify(value);
+      }
+
+      await fetch(`/api/acoes-criminais?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName: caseData.clientName, type: caseData.type, status }),
+        body: JSON.stringify(payload),
       });
-      if (response.ok) {
-        setIsEditingGeral(false);
-      }
     } catch (error) {
-      console.error("Erro ao salvar campos gerais:", error);
+      console.error(`Erro ao salvar ${field}:`, error);
     }
   };
 
@@ -166,10 +223,21 @@ export default function AcaoCriminalDetailPage() {
             numeroProcesso: data.numeroProcesso || data.numero_processo || data.processNumber,
             responsavelName: data.responsavelName || data.responsavel_name,
             responsavelDate: data.responsavelDate || data.responsavel_date,
+            resumo: data.resumo,
+            acompanhamento: data.acompanhamento,
           };
           setCaseData(normalizedData);
           setStatus(data.status || "Em andamento");
           setNotes("");
+          setResumoText(data.resumo || "");
+          
+          // Try to parse finalizadoText from notes if stored there
+          try {
+             const parsedNotes = JSON.parse(data.notes || "[]");
+             const finalNote = parsedNotes.find((n: any) => n.type === 'finalizado_text');
+             if (finalNote) setFinalizadoText(finalNote.content);
+          } catch {}
+
         }
       } catch (error) {
         console.error("Erro ao carregar caso:", error);
@@ -271,15 +339,24 @@ export default function AcaoCriminalDetailPage() {
 
   const handleSaveAssignment = async (index: number, responsibleName?: string, dueDate?: string) => {
     try {
+      const steps = WORKFLOWS["Ação Criminal"] || [];
+      const stepTitle = steps[index] || `Etapa ${index + 1}`;
+      
       const res = await fetch(`/api/step-assignments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moduleType: "acoes_criminais", recordId: id, stepIndex: index, responsibleName, dueDate })
+        body: JSON.stringify({ 
+          moduleType: "acoes_criminais", 
+          recordId: id, 
+          stepIndex: index, 
+          responsibleName, 
+          dueDate,
+          workflowName: stepTitle, // Passando o nome correto da etapa
+          clientName: caseData?.clientName || "Cliente"
+        })
       });
       if (res.ok) {
         setAssignments(prev => ({ ...prev, [index]: { responsibleName, dueDate } }));
-        const steps = WORKFLOWS["Ação Criminal"] || [];
-        const stepTitle = steps[index] || `Etapa ${index + 1}`;
         const dueBR = dueDate ? (() => { const [y, m, d] = dueDate.split("-"); return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`; })() : "—";
         const message = `Tarefa "${stepTitle}" atribuída a ${responsibleName || "—"} com prazo ${dueBR} para: ${caseData?.clientName || ""} - ${caseData?.type || ""}`;
         try {
@@ -546,129 +623,330 @@ export default function AcaoCriminalDetailPage() {
     );
   };
 
+  const handleAddAcompanhamento = async () => {
+    if (!acompanhamentoText.trim()) return;
+    const newEntry = {
+      id: (typeof crypto !== 'undefined' && (crypto as any).randomUUID) ? (crypto as any).randomUUID() : Date.now().toString(),
+      date: new Date().toISOString(),
+      content: acompanhamentoText,
+      author: "Usuário", 
+    };
+    let history: any[] = [];
+    try { history = JSON.parse(caseData?.acompanhamento || "[]"); } catch {}
+    if (!Array.isArray(history)) history = [];
+    const updated = [...history, newEntry];
+    await saveGenericField('acompanhamento', JSON.stringify(updated));
+    setAcompanhamentoText("");
+    setIsEditingAcompanhamento(false);
+  };
+
+  const handleFinalizeProcess = async () => {
+    if (!finalizadoText.trim()) {
+        alert("Por favor, insira as considerações finais.");
+        return;
+    }
+    const noteEntry = {
+        id: Date.now().toString(),
+        content: `CONSIDERAÇÕES FINAIS: ${finalizadoText}`,
+        type: 'finalizado_text',
+        timestamp: new Date().toISOString(),
+        authorName: "Sistema"
+    };
+    const currentNotes = parseNotesArray(caseData?.notes);
+    const nextNotes = [...currentNotes, noteEntry];
+    
+    try {
+      await fetch(`/api/acoes-criminais?id=${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: 'Finalizado', notes: JSON.stringify(nextNotes) }),
+      });
+      setConfirmFinalizeOpen(false);
+      setStatus('Finalizado');
+      setCaseData(prev => prev ? ({ ...prev, status: 'Finalizado', notes: JSON.stringify(nextNotes) }) : prev);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const renderSectionContent = (sectionIndex: number) => {
     if (!caseData) return null;
     const isCurrent = sectionIndex === caseData.currentStep;
     const isCompleted = sectionIndex < caseData.currentStep;
-    if (!isCurrent && !isCompleted) return null;
+    // Allow viewing previous steps even if completed
+    if (!isCurrent && !isCompleted && sectionIndex > caseData.currentStep) return null;
 
-    if (sectionIndex === 0) { // Cadastro de Documentos / Análise Inicial
+    if (sectionIndex === 0) { // Cadastro de Documentos
       return (
-        <div className="space-y-4 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-slate-900">Dados iniciais</h4>
-            <div className="flex items-center gap-2">
-              {!isEditingCadastro && (
-                <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setIsEditingCadastro(true)}>Editar</Button>
-              )}
-              {isEditingCadastro && (
-                <>
-                  <Button size="sm" variant="secondary" onClick={async () => {
-                    await fetch(`/api/acoes-criminais?id=${id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ reuName: caseData.reuName, numeroProcesso: caseData.numeroProcesso, responsavelName: caseData.responsavelName, responsavelDate: caseData.responsavelDate }),
-                    });
-                    setIsEditingCadastro(false);
-                  }}>
-                    <Save className="w-4 h-4" />
-                    Salvar
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditingCadastro(false)}>Cancelar</Button>
-                </>
-              )}
-            </div>
+        <div className="space-y-6 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+          {/* Dropdown de Ações Criminais */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">Classificação da Ação</Label>
+            <Popover open={actionTypeOpen} onOpenChange={setActionTypeOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={actionTypeOpen}
+                  className="w-full justify-between"
+                >
+                  {caseData.type && caseData.type !== "Ação Criminal"
+                    ? caseData.type
+                    : "Selecione o tipo de ação..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0">
+                <Command>
+                  <CommandInput placeholder="Buscar tipo de ação..." />
+                  <CommandList>
+                    <CommandEmpty>Nenhum tipo encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {CRIMINAL_TYPES.map((type) => (
+                        <CommandItem
+                          key={type}
+                          value={type}
+                          onSelect={(currentValue) => {
+                            saveGenericField("type", currentValue);
+                            setActionTypeOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              caseData.type === type ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {type}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
-          <div className="space-y-4">
-            <div className="grid gap-3">
-              <div className="grid md:grid-cols-2 gap-4 p-4 bg-white rounded-md border">
-                <div className="space-y-1">
-                  <Label>Autor</Label>
-                  <div className="text-sm">{String(caseData.autorName || caseData.clientName || "-")}</div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Réu</Label>
-                  {isEditingCadastro ? (
-                    <Input value={caseData.reuName || ""} onChange={(e) => setCaseData({ ...caseData, reuName: e.target.value })} />
+
+          {/* Cadastro de Documentos (Tabela) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+               <Label className="text-base font-semibold">Documentos Cadastrados</Label>
+               <div className="flex items-center gap-2">
+                  <Input type="file" id="doc-upload-0" className="hidden" onChange={(e) => handleFileUpload(e, "documento_geral")} />
+                  <Button size="sm" variant="outline" onClick={() => document.getElementById('doc-upload-0')?.click()}>
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar Documento
+                  </Button>
+               </div>
+            </div>
+            
+            <div className="rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 dark:bg-slate-800">
+                  <tr className="border-b">
+                    <th className="h-10 px-4 text-left font-medium text-slate-500">Nome do Documento</th>
+                    <th className="h-10 px-4 text-left font-medium text-slate-500">Data</th>
+                    <th className="h-10 px-4 text-left font-medium text-slate-500">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="h-24 text-center text-slate-500">Nenhum documento cadastrado</td>
+                    </tr>
                   ) : (
-                    <div className="text-sm">{String(caseData.reuName || "-")}</div>
+                    documents.map((doc) => (
+                      <tr key={doc.id} className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="p-4 font-medium">
+                           <div className="flex items-center gap-2">
+                             <FileText className="h-4 w-4 text-blue-500" />
+                             <a href={doc.file_path} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                               {doc.document_name || doc.name || doc.file_name}
+                             </a>
+                           </div>
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDocumentToDelete(doc); setDeleteDialogOpen(true); }}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
                   )}
-                </div>
-                <div className="space-y-1">
-                  <Label>Nº do Processo</Label>
-                  {isEditingCadastro ? (
-                    <Input value={caseData.numeroProcesso || ""} onChange={(e) => setCaseData({ ...caseData, numeroProcesso: e.target.value })} />
-                  ) : (
-                    <div className="text-sm">{String(caseData.numeroProcesso || "-")}</div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label>Responsável</Label>
-                  {isEditingCadastro ? (
-                    <Input value={caseData.responsavelName || ""} onChange={(e) => setCaseData({ ...caseData, responsavelName: e.target.value })} />
-                  ) : (
-                    <div className="text-sm">{String(caseData.responsavelName || "-")}</div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label>Prazo</Label>
-                  {isEditingCadastro ? (
-                    <Input type="date" value={String(caseData.responsavelDate || "")} onChange={(e) => setCaseData({ ...caseData, responsavelDate: e.target.value })} />
-                  ) : (
-                    <div className="text-sm">{caseData.responsavelDate ? (() => { try { return new Date(String(caseData.responsavelDate)).toLocaleDateString("pt-BR"); } catch { return String(caseData.responsavelDate); } })() : "-"}</div>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Upload (Notificação/Documentos)</Label>
-                <div className="flex items-center gap-2">
-                  <Input type="file" onChange={(e) => handleFileUpload(e, "fotoNotificacaoDoc")} disabled={uploadingFields.fotoNotificacaoDoc} className="flex-1" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-                  {uploadingFields.fotoNotificacaoDoc && (
-                    <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-                {renderDocLinks("fotoNotificacaoDoc")}
-              </div>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       );
     }
-    
-    // Para as demais seções, exibimos um padrão genérico ou adaptado se necessário.
-    // Como o workflow criminal é diferente, podemos usar o índice para exibir seções de upload genéricas ou campos específicos.
-    // Para simplificar, vou replicar a estrutura de Resumo/Acompanhamento/Finalizado mapeando para os índices equivalentes,
-    // ou simplesmente exibindo um editor de notas e upload para cada etapa do workflow.
 
-    return (
-      <div className="space-y-4 p-4 rounded-lg">
-        <h4 className="font-semibold text-slate-900">{WORKFLOWS["Ação Criminal"][sectionIndex]}</h4>
-        <div className="space-y-2">
-          <Label>Observações da Etapa</Label>
-           {/* Usando o campo de notas geral ou um específico se tivermos no schema. 
-               Para simplificar, vamos usar o modal de notas para observações detalhadas e aqui deixar apenas upload se não houver campo específico.
-               Mas para manter a paridade visual, vamos colocar um textarea que salva em um campo JSON ou similar se quisermos, 
-               ou reutilizar campos como 'resumo' e 'acompanhamento' se fizer sentido.
-               
-               Vou usar uma abordagem genérica visualmente, mas funcionalmente focada em upload por enquanto, 
-               já que não criamos colunas específicas para cada etapa criminal além das básicas.
-           */}
-           <div className="text-sm text-gray-500 italic">
-             Utilize o botão de "Observações" abaixo para adicionar notas detalhadas a esta etapa.
+    if (sectionIndex === 1) { // Resumo
+      return (
+        <div className="space-y-4 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+           <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-slate-900 dark:text-white">Resumo do Caso</h4>
+              {!isEditingResumo && (
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingResumo(true)}>
+                  <Edit2 className="h-4 w-4 mr-2" /> Editar
+                </Button>
+              )}
+           </div>
+           
+           {isEditingResumo ? (
+             <div className="space-y-3">
+               <Textarea 
+                 value={resumoText} 
+                 onChange={(e) => setResumoText(e.target.value)} 
+                 placeholder="Escreva o resumo do caso..."
+                 className="min-h-[150px]"
+               />
+               <div className="flex justify-end gap-2">
+                 <Button variant="ghost" size="sm" onClick={() => setIsEditingResumo(false)}>Cancelar</Button>
+                 <Button size="sm" onClick={async () => {
+                   await saveGenericField('resumo', resumoText);
+                   setIsEditingResumo(false);
+                 }}>Salvar</Button>
+               </div>
+             </div>
+           ) : (
+             <div className="prose prose-sm max-w-none text-slate-600 dark:text-slate-300">
+               {caseData.resumo ? (
+                 <p className="whitespace-pre-wrap">{caseData.resumo}</p>
+               ) : (
+                 <p className="italic text-slate-400">Nenhum resumo cadastrado.</p>
+               )}
+             </div>
+           )}
+           
+           <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Label className="text-sm font-medium mb-2 block">Documentos Relacionados</Label>
+              <div className="flex items-center gap-2">
+                <Input type="file" onChange={(e) => handleFileUpload(e, "resumo_docs")} disabled={uploadingFields.resumo_docs} className="flex-1" />
+                {uploadingFields.resumo_docs && <Upload className="h-4 w-4 animate-spin" />}
+              </div>
+              {renderDocLinks("resumo_docs")}
            </div>
         </div>
-        <div className="space-y-2">
-            <Label>Upload de Documentos da Etapa</Label>
-            <div className="flex items-center gap-2">
-              <Input type="file" onChange={(e) => handleFileUpload(e, `step_${sectionIndex}_doc`)} disabled={uploadingFields[`step_${sectionIndex}_doc`]} className="flex-1" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-              {uploadingFields[`step_${sectionIndex}_doc`] && (
-                <Upload className="h-4 w-4 animate-spin text-muted-foreground" />
+      );
+    }
+
+    if (sectionIndex === 2) { // Acompanhamento
+      const history = (() => {
+        try { return JSON.parse(caseData.acompanhamento || "[]"); } catch { return []; }
+      })();
+      
+      return (
+        <div className="space-y-6 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+           <div className="flex items-center justify-between">
+             <h4 className="font-semibold">Histórico de Acompanhamento</h4>
+             <Button size="sm" variant="outline" onClick={() => setIsEditingAcompanhamento(!isEditingAcompanhamento)}>
+               {isEditingAcompanhamento ? "Fechar Editor" : "Adicionar Registro"}
+             </Button>
+           </div>
+
+           {isEditingAcompanhamento && (
+             <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-md space-y-3 animate-in fade-in slide-in-from-top-2">
+               <Label>Novo Registro</Label>
+               <Textarea 
+                 value={acompanhamentoText} 
+                 onChange={(e) => setAcompanhamentoText(e.target.value)}
+                 placeholder="Descreva o andamento..."
+                 className="min-h-[100px]"
+               />
+               <div className="flex items-center gap-2">
+                  <Input type="file" onChange={(e) => handleFileUpload(e, "temp_acompanhamento_doc")} className="text-xs" />
+                  <span className="text-xs text-muted-foreground">Opcional: Anexar documento</span>
+               </div>
+               <div className="flex justify-end">
+                 <Button size="sm" onClick={handleAddAcompanhamento}>Salvar Registro</Button>
+               </div>
+             </div>
+           )}
+
+           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
+              {history.length === 0 && !isEditingAcompanhamento && (
+                <p className="text-center text-sm text-slate-500 py-4">Nenhum acompanhamento registrado.</p>
               )}
-            </div>
-            {renderDocLinks(`step_${sectionIndex}_doc`)}
+              {history.map((item: any, idx: number) => (
+                <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-100 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                    <History className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded border border-slate-200 bg-white shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <time className="font-medium text-xs text-slate-500">{new Date(item.date).toLocaleString('pt-BR')}</time>
+                      <span className="text-xs font-bold text-slate-700">{item.author || "Usuário"}</span>
+                    </div>
+                    <p className="text-slate-700 text-sm whitespace-pre-wrap">{item.content}</p>
+                  </div>
+                </div>
+              ))}
+           </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    if (sectionIndex === 3) { // Processo Finalizado
+      return (
+        <div className="space-y-4 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+           <h4 className="font-semibold text-slate-900">Finalização do Processo</h4>
+           <div className="space-y-3">
+             <div className="space-y-1">
+               <Label>Considerações Finais *</Label>
+               <Textarea 
+                 value={finalizadoText}
+                 onChange={(e) => setFinalizadoText(e.target.value)}
+                 placeholder="Descreva o desfecho do caso, sentença, etc."
+                 className="min-h-[120px]"
+                 disabled={status === 'Finalizado'}
+               />
+             </div>
+             <div className="space-y-1">
+               <Label>Upload de Documentos Finais</Label>
+               <div className="flex items-center gap-2">
+                 <Input type="file" onChange={(e) => handleFileUpload(e, "final_docs")} disabled={uploadingFields.final_docs || status === 'Finalizado'} className="flex-1" />
+                 {uploadingFields.final_docs && <Upload className="h-4 w-4 animate-spin" />}
+               </div>
+               {renderDocLinks("final_docs")}
+             </div>
+             
+             {status !== 'Finalizado' && (
+               <div className="pt-4 flex justify-end">
+                 <AlertDialog open={confirmFinalizeOpen} onOpenChange={setConfirmFinalizeOpen}>
+                   <AlertDialogTrigger asChild>
+                     <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                       <CheckCircle className="w-4 h-4 mr-2" />
+                       Concluir Processo
+                     </Button>
+                   </AlertDialogTrigger>
+                   <AlertDialogContent>
+                     <AlertDialogHeader>
+                       <AlertDialogTitle>Concluir Processo Criminal?</AlertDialogTitle>
+                       <AlertDialogDescription>
+                         Esta ação marcará o processo como Finalizado e salvará as considerações finais. Certifique-se de que todos os documentos foram anexados.
+                       </AlertDialogDescription>
+                     </AlertDialogHeader>
+                     <AlertDialogFooter>
+                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                       <AlertDialogAction onClick={handleFinalizeProcess} className="bg-emerald-600 hover:bg-emerald-700">
+                         Confirmar Conclusão
+                       </AlertDialogAction>
+                     </AlertDialogFooter>
+                   </AlertDialogContent>
+                 </AlertDialog>
+               </div>
+             )}
+           </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   if (loading) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { NotificationService } from '@/lib/notification'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey)
     const body = await request.json()
-    const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone } = body
+    const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone, workflowName } = body
 
     if (!moduleType || !recordId || stepIndex === undefined) {
       return NextResponse.json({ error: 'moduleType, recordId e stepIndex são obrigatórios' }, { status: 400 })
@@ -93,6 +94,39 @@ export async function POST(request: NextRequest) {
         console.error('step_assignments update error:', error)
         throw error
       }
+
+      // Notify if responsible changed
+      if (responsibleName && responsibleName !== existing.responsible_name) {
+        try {
+          // Fetch client name for the notification
+          const { data: recordData } = await supabase
+            .from(moduleType)
+            .select('client_name')
+            .eq('id', parseInt(recordId))
+            .single();
+            
+          const clientName = recordData?.client_name || 'Cliente Desconhecido';
+          const stepName = workflowName || `Etapa ${stepIndex}`;
+
+          await NotificationService.createNotification(
+            'new_responsible',
+            {
+              responsibleName,
+              clientName,
+              workflowName: stepName,
+              dueDate: dueDate ?? existing.due_date,
+              moduleSlug: moduleType.replace(/_/g, '-'),
+              recordId: parseInt(recordId)
+            },
+            moduleType,
+            parseInt(recordId),
+            `Novo responsável atribuído: ${responsibleName} para ${stepName} - ${clientName}`
+          );
+        } catch (e) {
+          console.error('Notification error:', e);
+        }
+      }
+
       return NextResponse.json(mapDbToFrontend(data), { status: 200 })
     } else {
       const { data, error } = await supabase
@@ -114,6 +148,39 @@ export async function POST(request: NextRequest) {
         console.error('step_assignments insert error:', error)
         throw error
       }
+
+      // Notify if responsible provided
+      if (responsibleName) {
+        try {
+          // Fetch client name for the notification
+          const { data: recordData } = await supabase
+            .from(moduleType)
+            .select('client_name')
+            .eq('id', parseInt(recordId))
+            .single();
+            
+          const clientName = recordData?.client_name || 'Cliente Desconhecido';
+          const stepName = workflowName || `Etapa ${stepIndex}`;
+
+          await NotificationService.createNotification(
+            'new_responsible',
+            {
+              responsibleName,
+              clientName,
+              workflowName: stepName,
+              dueDate: dueDate,
+              moduleSlug: moduleType.replace(/_/g, '-'),
+              recordId: parseInt(recordId)
+            },
+            moduleType,
+            parseInt(recordId),
+            `Novo responsável atribuído: ${responsibleName} para ${stepName} - ${clientName}`
+          );
+        } catch (e) {
+          console.error('Notification error:', e);
+        }
+      }
+
       return NextResponse.json(mapDbToFrontend(data), { status: 201 })
     }
   } catch (error: any) {

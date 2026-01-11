@@ -91,6 +91,13 @@ export const NotificationBell = () => {
                 return next.filter((p) => !p.isRead);
               });
               setUnreadCount((prev) => prev + 1);
+
+              // Trigger webhook for new realtime notification
+              fetch('/api/webhooks/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notification: mapped })
+              }).catch(err => console.error('Failed to trigger webhook from client:', err));
             }
           )
           .on(
