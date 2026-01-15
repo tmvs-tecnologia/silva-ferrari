@@ -208,3 +208,6 @@
  GET /api/alerts?isRead=false&limit=20 404 in 1961ms
  GET /api/alerts?isRead=false&limit=20 404 in 499ms
  ✓ Compiled in 23.8s (1741 modules)
+ ✓ Compiled in 2.7s (1741 modules)
+ ✓ Compiled in 2.4s (1741 modules)
+ ✓ Compiled in 2.4s (1741 modules)

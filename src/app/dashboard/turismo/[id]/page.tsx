@@ -119,8 +119,8 @@ const SectionHeader = ({
   onSave: () => void;
 }) => {
   return (
-    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-      <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+    <div className="px-4 py-3 md:px-6 md:py-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      <h2 className="text-base md:text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
         {title}
       </h2>
       {!isEditing ? (
@@ -128,17 +128,26 @@ const SectionHeader = ({
           size="sm"
           variant="ghost"
           onClick={onEdit}
-          className="text-slate-500 hover:text-blue-600"
+          className="text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-blue-400 min-h-[44px] min-w-[44px] md:min-h-9 md:min-w-0 md:h-9 md:px-3"
           title="Editar seção"
         >
-          <Edit className="w-4 h-4" />
+          <Edit className="w-5 h-5 md:w-4 md:h-4" />
         </Button>
       ) : (
         <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={onCancel} className="text-red-500">
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={onCancel} 
+            className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[44px] md:min-h-9"
+          >
             Cancelar
           </Button>
-          <Button size="sm" onClick={onSave} className="bg-green-600 hover:bg-green-700 text-white">
+          <Button 
+            size="sm" 
+            onClick={onSave} 
+            className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] md:min-h-9"
+          >
             Concluir
           </Button>
         </div>
@@ -182,14 +191,16 @@ const DocumentRow = ({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Label className="block text-sm font-medium text-slate-700">
+        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           {label}
         </Label>
         {tooltip && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-pointer" />
+                <div className="p-1 -m-1">
+                  <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer" />
+                </div>
               </TooltipTrigger>
               <TooltipContent>
                 <p className="max-w-xs text-sm">{tooltip}</p>
@@ -198,13 +209,13 @@ const DocumentRow = ({
           </TooltipProvider>
         )}
       </div>
-      <div className="flex gap-3 items-start">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
         {!isEditing ? (
-          <div className="flex-1 flex items-center p-2.5 rounded-md border border-dashed border-slate-200 bg-slate-50 text-slate-500 text-sm">
+          <div className="flex-1 flex flex-wrap items-center p-3 rounded-md border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm min-h-[44px]">
             {field ? (
-              <span className="font-medium text-slate-700 mr-2">{vistoValue || '-'}</span>
+              <span className="font-medium text-slate-700 dark:text-slate-200 mr-2 break-all">{vistoValue || '-'}</span>
             ) : null}
-            <span className={`text-xs ml-auto ${attachedDocs.length > 0 ? "text-green-600 font-medium" : "italic"}`}>
+            <span className={`text-xs ml-auto ${attachedDocs.length > 0 ? "text-green-600 dark:text-green-400 font-medium" : "italic"} mt-1 sm:mt-0 w-full sm:w-auto text-right`}>
               {attachedDocs.length > 0 ? `${attachedDocs.length} documento(s)` : "Nenhum anexo"}
             </span>
           </div>
@@ -212,14 +223,14 @@ const DocumentRow = ({
           <Input
             value={vistoValue || ""}
             onChange={(e) => onTextChange && onTextChange(e.target.value)}
-            className="flex-1 rounded-md border-slate-200 bg-white text-slate-700 text-sm py-2.5"
+            className="flex-1 rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-sm py-3 min-h-[44px]"
             placeholder={placeholder}
             disabled={!field}
           />
         )}
 
         {isEditing && (
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <input
               type="file"
               id={`upload-${docField}`}
@@ -235,7 +246,7 @@ const DocumentRow = ({
             <Button
               type="button"
               variant="outline"
-              className="flex items-center gap-2 px-4 py-2.5"
+              className="flex items-center justify-center gap-2 px-4 py-3 w-full sm:w-auto min-h-[44px]"
               onClick={() => document.getElementById(`upload-${docField}`)?.click()}
               disabled={isUploading}
             >
@@ -259,10 +270,10 @@ const DocumentRow = ({
                 href={doc.file_path || doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center p-2 rounded-md bg-slate-100 border border-slate-200 hover:bg-sky-50 hover:border-sky-200 transition-all"
+                className="flex items-center justify-center p-3 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 transition-all min-h-[44px] min-w-[44px]"
                 title={doc.document_name || doc.name}
               >
-                <FileText className="h-5 w-5 text-slate-500 group-hover:text-sky-600" />
+                <FileText className="h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400" />
               </a>
               {isEditing && (
                 <button
@@ -272,7 +283,7 @@ const DocumentRow = ({
                     e.stopPropagation();
                     onDeleteDoc(doc);
                   }}
-                  className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                  className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 z-10"
                   title="Remover arquivo"
                 >
                   <X className="h-3 w-3" />
@@ -904,11 +915,11 @@ export default function TurismoDetailsPage() {
     // 0: Cadastro de Documentos
     if (stepId === 0) {
       return (
-        <div className="space-y-8 pb-8">
+        <div className="space-y-6 md:space-y-8 pb-6 md:pb-8">
           {/* 1. Dados do Cliente */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("1. Dados do Cliente")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {/* Nome do Cliente */}
               <div className="space-y-2">
                 {isEditingDocuments ? (<Label htmlFor={`clientName-${stepId}`}>Nome do Cliente</Label>) : <Label className="block text-sm font-medium text-slate-700">Nome do Cliente</Label>}
@@ -992,7 +1003,7 @@ export default function TurismoDetailsPage() {
           {/* 2. Documentos Pessoais */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("2. Documentos Pessoais")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 {isEditingDocuments ? (<Label htmlFor={`country-${stepId}`}>País do Visto</Label>) : <Label className="block text-sm font-medium text-slate-700">País do Visto</Label>}
                 {isEditingDocuments ? (
@@ -1023,7 +1034,7 @@ export default function TurismoDetailsPage() {
           {/* 3. Comprovação Financeira */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("3. Comprovação Financeira")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {renderRow(stepId, "Certidão Nascimento Filhos", "certidaoNascimentoFilhos", "certidaoNascimentoFilhosDoc")}
               {renderRow(stepId, "CNPJ", "cartaoCnpj", "cartaoCnpjDoc")}
               {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
@@ -1036,7 +1047,7 @@ export default function TurismoDetailsPage() {
           {/* 4. Outros Documentos */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("4. Outros Documentos")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {renderRow(stepId, "Reservas de Passagens", "reservasPassagens", "reservasPassagensDoc")}
               {renderRow(stepId, "Reservas de Hotel", "reservasHotel", "reservasHotelDoc")}
               {renderRow(stepId, "Seguro Viagem", "seguroViagem", "seguroViagemDoc")}
@@ -1055,7 +1066,7 @@ export default function TurismoDetailsPage() {
         <div className="space-y-3">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("Agendamento")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Label className="block text-sm font-medium text-slate-700">Data do Agendamento</Label>
@@ -1166,7 +1177,7 @@ export default function TurismoDetailsPage() {
         <div className="space-y-3">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("Formulário")}
-            <div className="p-6 grid grid-cols-1 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
               <DocumentRow
                 label="Formulário de Visto"
                 docField="formulario-visto"
@@ -1211,7 +1222,7 @@ export default function TurismoDetailsPage() {
           <div className="space-y-3">
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               {renderHeader("Documentação Preparada")}
-              <div className="p-6 grid grid-cols-1 gap-6">
+              <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
                 <DocumentRow
                   label="Formulário de Visto Preenchido"
                   docField="formulario-visto"
@@ -1255,7 +1266,7 @@ export default function TurismoDetailsPage() {
         <div className="space-y-3">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("Aprovação")}
-            <div className="p-6 grid grid-cols-1 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
               <DocumentRow
                 label="Comprovante de Aprovação"
                 docField="comprovante-aprovacao"
@@ -1299,7 +1310,7 @@ export default function TurismoDetailsPage() {
         <div className="space-y-3">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {renderHeader("Finalização")}
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="space-y-2">
                 <Label className="block text-sm font-medium text-slate-700">Data de Finalização</Label>
                 {isEditingDocuments ? (
@@ -1393,7 +1404,7 @@ export default function TurismoDetailsPage() {
       <div className="space-y-3">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           {renderHeader(step.title || "Detalhes")}
-          <div className="p-6 grid grid-cols-1 gap-6">
+          <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Label className="block text-sm font-medium text-slate-700">Observações</Label>
@@ -1633,7 +1644,7 @@ export default function TurismoDetailsPage() {
       </div>
 
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
         <div className="lg:col-span-8">
           {showWorkflow && (
             <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px] relative">
