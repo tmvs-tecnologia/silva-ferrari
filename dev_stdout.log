@@ -196,3 +196,15 @@
  GET /dashboard/turismo 200 in 857ms
  GET /api/vistos?limit=100 500 in 6747ms
  GET /api/turismo?limit=100 500 in 8527ms
+ GET /dashboard/turismo 200 in 2361ms
+ GET /api/turismo?limit=100 500 in 4458ms
+ GET /api/vistos?limit=100 500 in 4592ms
+ ✓ Compiled /_error in 17.7s (3535 modules)
+ GET /api/processos/count 500 in 41096ms
+ GET /api/alerts?isRead=false&limit=20 500 in 41289ms
+ GET /api/alerts?isRead=false&limit=20 500 in 20604ms
+ GET /api/processos/count 404 in 3517ms
+ GET /api/processos/count 404 in 1961ms
+ GET /api/alerts?isRead=false&limit=20 404 in 1961ms
+ GET /api/alerts?isRead=false&limit=20 404 in 499ms
+ ✓ Compiled in 23.8s (1741 modules)

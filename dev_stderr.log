@@ -100,3 +100,60 @@
     at Object.<anonymous> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\alerts\route.js:199:3) {
   page: '/api/alerts'
 }
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_exec__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\alerts\route.js:195:39)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\alerts\route.js:196:214)
+    at __webpack_require__.X (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:163:21)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\alerts\route.js:196:47)
+    at Object.<anonymous> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\alerts\route.js:199:3) {
+  page: '/api/alerts'
+}
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_exec__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\turismo\route.js:206:39)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\turismo\route.js:207:214)
+    at __webpack_require__.X (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:163:21)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\turismo\route.js:207:47)
+    at Object.<anonymous> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\turismo\route.js:210:3) {
+  page: '/api/turismo'
+}
+ ⨯ TypeError: __webpack_modules__[moduleId] is not a function
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_require__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:33:42)
+    at __webpack_exec__ (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\vistos\route.js:206:39)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\vistos\route.js:207:214)
+    at __webpack_require__.X (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\webpack-runtime.js:163:21)
+    at <unknown> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\vistos\route.js:207:47)
+    at Object.<anonymous> (C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\server\app\api\vistos\route.js:210:3) {
+  page: '/api/vistos'
+}
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+Could not find files for /_error in .next/build-manifest.json
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\cache\webpack\client-development\5.pack.gz_' -> 'C:\Users\henri\OneDrive\Documentos\Henrique\Projetos Sistemas\Silva & Ferrari Escritório Advogacia\git\sistema-jurdico-integrado-3\.next\cache\webpack\client-development\5.pack.gz'

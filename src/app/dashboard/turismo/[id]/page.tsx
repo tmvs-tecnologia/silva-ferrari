@@ -1533,6 +1533,44 @@ export default function TurismoDetailsPage() {
         { key: "taxaDoc", label: "Taxa Consular" },
         { key: "formularioConsuladoDoc", label: "Formulário do Consulado" },
       ]
+    },
+    {
+      title: "Agendamento",
+      step: "Agendar no Consulado",
+      fields: [
+        { key: "comprovante-agendamento", label: "Comprovante de Agendamento" }
+      ]
+    },
+    {
+      title: "Formulário",
+      step: "Preencher Formulário",
+      fields: [
+        { key: "formulario-visto", label: "Formulário de Visto" }
+      ]
+    },
+    {
+      title: "Documentação Preparada",
+      step: "Preparar Documentação",
+      fields: [
+        { key: "formulario-visto", label: "Formulário de Visto Preenchido" },
+        { key: "documentos-traduzidos", label: "Documentos Traduzidos" },
+        { key: "documentos-autenticados", label: "Documentos Autenticados" }
+      ]
+    },
+    {
+      title: "Aprovação",
+      step: "Aguardar Aprovação",
+      fields: [
+        { key: "comprovante-aprovacao", label: "Comprovante de Aprovação" }
+      ]
+    },
+    {
+      title: "Finalização",
+      step: "Processo Finalizado",
+      fields: [
+        { key: "processo-finalizado", label: "Processo Finalizado" },
+        { key: "relatorio-final", label: "Relatório Final" }
+      ]
     }
   ];
 
