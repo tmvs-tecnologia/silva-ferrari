@@ -6,7 +6,7 @@ import { NotificationService } from '@/lib/notification';
 // Helper function to convert snake_case to camelCase for vistos
 function mapVistosDbFieldsToFrontend(record: any) {
   if (!record) return record;
-  
+
   return {
     id: record.id,
     clientName: record.client_name,
@@ -58,15 +58,33 @@ function mapVistosDbFieldsToFrontend(record: any) {
     comprovanteResidenciaPreviaDoc: record.comprovante_residencia_previa_doc,
     formularioRn02: record.formulario_rn02,
     formularioRn02Doc: record.formulario_rn02_doc,
+    gfip: record.gfip,
+    gfipDoc: record.gfip_doc,
+    certificadoTrabalho: record.certificado_trabalho,
+    certificadoTrabalhoDoc: record.certificado_trabalho_doc,
+    traducaoAntecedentesCriminais: record.traducao_antecedentes_criminais,
+    traducaoAntecedentesCriminaisDoc: record.traducao_antecedentes_criminais_doc,
+    traducaoCertificadoTrabalho: record.traducao_certificado_trabalho,
+    traducaoCertificadoTrabalhoDoc: record.traducao_certificado_trabalho_doc,
+    traducaoDiploma: record.traducao_diploma,
+    traducaoDiplomaDoc: record.traducao_diploma_doc,
+    traducaoCertidaoNascimento: record.traducao_certidao_nascimento,
+    traducaoCertidaoNascimentoDoc: record.traducao_certidao_nascimento_doc,
+    procuracaoImigrante: record.procuracao_imigrante,
+    procuracaoImigranteDoc: record.procuracao_imigrante_doc,
+    procuracaoEmpresaAssinada: record.procuracao_empresa_assinada,
+    procuracaoEmpresaAssinadaDoc: record.procuracao_empresa_assinada_doc,
+    procuracaoImigranteAssinada: record.procuracao_imigrante_assinada,
+    procuracaoImigranteAssinadaDoc: record.procuracao_imigrante_assinada_doc,
     comprovanteAtividade: record.comprovante_atividade,
     comprovanteAtividadeDoc: record.comprovante_atividade_doc,
     // Novos campos para Visto de Trabalho - Brasil
     certidaoNascimento: record.certidao_nascimento,
     certidaoNascimentoDoc: record.certidao_nascimento_doc,
-    declaracaoCompreensao: record.declaracao_compreensao,
-    declaracaoCompreensaoDoc: record.declaracao_compreensao_doc,
+
     declaracoesEmpresa: record.declaracoes_empresa,
     declaracoesEmpresaDoc: record.declaracoes_empresa_doc,
+
     procuracaoEmpresa: record.procuracao_empresa,
     procuracaoEmpresaDoc: record.procuracao_empresa_doc,
     formularioRn01: record.formulario_rn01,
@@ -129,9 +147,9 @@ export async function GET(request: NextRequest) {
     // Single record fetch by ID
     if (id) {
       if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: "Valid ID is required",
-          code: "INVALID_ID" 
+          code: "INVALID_ID"
         }, { status: 400 });
       }
 
@@ -143,9 +161,9 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          return NextResponse.json({ 
+          return NextResponse.json({
             error: 'Record not found',
-            code: 'NOT_FOUND' 
+            code: 'NOT_FOUND'
           }, { status: 404 });
         }
         throw error;
@@ -165,21 +183,23 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('vistos')
-      .select('*');
+      .select('*')
+      .neq('type', 'Turismo');
 
     // Apply filters
-  if (search) {
-    const s = search.replace(/,/g, ' ');
-    query = query.or(
-      [
-        `client_name.ilike.%${s}%`,
-        `type.ilike.%${s}%`,
-        `country.ilike.%${s}%`,
-        `cpf.ilike.%${s}%`,
-        `rnm.ilike.%${s}%`,
-        `passaporte.ilike.%${s}%`,
-        `comprovante_endereco.ilike.%${s}%`,
-        `cartao_cnpj.ilike.%${s}%`,
+    if (search) {
+      const s = search.replace(/,/g, ' ');
+      query = query.or(
+        [
+          `client_name.ilike.%${s}%`,
+          `type.ilike.%${s}%`,
+          `procurador.ilike.%${s}%`, // Added procurador search
+          `country.ilike.%${s}%`,
+          `cpf.ilike.%${s}%`,
+          `rnm.ilike.%${s}%`,
+          `passaporte.ilike.%${s}%`,
+          `comprovante_endereco.ilike.%${s}%`,
+          `cartao_cnpj.ilike.%${s}%`,
           `contrato_empresa.ilike.%${s}%`,
           `escritura_imoveis.ilike.%${s}%`,
           `reservas_passagens.ilike.%${s}%`,
@@ -215,7 +235,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('GET error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
     }, { status: 500 });
   }
@@ -228,16 +248,16 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!body.clientName || body.clientName.trim() === '') {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "clientName is required and cannot be empty",
-        code: "MISSING_CLIENT_NAME" 
+        code: "MISSING_CLIENT_NAME"
       }, { status: 400 });
     }
 
     if (!body.type || body.type.trim() === '') {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "type is required and cannot be empty",
-        code: "MISSING_TYPE" 
+        code: "MISSING_TYPE"
       }, { status: 400 });
     }
 
@@ -300,15 +320,33 @@ export async function POST(request: NextRequest) {
       comprovante_residencia_previa_doc: body.comprovanteResidenciaPreviaDoc?.trim() || null,
       formulario_rn02: body.formularioRn02?.trim() || null,
       formulario_rn02_doc: body.formularioRn02Doc?.trim() || null,
+      gfip: body.gfip?.trim() || null,
+      gfip_doc: body.gfipDoc?.trim() || null,
+      certificado_trabalho: body.certificadoTrabalho?.trim() || null,
+      certificado_trabalho_doc: body.certificadoTrabalhoDoc?.trim() || null,
+      traducao_antecedentes_criminais: body.traducaoAntecedentesCriminais?.trim() || null,
+      traducao_antecedentes_criminais_doc: body.traducaoAntecedentesCriminaisDoc?.trim() || null,
+      traducao_certificado_trabalho: body.traducaoCertificadoTrabalho?.trim() || null,
+      traducao_certificado_trabalho_doc: body.traducaoCertificadoTrabalhoDoc?.trim() || null,
+      traducao_diploma: body.traducaoDiploma?.trim() || null,
+      traducao_diploma_doc: body.traducaoDiplomaDoc?.trim() || null,
+      traducao_certidao_nascimento: body.traducaoCertidaoNascimento?.trim() || null,
+      traducao_certidao_nascimento_doc: body.traducaoCertidaoNascimentoDoc?.trim() || null,
+      procuracao_imigrante: body.procuracaoImigrante?.trim() || null,
+      procuracao_imigrante_doc: body.procuracaoImigranteDoc?.trim() || null,
+      procuracao_empresa_assinada: body.procuracaoEmpresaAssinada?.trim() || null,
+      procuracao_empresa_assinada_doc: body.procuracaoEmpresaAssinadaDoc?.trim() || null,
+      procuracao_imigrante_assinada: body.procuracaoImigranteAssinada?.trim() || null,
+      procuracao_imigrante_assinada_doc: body.procuracaoImigranteAssinadaDoc?.trim() || null,
       comprovante_atividade: body.comprovanteAtividade?.trim() || null,
       comprovante_atividade_doc: body.comprovanteAtividadeDoc?.trim() || null,
       // Novos campos para Visto de Trabalho - Brasil
       certidao_nascimento: body.certidaoNascimento?.trim() || null,
       certidao_nascimento_doc: body.certidaoNascimentoDoc?.trim() || null,
-      declaracao_compreensao: body.declaracaoCompreensao?.trim() || null,
-      declaracao_compreensao_doc: body.declaracaoCompreensaoDoc?.trim() || null,
+
       declaracoes_empresa: body.declaracoesEmpresa?.trim() || null,
       declaracoes_empresa_doc: body.declaracoesEmpresaDoc?.trim() || null,
+
       procuracao_empresa: body.procuracaoEmpresa?.trim() || null,
       procuracao_empresa_doc: body.procuracaoEmpresaDoc?.trim() || null,
       formulario_rn01: body.formularioRn01?.trim() || null,
@@ -391,7 +429,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('POST error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
     }, { status: 500 });
   }
@@ -405,9 +443,9 @@ export async function PUT(request: NextRequest) {
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
@@ -420,9 +458,9 @@ export async function PUT(request: NextRequest) {
 
     if (existError) {
       if (existError.code === 'PGRST116') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Record not found',
-          code: 'NOT_FOUND' 
+          code: 'NOT_FOUND'
         }, { status: 404 });
       }
       throw existError;
@@ -630,6 +668,48 @@ export async function PUT(request: NextRequest) {
     if (body.formularioRn02Doc !== undefined) {
       updateData.formulario_rn02_doc = body.formularioRn02Doc?.trim() || null;
     }
+    if (body.gfip !== undefined) {
+      updateData.gfip = body.gfip?.trim() || null;
+    }
+    if (body.gfipDoc !== undefined) {
+      updateData.gfip_doc = body.gfipDoc?.trim() || null;
+    }
+    if (body.certificadoTrabalho !== undefined) {
+      updateData.certificado_trabalho = body.certificadoTrabalho?.trim() || null;
+    }
+    if (body.certificadoTrabalhoDoc !== undefined) {
+      updateData.certificado_trabalho_doc = body.certificadoTrabalhoDoc?.trim() || null;
+    }
+    if (body.traducaoAntecedentesCriminaisDoc !== undefined) {
+      updateData.traducao_antecedentes_criminais_doc = body.traducaoAntecedentesCriminaisDoc?.trim() || null;
+    }
+    if (body.traducaoCertificadoTrabalhoDoc !== undefined) {
+      updateData.traducao_certificado_trabalho_doc = body.traducaoCertificadoTrabalhoDoc?.trim() || null;
+    }
+    if (body.traducaoDiplomaDoc !== undefined) {
+      updateData.traducao_diploma_doc = body.traducaoDiplomaDoc?.trim() || null;
+    }
+    if (body.traducaoCertidaoNascimento !== undefined) {
+      updateData.traducao_certidao_nascimento = body.traducaoCertidaoNascimento?.trim() || null;
+    }
+    if (body.procuracaoImigrante !== undefined) {
+      updateData.procuracao_imigrante = body.procuracaoImigrante?.trim() || null;
+    }
+    if (body.procuracaoImigranteDoc !== undefined) {
+      updateData.procuracao_imigrante_doc = body.procuracaoImigranteDoc?.trim() || null;
+    }
+    if (body.procuracaoEmpresaAssinada !== undefined) {
+      updateData.procuracao_empresa_assinada = body.procuracaoEmpresaAssinada?.trim() || null;
+    }
+    if (body.procuracaoEmpresaAssinadaDoc !== undefined) {
+      updateData.procuracao_empresa_assinada_doc = body.procuracaoEmpresaAssinadaDoc?.trim() || null;
+    }
+    if (body.procuracaoImigranteAssinada !== undefined) {
+      updateData.procuracao_imigrante_assinada = body.procuracaoImigranteAssinada?.trim() || null;
+    }
+    if (body.procuracaoImigranteAssinadaDoc !== undefined) {
+      updateData.procuracao_imigrante_assinada_doc = body.procuracaoImigranteAssinadaDoc?.trim() || null;
+    }
     if (body.comprovanteAtividade !== undefined) {
       updateData.comprovante_atividade = body.comprovanteAtividade?.trim() || null;
     }
@@ -644,11 +724,8 @@ export async function PUT(request: NextRequest) {
     if (body.certidaoNascimentoDoc !== undefined) {
       updateData.certidao_nascimento_doc = body.certidaoNascimentoDoc?.trim() || null;
     }
-    if (body.declaracaoCompreensao !== undefined) {
-      updateData.declaracao_compreensao = body.declaracaoCompreensao?.trim() || null;
-    }
-    if (body.declaracaoCompreensaoDoc !== undefined) {
-      updateData.declaracao_compreensao_doc = body.declaracaoCompreensaoDoc?.trim() || null;
+    if (body.certidaoNascimentoDoc !== undefined) {
+      updateData.certidao_nascimento_doc = body.certidaoNascimentoDoc?.trim() || null;
     }
     if (body.declaracoesEmpresa !== undefined) {
       updateData.declaracoes_empresa = body.declaracoesEmpresa?.trim() || null;
@@ -809,7 +886,7 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('PUT error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
     }, { status: 500 });
   }
@@ -823,9 +900,9 @@ export async function DELETE(request: NextRequest) {
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
@@ -838,9 +915,9 @@ export async function DELETE(request: NextRequest) {
 
     if (existError) {
       if (existError.code === 'PGRST116') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Record not found',
-          code: 'NOT_FOUND' 
+          code: 'NOT_FOUND'
         }, { status: 404 });
       }
       throw existError;
@@ -855,14 +932,14 @@ export async function DELETE(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Record deleted successfully',
       record: existing
     }, { status: 200 });
 
   } catch (error) {
     console.error('DELETE error:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error')
     }, { status: 500 });
   }

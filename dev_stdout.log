@@ -1,0 +1,198 @@
+
+> app@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.3.6
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.15.9:3001
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 11.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 31.4s (756 modules)
+ GET / 200 in 34403ms
+ ○ Compiling /api/auth/login ...
+ ✓ Compiled /api/auth/login in 5.2s (857 modules)
+ GET / 200 in 1533ms
+ POST /api/auth/login 200 in 8211ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 9.1s (1290 modules)
+ GET /dashboard 200 in 11423ms
+ ✓ Compiled in 2.8s (536 modules)
+ GET /dashboard 200 in 630ms
+ GET /dashboard 200 in 211ms
+ ○ Compiling /api/acoes-trabalhistas ...
+ ✓ Compiled /api/perda-nacionalidade in 3.9s (1289 modules)
+ GET /api/acoes-trabalhistas?limit=1000 200 in 5650ms
+ GET /api/compra-venda-imoveis?limit=1000 200 in 5675ms
+ GET /api/acoes-criminais?limit=1000 200 in 5684ms
+ GET /api/perda-nacionalidade?limit=1000 200 in 4822ms
+ GET /api/acoes-civeis?limit=1000 200 in 5719ms
+ GET /api/alerts?isRead=false&limit=20 200 in 5746ms
+ ○ Compiling /api/vistos ...
+ ✓ Compiled /api/vistos in 2.4s (1291 modules)
+ GET /api/acoes-trabalhistas?limit=1000 200 in 3197ms
+ GET /api/compra-venda-imoveis?limit=1000 200 in 3187ms
+ GET /api/acoes-criminais?limit=1000 200 in 3186ms
+ GET /api/perda-nacionalidade?limit=1000 200 in 3196ms
+ GET /api/alerts?isRead=false&limit=10 200 in 3310ms
+ GET /api/vistos?limit=1000 200 in 3326ms
+ GET /api/alerts?isRead=false&limit=20 200 in 382ms
+ GET /api/acoes-civeis?limit=1000 200 in 539ms
+ GET /api/alerts?isRead=false&limit=10 200 in 473ms
+ ○ Compiling /api/processos/count ...
+ ✓ Compiled /api/processos/count in 2.4s (1293 modules)
+ GET /api/vistos?limit=1000 200 in 3002ms
+ GET /api/processos/count 200 in 3469ms
+ GET /api/alerts?isRead=false&limit=20 200 in 3042ms
+ GET /api/processos/count 200 in 474ms
+ ○ Compiling /api/recent-activities ...
+ ✓ Compiled /api/recent-activities in 2.3s (1295 modules)
+ GET /api/alerts?isRead=false&limit=20 200 in 3029ms
+ GET /api/recent-activities?limit=10 200 in 3441ms
+ GET /api/recent-activities?limit=10 200 in 871ms
+ GET /api/alerts?isRead=false&limit=20 200 in 363ms
+ GET /api/alerts?isRead=false&limit=20 200 in 259ms
+ GET /api/processos/count 200 in 558ms
+ GET /api/processos/count 200 in 689ms
+ GET /api/alerts?isRead=false&limit=20 200 in 823ms
+ GET /api/alerts?isRead=false&limit=20 200 in 388ms
+   ▲ Next.js 15.3.6
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.15.9:3001
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 46.5s
+ ○ Compiling /api/processos/count ...
+ ✓ Compiled /api/processos/count in 12.1s (450 modules)
+ GET /api/processos/count 200 in 13571ms
+ GET /api/alerts?isRead=false&limit=20 200 in 13710ms
+ GET /api/alerts?isRead=false&limit=20 200 in 439ms
+ GET /api/processos/count 200 in 500ms
+ GET /api/alerts?isRead=false&limit=20 200 in 348ms
+ GET /api/alerts?isRead=false&limit=20 200 in 273ms
+ GET /api/alerts?isRead=false&limit=20 200 in 365ms
+ GET /api/alerts?isRead=false&limit=20 200 in 267ms
+ GET /api/alerts?isRead=false&limit=20 200 in 447ms
+ GET /api/processos/count 200 in 456ms
+ GET /api/alerts?isRead=false&limit=20 200 in 264ms
+ GET /api/processos/count 200 in 855ms
+ GET /api/alerts?isRead=false&limit=20 200 in 343ms
+ GET /api/alerts?isRead=false&limit=20 200 in 265ms
+ GET /api/processos/count 200 in 644ms
+ GET /api/alerts?isRead=false&limit=20 200 in 583ms
+ GET /api/alerts?isRead=false&limit=20 200 in 360ms
+ GET /api/alerts?isRead=false&limit=20 200 in 989ms
+ GET /api/processos/count 200 in 996ms
+ GET /api/alerts?isRead=false&limit=20 200 in 337ms
+ GET /api/alerts?isRead=false&limit=20 200 in 654ms
+ GET /api/processos/count 200 in 676ms
+ GET /api/alerts?isRead=false&limit=20 200 in 311ms
+ GET /api/processos/count 200 in 720ms
+ GET /api/alerts?isRead=false&limit=20 200 in 961ms
+ GET /api/alerts?isRead=false&limit=20 200 in 468ms
+ GET /api/alerts?isRead=false&limit=20 200 in 466ms
+ GET /api/processos/count 200 in 560ms
+ GET /api/alerts?isRead=false&limit=20 200 in 320ms
+ GET /api/alerts?isRead=false&limit=20 200 in 925ms
+ GET /api/processos/count 200 in 968ms
+ GET /api/alerts?isRead=false&limit=20 200 in 308ms
+ GET /api/alerts?isRead=false&limit=20 200 in 631ms
+ GET /api/processos/count 200 in 712ms
+ GET /api/alerts?isRead=false&limit=20 200 in 326ms
+ GET /api/alerts?isRead=false&limit=20 200 in 562ms
+ GET /api/processos/count 200 in 649ms
+ GET /api/alerts?isRead=false&limit=20 200 in 297ms
+ GET /api/alerts?isRead=false&limit=20 200 in 877ms
+ GET /api/alerts?isRead=false&limit=20 200 in 292ms
+ GET /api/processos/count 200 in 1655ms
+ GET /api/alerts?isRead=false&limit=20 200 in 740ms
+ GET /api/alerts?isRead=false&limit=20 200 in 236ms
+ GET /api/processos/count 200 in 1004ms
+ GET /api/alerts?isRead=false&limit=20 200 in 536ms
+ GET /api/alerts?isRead=false&limit=20 200 in 246ms
+ GET /api/processos/count 200 in 855ms
+ GET /api/alerts?isRead=false&limit=20 200 in 633ms
+ GET /api/alerts?isRead=false&limit=20 200 in 304ms
+ GET /api/processos/count 200 in 1323ms
+ GET /api/processos/count 200 in 751ms
+ GET /api/alerts?isRead=false&limit=20 200 in 854ms
+ GET /api/alerts?isRead=false&limit=20 200 in 218ms
+ GET /api/alerts?isRead=false&limit=20 200 in 865ms
+ GET /api/processos/count 200 in 1047ms
+ GET /api/alerts?isRead=false&limit=20 200 in 273ms
+ GET /api/alerts?isRead=false&limit=20 200 in 702ms
+ GET /api/processos/count 200 in 826ms
+ GET /api/alerts?isRead=false&limit=20 200 in 312ms
+ GET /api/processos/count 200 in 1130ms
+ GET /api/alerts?isRead=false&limit=20 200 in 1154ms
+ GET /api/alerts?isRead=false&limit=20 200 in 265ms
+ GET /api/alerts?isRead=false&limit=20 200 in 798ms
+ GET /api/processos/count 200 in 802ms
+ GET /api/alerts?isRead=false&limit=20 200 in 309ms
+ GET /api/alerts?isRead=false&limit=20 200 in 539ms
+ GET /api/alerts?isRead=false&limit=20 200 in 298ms
+ GET /api/processos/count 200 in 898ms
+ GET /api/alerts?isRead=false&limit=20 200 in 761ms
+ GET /api/processos/count 200 in 775ms
+ GET /api/alerts?isRead=false&limit=20 200 in 223ms
+ GET /api/processos/count 200 in 433ms
+ GET /api/alerts?isRead=false&limit=20 200 in 465ms
+ GET /api/alerts?isRead=false&limit=20 200 in 292ms
+ GET /api/alerts?isRead=false&limit=20 200 in 834ms
+ GET /api/processos/count 200 in 1037ms
+ GET /api/alerts?isRead=false&limit=20 200 in 208ms
+ GET /api/alerts?isRead=false&limit=20 200 in 576ms
+ GET /api/processos/count 200 in 829ms
+ GET /api/alerts?isRead=false&limit=20 200 in 430ms
+ GET /api/alerts?isRead=false&limit=20 200 in 496ms
+ GET /api/processos/count 200 in 629ms
+ GET /api/alerts?isRead=false&limit=20 200 in 277ms
+ GET /api/alerts?isRead=false&limit=20 200 in 391ms
+ GET /api/processos/count 200 in 542ms
+ GET /api/alerts?isRead=false&limit=20 200 in 189ms
+ GET /api/processos/count 200 in 555ms
+ GET /api/alerts?isRead=false&limit=20 200 in 660ms
+ GET /api/alerts?isRead=false&limit=20 200 in 245ms
+ GET /api/alerts?isRead=false&limit=20 200 in 675ms
+ GET /api/processos/count 200 in 781ms
+ GET /api/alerts?isRead=false&limit=20 200 in 290ms
+ GET /api/alerts?isRead=false&limit=20 200 in 445ms
+ GET /api/processos/count 200 in 624ms
+ GET /api/alerts?isRead=false&limit=20 200 in 219ms
+ GET /api/alerts?isRead=false&limit=20 200 in 497ms
+ GET /api/alerts?isRead=false&limit=20 200 in 533ms
+ GET /api/processos/count 200 in 1039ms
+ GET /api/alerts?isRead=false&limit=20 200 in 504ms
+ GET /api/processos/count 200 in 591ms
+ GET /api/alerts?isRead=false&limit=20 200 in 331ms
+ GET /api/alerts?isRead=false&limit=20 200 in 630ms
+ GET /api/processos/count 200 in 714ms
+ GET /api/alerts?isRead=false&limit=20 200 in 303ms
+ GET /api/alerts?isRead=false&limit=20 200 in 750ms
+ GET /api/processos/count 200 in 754ms
+ GET /api/alerts?isRead=false&limit=20 200 in 276ms
+ GET /api/alerts?isRead=false&limit=20 200 in 548ms
+ GET /api/processos/count 200 in 690ms
+ GET /api/alerts?isRead=false&limit=20 200 in 272ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /api/acoes-civeis in 18.4s (783 modules)
+ GET /api/alerts?isRead=false&limit=20 404 in 19860ms
+ GET /api/processos/count 404 in 19861ms
+ GET /api/alerts?isRead=false&limit=20 200 in 1186ms
+ GET /api/processos/count 200 in 1282ms
+ GET /api/alerts?isRead=false&limit=20 200 in 252ms
+ GET /api/processos/count 200 in 354ms
+ GET /api/alerts?isRead=false&limit=20 200 in 257ms
+ GET /api/processos/count 200 in 405ms
+ GET /api/processos/count 200 in 472ms
+ ○ Compiling /api/acoes-criminais ...
+ ✓ Compiled /dashboard/turismo in 15s (3201 modules)
+ GET /api/perda-nacionalidade?limit=100 500 in 4711ms
+ ○ Compiling /_error ...
+ GET /dashboard/turismo 200 in 16770ms
+ GET /dashboard/turismo 200 in 857ms
+ GET /api/vistos?limit=100 500 in 6747ms
+ GET /api/turismo?limit=100 500 in 8527ms

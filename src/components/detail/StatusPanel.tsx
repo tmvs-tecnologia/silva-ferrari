@@ -10,11 +10,12 @@ interface StatusPanelProps {
   currentStep: number;
   totalSteps: number;
   currentStepTitle?: string;
+  workflowTitle?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, currentStepTitle, createdAt, updatedAt }: StatusPanelProps) {
+export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, currentStepTitle, workflowTitle, createdAt, updatedAt }: StatusPanelProps) {
   const s = (status || '').toLowerCase();
   const displayStatus = s.includes('andamento') ? 'Em andamento' : 'Finalizado';
   const isInProgress = displayStatus === 'Em andamento';
@@ -38,8 +39,14 @@ export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, c
           {displayStatus}
         </span>
         <div className="pt-2 border-t">
+          <p className="text-xs text-muted-foreground uppercase">Fluxo</p>
+          <p className="text-sm font-medium">{workflowTitle || "—"}</p>
+        </div>
+        <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground uppercase">Etapa atual</p>
-          <p className="text-sm font-medium">{currentStepTitle || `Etapa ${currentStep}`}</p>
+          <span className="text-sm font-medium" data-testid="current-step-label">
+            {currentStepTitle || `Etapa ${currentStep}`}
+          </span>
         </div>
         {createdAt && (
           <div className="pt-2 border-t">

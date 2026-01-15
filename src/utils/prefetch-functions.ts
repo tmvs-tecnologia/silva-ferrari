@@ -75,6 +75,11 @@ export const prefetchVistos = async () => {
   return await safeJson(res, []);
 };
 
+export const prefetchTurismo = async () => {
+  const res = await fetchWithRetry("/api/turismo?limit=100");
+  return await safeJson(res, []);
+};
+
 export const prefetchDashboard = async () => {
   try {
     const [statsRes, notificationsRes, activitiesRes] = await Promise.all([
@@ -120,5 +125,10 @@ export const prefetchPerdaNacionalidadeById = async (id: string) => {
 
 export const prefetchVistoById = async (id: string) => {
   const res = await fetchWithRetry(`/api/vistos/${id}`);
+  return await safeJson(res, null);
+};
+
+export const prefetchTurismoById = async (id: string) => {
+  const res = await fetchWithRetry(`/api/turismo?id=${id}`);
   return await safeJson(res, null);
 };

@@ -15,22 +15,44 @@ export async function GET(_request: NextRequest) {
       'acoes_criminais',
       'compra_venda_imoveis',
       'perda_nacionalidade',
-      'vistos',
     ];
 
-    const counts = await Promise.all(
-      tables.map(async (table) => {
-        const { count, error } = await supabase
-          .from(table)
-          .select('*', { count: 'exact', head: true });
+    const standardCountsPromises = tables.map(async (table) => {
+      const { count, error } = await supabase
+        .from(table)
+        .select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return [table, count ?? 0] as const;
+    });
+
+    // Count Vistos (excluding Turismo records which are now in their own table)
+    const vistosCountPromise = supabase
+      .from('vistos')
+      .select('*', { count: 'exact', head: true })
+      .then(({ count, error }) => {
         if (error) throw error;
-        return count ?? 0;
-      })
-    );
+        return ['vistos', count ?? 0] as const;
+      });
 
-    const total = counts.reduce((sum, c) => sum + c, 0);
+    // Count Turismo (from turismo table)
+    const turismoCountPromise = supabase
+      .from('turismo')
+      .select('*', { count: 'exact', head: true })
+      .then(({ count, error }) => {
+        if (error) throw error;
+        return ['turismo', count ?? 0] as const;
+      });
 
-    return NextResponse.json({ total, byTable: Object.fromEntries(tables.map((t, i) => [t, counts[i]])) }, {
+    const results = await Promise.all([
+      ...standardCountsPromises, 
+      vistosCountPromise, 
+      turismoCountPromise
+    ]);
+    
+    const byTable = Object.fromEntries(results);
+    const total = Object.values(byTable).reduce((sum: number, c: any) => sum + (c as number), 0);
+
+    return NextResponse.json({ total, byTable }, {
       status: 200,
       headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });

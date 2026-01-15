@@ -43,6 +43,7 @@ import {
   prefetchCompraVenda,
   prefetchPerdaNacionalidade,
   prefetchVistos,
+  prefetchTurismo,
   prefetchDashboard
 } from "@/utils/prefetch-functions";
 
@@ -62,6 +63,7 @@ const PREFETCH_FUNCTIONS = {
   "/dashboard/compra-venda": prefetchCompraVenda,
   "/dashboard/perda-nacionalidade": prefetchPerdaNacionalidade,
   "/dashboard/vistos": prefetchVistos,
+  "/dashboard/turismo": prefetchTurismo,
 };
 
 function Sidebar({
@@ -168,13 +170,14 @@ export default function DashboardLayout({
     const fetchAll = async () => {
       try {
         const enc = encodeURIComponent(q);
-        const [civeis, trab, crim, comp, perda, vistos] = await Promise.all([
+        const [civeis, trab, crim, comp, perda, vistos, turismo] = await Promise.all([
           fetch(`/api/acoes-civeis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
           fetch(`/api/acoes-trabalhistas?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
           fetch(`/api/acoes-criminais?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
           fetch(`/api/compra-venda-imoveis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
           fetch(`/api/perda-nacionalidade?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
           fetch(`/api/vistos?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
+          fetch(`/api/turismo?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
         ]);
         if (!active) return;
         const toItem = (it: any, mod: string) => {
@@ -200,6 +203,9 @@ export default function DashboardLayout({
             case "Vistos":
               href = `/dashboard/vistos/${it.id}`;
               break;
+            case "Turismo":
+              href = `/dashboard/turismo/${it.id}`;
+              break;
             default:
               href = `/dashboard`;
           }
@@ -211,7 +217,8 @@ export default function DashboardLayout({
           .concat((Array.isArray(crim) ? crim : []).map((it: any) => toItem(it, "Ações Criminais")))
           .concat((Array.isArray(comp) ? comp : []).map((it: any) => toItem(it, "Compra e Venda")))
           .concat((Array.isArray(perda) ? perda : []).map((it: any) => toItem(it, "Perda de Nacionalidade")))
-          .concat((Array.isArray(vistos) ? vistos : []).map((it: any) => toItem(it, "Vistos")));
+          .concat((Array.isArray(vistos) ? vistos : []).map((it: any) => toItem(it, "Vistos")))
+          .concat((Array.isArray(turismo) ? turismo : []).map((it: any) => toItem(it, "Turismo")));
         setSearchResults(all);
       } finally {
         if (active) setSearching(false);
@@ -281,6 +288,12 @@ export default function DashboardLayout({
       href: "/dashboard/vistos",
       icon: "https://cdn-icons-png.flaticon.com/512/7082/7082001.png",
       description: "Processos de vistos",
+    },
+    {
+      title: "Turismo",
+      href: "/dashboard/turismo",
+      icon: "https://cdn-icons-png.flaticon.com/512/2200/2200326.png",
+      description: "Vistos de Turismo",
     },
   ];
 

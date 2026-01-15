@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Globe, Eye, Plane, Briefcase, Building2, Clock, CheckCircle2, AlertCircle, FileText, CreditCard, User, Calendar, Trash2, Circle, ChevronRight, Folder, LayoutGrid } from "lucide-react";
+import { Plus, Search, Plane, Clock, CheckCircle2, Eye, Trash2, Calendar, User, Circle, LayoutGrid, Folder } from "lucide-react";
 import Link from "next/link";
-import { Skeleton } from "@/components/ui/skeleton";
 import { LoadingState } from "@/components/loading-state";
 import { useDataCache } from "@/hooks/useDataCache";
-import { usePrefetch } from "@/hooks/usePrefetch";
 import { OptimizedLink } from "@/components/optimized-link";
 import { prefetchVistoById } from "@/utils/prefetch-functions";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -54,15 +52,25 @@ interface Visto {
   travelEndDate?: string;
 }
 
-export default function VistosPage() {
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+export default function TurismoPage() {
   const normalizeStatus = (status: string) => (status || "").toLowerCase();
-  const { data: vistosData, isLoading, error, refetch } = useDataCache(
-    "vistos",
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
+  // Use api/turismo instead of api/vistos
+  const { data: vistosData, isLoading, refetch } = useDataCache(
+    `turismo_page_${currentPage}`,
     async () => {
-      const response = await fetch("/api/vistos?limit=100");
+      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+      const response = await fetch(`/api/turismo?limit=${ITEMS_PER_PAGE}&offset=${offset}`);
       return response.json();
-    }
+    },
+    [currentPage]
   );
+
   const vistos = Array.isArray(vistosData) ? vistosData : [];
   const vistosIdsKey = useMemo(() => {
     try {
@@ -72,26 +80,28 @@ export default function VistosPage() {
       return "";
     }
   }, [vistos]);
+
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [statusFinalOverrides, setStatusFinalOverrides] = useState<Record<string, { statusFinal: string; statusFinalOutro: string | null }>>({});
   const [datePopoverFor, setDatePopoverFor] = useState<string | null>(null);
   const [dateRangeEdit, setDateRangeEdit] = useState<{ from?: Date; to?: Date }>({});
   const [viewMode, setViewMode] = useState<'cards' | 'folders'>('cards');
   const [dateEditField, setDateEditField] = useState<'from' | 'to'>('from');
+
   const formatISO = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   };
+
   const saveTravelDates = async (id: string, from?: Date, to?: Date) => {
     const payload: any = {};
     if (from) payload.travelStartDate = formatISO(from);
     if (to) payload.travelEndDate = formatISO(to);
     try {
-      const res = await fetch(`/api/vistos?id=${id}`, {
+      const res = await fetch(`/api/turismo?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -103,29 +113,29 @@ export default function VistosPage() {
       }
     } catch {}
   };
-  useEffect(() => {
-    // Prefetch disponível para navegação futura
-  }, []);
 
   const filteredVistos = vistos.filter((v) => {
     const s = (search || "").toLowerCase();
     const fields = [
       v.clientName,
-      v.type,
       v.country,
       v.cpf,
       v.rnm,
       v.passaporte,
     ];
     const matchesSearch = !s || fields.some((f) => String(f || "").toLowerCase().includes(s));
-    const matchesType = typeFilter === "all" || v.type === typeFilter;
+    // No type filter needed as API returns only Turismo
     const matchesStatus = statusFilter === "all" || normalizeStatus(v.status) === statusFilter.toLowerCase();
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const { data: foldersData } = useDataCache(
-    "folders_vistos",
+    "folders_turismo",
     async () => {
+      // Reuse existing folders API but filter by moduleType if possible, 
+      // or we just use 'vistos' type since underlying data is the same.
+      // Ideally we would want separate folders for Turismo, but if we reuse 'vistos' type in DB, 
+      // we might see all folders. For now let's reuse 'vistos' type query.
       const res = await fetch("/api/folders?moduleType=vistos");
       return res.json();
     }
@@ -161,9 +171,8 @@ export default function VistosPage() {
                 currentIdx = Math.max(...arr.map((a: any) => (a.stepIndex ?? 0)));
               }
             }
-            // Buscar currentStep real do registro para sincronizar com o fluxo
             try {
-              const caseRes = await fetch(`/api/vistos?id=${id}`);
+              const caseRes = await fetch(`/api/turismo?id=${id}`);
               if (caseRes.ok) {
                 const caseJson = await caseRes.json();
                 const serverCurrent = Number(caseJson.currentStep ?? caseJson.current_step ?? currentIdx ?? 0);
@@ -182,18 +191,18 @@ export default function VistosPage() {
         if (value) map[id] = value;
       }
       setVistosAssignments((prev) => {
+        // Simple comparison to avoid loops
         const prevKeys = Object.keys(prev).sort().join(",");
         const nextKeys = Object.keys(map).sort().join(",");
         if (prevKeys === nextKeys) {
-          let changed = false;
-          for (const k of Object.keys(map)) {
-            const a = prev[k];
-            const b = map[k];
-            if (!a || !b || a.responsibleName !== b.responsibleName || a.dueDate !== b.dueDate || a.currentIndex !== b.currentIndex) {
-              changed = true; break;
+            // Deep check values if keys match
+            let changed = false;
+            for(const k of Object.keys(map)) {
+                if(JSON.stringify(prev[k]) !== JSON.stringify(map[k])) {
+                    changed = true; break;
+                }
             }
-          }
-          if (!changed) return prev;
+            if(!changed) return prev;
         }
         return map;
       });
@@ -212,14 +221,6 @@ export default function VistosPage() {
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    const t = (type || "").toLowerCase();
-    if (t.includes("turismo")) return <Plane className="h-6 w-6 text-white" />;
-    if (t.includes("trabalho")) return <Briefcase className="h-6 w-6 text-white" />;
-    if (t.includes("investidor")) return <Building2 className="h-6 w-6 text-white" />;
-    return <Globe className="h-6 w-6 text-white" />;
-  };
-
   const getStatusIcon = (status: string) => {
     switch (normalizeStatus(status)) {
       case "em andamento":
@@ -231,71 +232,24 @@ export default function VistosPage() {
     }
   };
 
-  const getVistoSteps = (type: string) => {
-    const t = (type || "").toLowerCase();
-    const WORKFLOWS_LIST = {
-      "Visto de Trabalho": [
-        "Cadastro de Documentos",
-        "Agendar no Consulado",
-        "Preencher Formulário",
-        "Preparar Documentação",
-        "Aguardar Aprovação",
-        "Processo Finalizado",
-      ],
-      "Visto de Turismo": [
-        "Cadastro de Documentos",
-        "Agendar no Consulado",
-        "Preencher Formulário",
-        "Preparar Documentação",
-        "Aguardar Aprovação",
-        "Processo Finalizado",
-      ],
-      "Visto de Estudante": [
-        "Cadastro de Documentos",
-        "Agendar no Consulado",
-        "Preencher Formulário",
-        "Preparar Documentação",
-        "Aguardar Aprovação",
-        "Processo Finalizado",
-      ],
-      "Visto de Reunião Familiar": [
-        "Cadastro de Documentos",
-        "Agendar no Consulado",
-        "Preencher Formulário",
-        "Preparar Documentação",
-        "Aguardar Aprovação",
-        "Processo Finalizado",
-      ],
-    } as const;
+  const WORKFLOW_STEPS = [
+    "Cadastro de Documentos",
+    "Agendar no Consulado",
+    "Preencher Formulário",
+    "Preparar Documentação",
+    "Aguardar Aprovação",
+    "Processo Finalizado",
+  ];
 
-    if (t.includes("turismo")) return WORKFLOWS_LIST["Visto de Turismo"];
-    if (t.includes("estudante")) return WORKFLOWS_LIST["Visto de Estudante"];
-    if (t.includes("reunião") || t.includes("reuniao")) return WORKFLOWS_LIST["Visto de Reunião Familiar"];
-    if (t.includes("trabalho") && t.includes("brasil")) return [
-        "Cadastro de Documentos",
-        "Documentos para Protocolo",
-        "Protocolo",
-        "Exigências",
-        "Processo Finalizado"
-    ];
-    return WORKFLOWS_LIST["Visto de Trabalho"];
+  const getStepTitle = (index: number) => {
+    const clampedIndex = Math.min(Math.max(index || 0, 0), WORKFLOW_STEPS.length - 1);
+    return WORKFLOW_STEPS[clampedIndex];
   };
 
-  const getVistoStepTitle = (type: string, index: number, country?: string) => {
-    const steps = getVistoSteps((type || "") + (country ? ` - ${country}` : ""));
-    const clampedIndex = Math.min(Math.max(index || 0, 0), steps.length - 1);
-    return steps[clampedIndex];
-  };
+  const getFinalStatusOrder = () => ["Aprovado", "Negado", "Aguardando"];
 
-  const getFinalStatusOrder = (type: string) => {
-    const t = (type || "").toLowerCase();
-    if (t.includes("turismo")) return ["Aprovado", "Negado", "Aguardando"];
-    if (t.includes("trabalho") && t.includes("brasil")) return ["Deferido", "Indeferido", "Aguardando", "Outro"];
-    return ["Deferido", "Indeferido", "Outro"];
-  };
-
-  const cycleStatusFinal = (current: string | undefined, type: string) => {
-    const order = getFinalStatusOrder(type);
+  const cycleStatusFinal = (current: string | undefined) => {
+    const order = getFinalStatusOrder();
     const idx = order.indexOf(String(current || ""));
     const nextIdx = ((idx < 0 ? -1 : idx) + 1) % order.length;
     return order[nextIdx];
@@ -312,24 +266,22 @@ export default function VistosPage() {
   const handleStatusFinalToggle = async (v: Visto) => {
     const id = String(v.id);
     const current = String(statusFinalOverrides[id]?.statusFinal ?? v.statusFinal ?? "");
-    const next = cycleStatusFinal(current, v.type);
-    const optimistic: { statusFinal: string; statusFinalOutro: string | null } = {
+    const next = cycleStatusFinal(current);
+    const optimistic = {
       statusFinal: next,
-      statusFinalOutro: next === "Outro" ? (statusFinalOverrides[id]?.statusFinalOutro ?? v.statusFinalOutro ?? "Outro") : null,
+      statusFinalOutro: null,
     };
-    setStatusFinalOverrides((prev) => ({ ...prev, [id]: optimistic }));
+    setStatusFinalOverrides((prev) => ({ ...prev, [id]: optimistic as any }));
 
     const payload: any = { statusFinal: optimistic.statusFinal, statusFinalOutro: optimistic.statusFinalOutro };
     try {
-      await fetch(`/api/vistos?id=${v.id}`, {
+      await fetch(`/api/turismo?id=${v.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      // Mantém o estado otimista sem fazer refetch para evitar reset visual
     } catch (e) {
       console.error('Erro ao alternar status final:', e);
-      // Em caso de erro, reverte para o valor anterior
       setStatusFinalOverrides((prev) => ({
         ...prev,
         [id]: { statusFinal: current || "", statusFinalOutro: v.statusFinalOutro ?? null }
@@ -339,7 +291,7 @@ export default function VistosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/vistos?id=${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/turismo?id=${id}`, { method: 'DELETE' });
       if (response.ok) {
         refetch();
       } else {
@@ -357,18 +309,18 @@ export default function VistosPage() {
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-lg flex items-center justify-center overflow-hidden">
-                <img src="https://cdn-icons-png.flaticon.com/512/7082/7082001.png" alt="Vistos" className="h-full w-full object-contain" />
+              <div className="h-12 w-12 rounded-lg flex items-center justify-center overflow-hidden bg-amber-500/20">
+                <Plane className="h-8 w-8 text-amber-500" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white">Vistos</h1>
+                <h1 className="text-3xl font-bold text-white">Vistos de Turismo</h1>
                 <p className="text-slate-300 mt-1">
-                  Gerencie processos de vistos internacionais
+                  Gerencie processos de vistos de turismo
                 </p>
               </div>
             </div>
           </div>
-          <Link href="/dashboard/vistos/novo" className="w-full md:w-auto">
+          <Link href="/dashboard/turismo/novo" className="w-full md:w-auto">
             <Button size="lg" className="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
               <Plus className="h-5 w-5 mr-2" />
               Nova Ação
@@ -385,7 +337,7 @@ export default function VistosPage() {
                 <p className="text-3xl font-bold text-white mt-1">{stats.total}</p>
               </div>
               <div className="p-3 bg-slate-700 rounded-lg">
-                <CreditCard className="h-6 w-6 text-slate-300" />
+                <Plane className="h-6 w-6 text-slate-300" />
               </div>
             </div>
           </div>
@@ -401,8 +353,6 @@ export default function VistosPage() {
               </div>
             </div>
           </div>
-
-          
 
           <div className="bg-emerald-900 rounded-lg p-4 border border-emerald-700 h-full min-h-[140px]">
             <div className="flex items-center justify-between">
@@ -428,29 +378,16 @@ export default function VistosPage() {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="grid gap-4 md:grid-cols-4">
-            <div className="relative">
+            <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Buscar por cliente..."
+                placeholder="Buscar por cliente, país, cpf..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
-                <SelectValue placeholder="Tipo de visto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os tipos</SelectItem>
-                <SelectItem value="Trabalho:Brasil">Trabalho - Brasil</SelectItem>
-                <SelectItem value="Trabalho:Residência Prévia">Trabalho - Residência Prévia</SelectItem>
-                <SelectItem value="Trabalho:Renovação 1 ano">Trabalho - Renovação 1 ano</SelectItem>
-                <SelectItem value="Trabalho:Indeterminado">Trabalho - Indeterminado</SelectItem>
-                <SelectItem value="Trabalho:Mudança de Empregador">Trabalho - Mudança de Empregador</SelectItem>
-                <SelectItem value="Investidor">Investidor</SelectItem>
-              </SelectContent>
-            </Select>
+            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
                 <SelectValue placeholder="Status" />
@@ -503,7 +440,7 @@ export default function VistosPage() {
                     );
                   }
                   return list.map((f: any) => (
-                    <Link key={f.id} href={`/dashboard/vistos/pastas/${f.id}`}>
+                    <Link key={f.id} href={`/dashboard/turismo/pastas/${f.id}`}>
                       <Card className="hover:shadow-md transition-all cursor-pointer">
                         <CardContent className="p-3">
                           <div className="flex items-center gap-3 min-w-0">
@@ -524,20 +461,20 @@ export default function VistosPage() {
           <Card className="border-slate-200 dark:border-slate-700 shadow-md">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
-                <Globe className="h-12 w-12 text-slate-400" />
+                <Plane className="h-12 w-12 text-slate-400" />
               </div>
               <p className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Nenhum visto encontrado
+                Nenhum processo de turismo encontrado
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 mt-2">
-                {search || typeFilter !== "all" || statusFilter !== "all"
+                {search || statusFilter !== "all"
                   ? "Tente ajustar os filtros de busca"
-                  : "Comece criando um novo processo de visto"}
+                  : "Comece criando um novo processo de visto de turismo"}
               </p>
-              <Link href="/dashboard/vistos/novo">
+              <Link href="/dashboard/turismo/novo">
                 <Button className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold">
                   <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Visto
+                  Criar Primeiro Processo
                 </Button>
               </Link>
             </CardContent>
@@ -551,7 +488,7 @@ export default function VistosPage() {
               <CardContent className="pt-6">
                 <div className="absolute top-2 right-2 flex items-center gap-2">
                   <OptimizedLink 
-                    href={`/dashboard/vistos/${visto.id}`}
+                    href={`/dashboard/turismo/${visto.id}`}
                     prefetchData={() => prefetchVistoById(visto.id)}
                   >
                     <Button 
@@ -575,7 +512,7 @@ export default function VistosPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Tem certeza que deseja excluir o visto de {visto.clientName}? Esta ação não pode ser desfeita.
+                          Tem certeza que deseja excluir o processo de {visto.clientName}? Esta ação não pode ser desfeita.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -589,7 +526,7 @@ export default function VistosPage() {
                   <div className="flex items-start gap-4 flex-1">
                     {/* Ícone do processo */}
                     <div className="p-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-md flex-shrink-0">
-                      {getTypeIcon(visto.type)}
+                      <Plane className="h-6 w-6 text-white" />
                     </div>
 
                     {/* Informações do processo */}
@@ -606,95 +543,88 @@ export default function VistosPage() {
 
                       <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                          <span className="font-medium">Tipo de Visto:</span>
-                          <span>{(visto.type || "").replace(/:/g, " - ")}</span>
-                        </div>
-                        {String(visto.type || "").toLowerCase().includes("turismo") && (
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                            <span className="font-medium">Destino:</span>
-                            <span>{String(visto.country || "—")}</span>
-                            {(() => {
-                              const fmt = (s?: string) => {
-                                if (!s) return "";
-                                const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                                if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-                                try { const d = new Date(s); return isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR"); } catch { return ""; }
-                              };
-                              const start = fmt(visto.travelStartDate);
-                              const end = fmt(visto.travelEndDate);
-                              const text = [start, end].filter(Boolean).join(" — ");
-                              return (
-                                <Popover
-                                  open={datePopoverFor === String(visto.id)}
-                                  onOpenChange={(o) => {
-                                    setDatePopoverFor(o ? String(visto.id) : null);
-                                    if (o) {
-                                      const parseIso = (val?: string) => {
-                                        if (!val) return undefined;
-                                        const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                                        return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(val);
-                                      };
-                                      setDateRangeEdit({ from: parseIso(visto.travelStartDate), to: parseIso(visto.travelEndDate) });
-                                      setDateEditField('from');
-                                    } else {
-                                      setDateRangeEdit({});
-                                    }
-                                  }}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      className="text-slate-500 hover:underline decoration-dotted"
-                                      onClick={() => setDatePopoverFor(String(visto.id))}
+                          <Plane className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                          <span className="font-medium">Destino:</span>
+                          <span>{String(visto.country || "—")}</span>
+                          {(() => {
+                            const fmt = (s?: string) => {
+                              if (!s) return "";
+                              const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                              if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+                              try { const d = new Date(s); return isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR"); } catch { return ""; }
+                            };
+                            const start = fmt(visto.travelStartDate);
+                            const end = fmt(visto.travelEndDate);
+                            const text = [start, end].filter(Boolean).join(" — ");
+                            return (
+                              <Popover
+                                open={datePopoverFor === String(visto.id)}
+                                onOpenChange={(o) => {
+                                  setDatePopoverFor(o ? String(visto.id) : null);
+                                  if (o) {
+                                    const parseIso = (val?: string) => {
+                                      if (!val) return undefined;
+                                      const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                      return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(val);
+                                    };
+                                    setDateRangeEdit({ from: parseIso(visto.travelStartDate), to: parseIso(visto.travelEndDate) });
+                                    setDateEditField('from');
+                                  } else {
+                                    setDateRangeEdit({});
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    className="text-slate-500 hover:underline decoration-dotted"
+                                    onClick={() => setDatePopoverFor(String(visto.id))}
+                                  >
+                                    • {text || "Definir datas"}
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[360px] p-3" align="start">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Button
+                                      variant={dateEditField === 'from' ? 'default' : 'outline'}
+                                      size="sm"
+                                      onClick={() => setDateEditField('from')}
                                     >
-                                      • {text || "Definir datas"}
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[360px] p-3" align="start">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Button
-                                        variant={dateEditField === 'from' ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => setDateEditField('from')}
-                                      >
-                                        Ida
-                                      </Button>
-                                      <Button
-                                        variant={dateEditField === 'to' ? 'default' : 'outline'}
-                                        size="sm"
-                                        onClick={() => setDateEditField('to')}
-                                      >
-                                        Volta
-                                      </Button>
-                                    </div>
-                                    <DateRangeCalendar
-                                      mode="single"
-                                      selected={dateRangeEdit?.[dateEditField] as any}
-                                      onSelect={(d: Date | undefined) => {
-                                        const next = { ...dateRangeEdit, [dateEditField]: d };
-                                        setDateRangeEdit(next);
-                                        const f = next.from;
-                                        const t = next.to;
-                                        if (dateEditField === 'from' && d) setDateEditField('to');
-                                        if (f && t) {
-                                          saveTravelDates(String(visto.id), f, t);
-                                        }
-                                      }}
-                                      weekStartsOn={1}
-                                      captionLayout="dropdown"
-                                      locale={ptBR}
-                                      fromMonth={new Date(2000, 0, 1)}
-                                      toMonth={new Date(2100, 11, 31)}
-                                      numberOfMonths={1}
-                                      style={{ "--cell-size": "2.5rem" } as React.CSSProperties}
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              );
-                            })()}
-                          </div>
-                        )}
+                                      Ida
+                                    </Button>
+                                    <Button
+                                      variant={dateEditField === 'to' ? 'default' : 'outline'}
+                                      size="sm"
+                                      onClick={() => setDateEditField('to')}
+                                    >
+                                      Volta
+                                    </Button>
+                                  </div>
+                                  <DateRangeCalendar
+                                    mode="single"
+                                    selected={dateRangeEdit?.[dateEditField] as any}
+                                    onSelect={(d: Date | undefined) => {
+                                      const next = { ...dateRangeEdit, [dateEditField]: d };
+                                      setDateRangeEdit(next);
+                                      const f = next.from;
+                                      const t = next.to;
+                                      if (dateEditField === 'from' && d) setDateEditField('to');
+                                      if (f && t) {
+                                        saveTravelDates(String(visto.id), f, t);
+                                      }
+                                    }}
+                                    weekStartsOn={1}
+                                    captionLayout="dropdown"
+                                    locale={ptBR}
+                                    fromMonth={new Date(2000, 0, 1)}
+                                    toMonth={new Date(2100, 11, 31)}
+                                    numberOfMonths={1}
+                                    style={{ "--cell-size": "2.5rem" } as React.CSSProperties}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          })()}
+                        </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           <span className="font-medium">Data de criação:</span>
@@ -718,10 +648,8 @@ export default function VistosPage() {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           <span className="font-medium">Fluxo atual:</span>
-                          <span>{getVistoStepTitle(
-                            visto.type,
-                            (visto.currentStep ?? vistosAssignments[String(visto.id)]?.currentIndex ?? 0),
-                            visto.country
+                          <span>{getStepTitle(
+                            (visto.currentStep ?? vistosAssignments[String(visto.id)]?.currentIndex ?? 0)
                           )}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -741,19 +669,38 @@ export default function VistosPage() {
                           })()}</span>
                         </div>
                       </div>
-
-                      
-
-                      
                     </div>
                   </div>
-
-                  
                 </div>
               </CardContent>
             </Card>
           ))
         )}
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-end gap-2 mt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1 || isLoading}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Anterior
+        </Button>
+        <span className="text-sm font-medium">
+          Página {currentPage}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentPage((p) => p + 1)}
+          disabled={isLoading || vistos.length < ITEMS_PER_PAGE}
+        >
+          Próximo
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

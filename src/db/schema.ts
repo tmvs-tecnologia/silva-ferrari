@@ -215,6 +215,67 @@ export const vistos = pgTable('vistos', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Turismo table (New separate module)
+export const turismo = pgTable('turismo', {
+  id: serial('id').primaryKey(),
+  clientName: text('client_name').notNull(),
+  tipoDeVisto: text('tipo_de_visto').notNull(), // Replaces 'type'
+  dataEmissao: text('data_emissao'), // New field
+  dataValidade: text('data_validade'), // New field
+  status: text('status').notNull().default('Em Andamento'),
+  observacoes: text('observacoes'), // Replaces 'notes'
+  documentosAnexos: text('documentos_anexos', { mode: 'json' }), // New optional field
+  numeroProcesso: text('numero_processo'),
+  
+  // Legacy/Compatible fields from Vistos for migration and file uploads
+  country: text('country'),
+  travelStartDate: text('travel_start_date'),
+  travelEndDate: text('travel_end_date'),
+  currentStep: integer('current_step').default(0),
+  completedSteps: text('completed_steps', { mode: 'json' }),
+  cpf: text('cpf'),
+  cpfDoc: text('cpf_doc'),
+  rnm: text('rnm'),
+  rnmDoc: text('rnm_doc'),
+  passaporte: text('passaporte'),
+  passaporteDoc: text('passaporte_doc'),
+  comprovanteEndereco: text('comprovante_endereco'),
+  comprovanteEnderecoDoc: text('comprovante_endereco_doc'),
+  declaracaoResidenciaDoc: text('declaracao_residencia_doc'),
+  foto3x4Doc: text('foto_3x4_doc'),
+  documentoChines: text('documento_chines'),
+  documentoChinesDoc: text('documento_chines_doc'),
+  antecedentesCriminais: text('antecedentes_criminais'),
+  antecedentesCriminaisDoc: text('antecedentes_criminais_doc'),
+  certidaoNascimentoFilhos: text('certidao_nascimento_filhos'),
+  certidaoNascimentoFilhosDoc: text('certidao_nascimento_filhos_doc'),
+  cartaoCnpj: text('cartao_cnpj'),
+  cartaoCnpjDoc: text('cartao_cnpj_doc'),
+  contratoEmpresa: text('contrato_empresa'),
+  contratoEmpresaDoc: text('contrato_empresa_doc'),
+  escrituraImoveis: text('escritura_imoveis'),
+  escrituraImoveisDoc: text('escritura_imoveis_doc'),
+  extratosBancarios: text('extratos_bancarios'),
+  extratosBancariosDoc: text('extratos_bancarios_doc'),
+  impostoRenda: text('imposto_renda'),
+  impostoRendaDoc: text('imposto_renda_doc'),
+  reservasPassagens: text('reservas_passagens'),
+  reservasPassagensDoc: text('reservas_passagens_doc'),
+  reservasHotel: text('reservas_hotel'),
+  reservasHotelDoc: text('reservas_hotel_doc'),
+  seguroViagem: text('seguro_viagem'),
+  seguroViagemDoc: text('seguro_viagem_doc'),
+  roteiroViagem: text('roteiro_viagem'),
+  roteiroViagemDoc: text('roteiro_viagem_doc'),
+  taxa: text('taxa'),
+  taxaDoc: text('taxa_doc'),
+  formularioConsulado: text('formulario_consulado'),
+  formularioConsuladoDoc: text('formulario_consulado_doc'),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Documents table
 export const documents = pgTable('documents', {
   id: serial('id').primaryKey(),
