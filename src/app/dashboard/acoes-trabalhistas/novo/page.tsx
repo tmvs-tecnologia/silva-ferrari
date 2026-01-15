@@ -45,6 +45,41 @@ export default function NovaAcaoTrabalhistaPage() {
     });
   }, []);
 
+  const validateFile = (file: File) => {
+    // Lista expandida de tipos permitidos
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    // Tamanho aumentado para 50MB
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    // Verificação de arquivo vazio
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
+      return false;
+    }
+    
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleDocumentUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     field: string
@@ -57,6 +92,8 @@ export default function NovaAcaoTrabalhistaPage() {
     try {
       const uploadedUrls: string[] = [];
       for (const file of files) {
+        if (!validateFile(file)) continue;
+
         const formDataUpload = new FormData();
         formDataUpload.append("file", file);
 
@@ -71,7 +108,7 @@ export default function NovaAcaoTrabalhistaPage() {
         } else {
           const errorData = await response.json();
           console.error("Upload error:", errorData);
-          alert(errorData.error || "Erro ao enviar documento");
+          toast.error(errorData.error || "Erro ao enviar documento");
         }
       }
 
@@ -95,9 +132,11 @@ export default function NovaAcaoTrabalhistaPage() {
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      alert("Erro ao enviar documento");
+      toast.error("Erro ao enviar documento");
     } finally {
       setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+      // Limpar o input
+      e.target.value = "";
     }
   };
 

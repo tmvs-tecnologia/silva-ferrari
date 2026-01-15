@@ -67,6 +67,8 @@ const sanitizeClientName = (name: string): string => {
     .toLowerCase();
 };
 
+export const runtime = 'nodejs'; // Use Node.js runtime for larger file handling capabilities
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();

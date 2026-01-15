@@ -201,9 +201,50 @@ export default function NovaAcaoCivelPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const validateFile = (file: File) => {
+    // Lista expandida de tipos permitidos
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    // Tamanho aumentado para 50MB
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    // Verificação de arquivo vazio
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
+      return false;
+    }
+    
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!validateFile(file)) {
+      // Limpar o input para permitir selecionar o mesmo arquivo novamente se corrigido
+      e.target.value = "";
+      return;
+    }
 
     setUploadingDocs((prev) => ({ ...prev, [field]: true }));
 
@@ -230,6 +271,8 @@ export default function NovaAcaoCivelPage() {
       toast.error("Erro ao enviar documento");
     } finally {
       setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+      // Limpar o input
+      e.target.value = "";
     }
   };
 

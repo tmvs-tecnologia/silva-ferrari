@@ -38,6 +38,41 @@ export default function NovaAcaoCriminalPage() {
     inputs.forEach((el) => { try { el.setAttribute('multiple', ''); } catch {} });
   }, []);
 
+  const validateFile = (file: File) => {
+    // Lista expandida de tipos permitidos
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    // Tamanho aumentado para 50MB
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    // Verificação de arquivo vazio
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
+      return false;
+    }
+    
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length === 0) return;
@@ -45,6 +80,8 @@ export default function NovaAcaoCriminalPage() {
     try {
       const uploadedUrls: string[] = [];
       for (const file of files) {
+        if (!validateFile(file)) continue;
+
         const fd = new FormData();
         fd.append("file", file);
         const resp = await fetch("/api/documents/upload", { method: "POST", body: fd });
@@ -53,7 +90,7 @@ export default function NovaAcaoCriminalPage() {
           uploadedUrls.push(data.fileUrl);
         } else {
           const err = await resp.json();
-          alert(err.error || "Erro ao enviar documento");
+          toast.error(err.error || "Erro ao enviar documento");
         }
       }
       if (uploadedUrls.length) {
@@ -66,8 +103,14 @@ export default function NovaAcaoCriminalPage() {
           setExtraUploads((prev) => ({ ...prev, [field]: [...(prev[field] || []), ...uploadedUrls] }));
         }
       }
-    } catch {}
-    finally { setUploadingDocs((prev) => ({ ...prev, [field]: false })); }
+    } catch {
+      toast.error("Erro ao enviar documento");
+    }
+    finally { 
+      setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+      // Limpar o input
+      e.target.value = "";
+    }
   };
 
   const handleRemoveFile = (docField: string, fileUrl: string) => {
