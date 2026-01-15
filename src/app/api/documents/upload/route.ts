@@ -105,6 +105,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Integrity check for empty files
+    if (file.size === 0) {
+      console.error('❌ Arquivo vazio:', file.name);
+      return NextResponse.json(
+        { error: 'Arquivo vazio. Por favor, envie um arquivo válido.' },
+        { status: 400 }
+      );
+    }
+
     // Check if this is a temporary upload (no caseId/entityId and no fieldName)
     const isTemporaryUpload = !caseId && !entityId && !fieldName;
 

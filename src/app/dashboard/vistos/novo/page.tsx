@@ -261,15 +261,36 @@ export default function NovoVistoPage() {
   }, []);
 
   const validateFile = (file: File) => {
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Lista expandida de tipos permitidos
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    // Tamanho aumentado para 50MB para suportar arquivos maiores se necessário (backend limita em 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
 
-    if (!validTypes.includes(file.type)) {
-      alert(`Formato inválido: ${file.name}. Use PDF, JPG ou PNG.`);
+    // Verificação de arquivo vazio
+    if (file.size === 0) {
+      alert(`Arquivo vazio: ${file.name}.`);
       return false;
     }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      // Fallback para verificar extensão se o tipo MIME falhar ou for genérico
+      alert(`Formato inválido: ${file.name}. Formatos aceitos: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, TXT.`);
+      return false;
+    }
+    
     if (file.size > maxSize) {
-      alert(`Arquivo muito grande: ${file.name}. Máximo 10MB.`);
+      alert(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
     }
     return true;
@@ -279,7 +300,9 @@ export default function NovoVistoPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Validation for Visto de Trabalho - Brasil
+    // Identificação de documentos faltantes para Alertas (sem bloquear)
+    let missingDocs: { field: string; label: string }[] = [];
+
     if (formData.type === "Trabalho:Brasil") {
       const requiredDocs = [
         { field: 'passaporteDoc', label: 'Passaporte' },
@@ -295,17 +318,11 @@ export default function NovoVistoPage() {
         { field: 'traducaoCertidaoNascimentoDoc', label: 'Tradução Certidão de Nascimento' }
       ];
 
-      const missing = requiredDocs.filter(d => {
+      missingDocs = requiredDocs.filter(d => {
         const main = (formData as any)[d.field];
         const extra = extraUploads[d.field];
         return !main && (!extra || extra.length === 0);
       });
-
-      if (missing.length > 0) {
-        alert(`Os seguintes documentos são obrigatórios: ${missing.map(m => m.label).join(', ')}`);
-        setLoading(false);
-        return;
-      }
     }
 
     try {
@@ -322,6 +339,29 @@ export default function NovoVistoPage() {
         const newRecord = await response.json();
         if (newRecord?.id) {
           await convertTemporaryUploads(newRecord.id);
+
+          // Criar alertas para documentos faltantes
+          if (missingDocs.length > 0) {
+            try {
+              // Criar alertas sequencialmente ou em paralelo
+              await Promise.all(missingDocs.map(doc => 
+                fetch("/api/alerts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    moduleType: "vistos",
+                    recordId: newRecord.id,
+                    alertFor: "Documento Pendente",
+                    message: `O documento obrigatório '${doc.label}' está pendente.`,
+                    status: "pending",
+                    data: JSON.stringify({ field: doc.field })
+                  })
+                })
+              ));
+            } catch (alertError) {
+              console.error("Erro ao criar alertas:", alertError);
+            }
+          }
         }
         router.push("/dashboard/vistos");
       } else {
@@ -768,10 +808,10 @@ export default function NovoVistoPage() {
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
                     {formData.type === "Trabalho:Brasil" ? (
                       <>
-                        <DocumentRow label="Certidão Criminal" field="traducaoAntecedentesCriminais" docField="traducaoAntecedentesCriminaisDoc" />
-                        <DocumentRow label="Certificado de Trabalho" field="traducaoCertificadoTrabalho" docField="traducaoCertificadoTrabalhoDoc" />
-                        <DocumentRow label="Diploma" field="traducaoDiploma" docField="traducaoDiplomaDoc" />
-                        <DocumentRow label="Certidão de Nascimento" field="traducaoCertidaoNascimento" docField="traducaoCertidaoNascimentoDoc" />
+                        <DocumentRow label="Certidão Criminal" field="traducaoAntecedentesCriminais" docField="traducaoAntecedentesCriminaisDoc" required />
+                        <DocumentRow label="Certificado de Trabalho" field="traducaoCertificadoTrabalho" docField="traducaoCertificadoTrabalhoDoc" required />
+                        <DocumentRow label="Diploma" field="traducaoDiploma" docField="traducaoDiplomaDoc" required />
+                        <DocumentRow label="Certidão de Nascimento" field="traducaoCertidaoNascimento" docField="traducaoCertidaoNascimentoDoc" required />
                       </>
                     ) : (
                       <>
