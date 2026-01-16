@@ -11,7 +11,7 @@ export async function PATCH(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    const { id } = context.params;
+    const { id } = await context.params;
 
     if (!id || isNaN(parseInt(id))) {
       return NextResponse.json({ 

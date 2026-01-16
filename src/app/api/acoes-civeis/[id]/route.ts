@@ -250,11 +250,11 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { id } = params;
+    const { id } = await params;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {

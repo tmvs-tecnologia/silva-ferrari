@@ -11,7 +11,7 @@ export async function PUT(
   context: any
 ) {
   try {
-    const { documentId } = context.params;
+    const { documentId } = await context.params;
     const { document_name } = await request.json();
 
     if (!document_name || !document_name.trim()) {

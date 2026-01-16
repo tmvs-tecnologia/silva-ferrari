@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { id } = context.params;
+    const { id } = await context.params;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {

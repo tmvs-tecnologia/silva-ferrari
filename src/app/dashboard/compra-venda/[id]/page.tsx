@@ -12,24 +12,18 @@ import {
   ArrowLeft, 
   Save, 
   Trash2, 
-  Globe, 
   Edit, 
   FileText, 
   Upload,
-  Download,
-  Eye,
-  Calendar,
-  User,
-  Clock,
   CheckCircle,
   Circle,
-  AlertCircle,
   ChevronRight,
   ChevronUp,
   X,
   Plus,
   Mail,
-  AlertTriangle
+  ChevronDown,
+  Edit2
 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,10 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -57,17 +48,17 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import "react-day-picker/dist/style.css";
 import { StatusPanel } from "@/components/detail/StatusPanel";
+import { PendingDocumentsList } from "@/components/detail/PendingDocumentsList";
 import { formatDateBR } from "@/lib/date";
-import { subscribeTable, unsubscribe } from "@/lib/realtime";
 
 // Workflow Steps for Compra e Venda
 const WORKFLOW_STEPS = [
   { id: 1, title: "Cadastro Documentos", description: "Informações de cadastro" },
   { id: 2, title: "Emitir Certidões", description: "Emissão de documentos" },
-  { id: 3, title: "Fazer/Analisar Contrato Compra e Venda", description: "Elaboração e análise contratual" },
+  { id: 3, title: "Fazer/Analisar Contrato", description: "Elaboração e análise contratual" },
   { id: 4, title: "Assinatura de contrato", description: "Coleta de assinaturas" },
   { id: 5, title: "Escritura", description: "Prazos para escritura e pagamentos" },
-  { id: 6, title: "Cobrar a Matrícula do Cartório", description: "Finalização do processo" },
+  { id: 6, title: "Cobrar a Matrícula", description: "Finalização do processo" },
   { id: 7, title: "Processo Finalizado", description: "Encerramento da ação" },
 ];
 
@@ -90,6 +81,9 @@ interface Document {
   stepId?: number;
   field_name?: string;
   fieldName?: string;
+  file_path?: string;
+  document_name?: string;
+  file_name?: string;
 }
 
 interface CaseData {
@@ -116,6 +110,8 @@ interface CaseData {
   prazoSinal?: string;
   prazoEscritura?: string;
   contractNotes?: string;
+  // Dynamic fields
+  [key: string]: any;
 }
 
 export default function CompraVendaDetailsPage() {
@@ -129,18 +125,14 @@ export default function CompraVendaDetailsPage() {
   const [property, setProperty] = useState<any>(null); // Raw data
   const [expandedSteps, setExpandedSteps] = useState<{ [key: number]: boolean }>({});
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({});
-  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
-  const [newDocumentName, setNewDocumentName] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isEditingDocuments, setIsEditingDocuments] = useState(false);
   
   // Specific lists
   const [editableSellers, setEditableSellers] = useState<{ rg?: string; cpf?: string; dataNascimento?: string }[]>([]);
   const [editableCompradores, setEditableCompradores] = useState<{ rnm?: string; cpf?: string; endereco?: string }[]>([]);
 
-  const [stepData, setStepData] = useState<{ [key: number]: any }>({});
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
   const [saveMessages, setSaveMessages] = useState<{ [key: number]: string }>({});
   const [assignOpenStep, setAssignOpenStep] = useState<number | null>(null);
@@ -166,7 +158,7 @@ export default function CompraVendaDetailsPage() {
       return [] as any;
     } catch { return [] as any; }
   };
-  const notesArray = parseNotesArray(property?.stepNotes || property?.notes); // Using stepNotes for CV usually, but consistent with Vistos notes
+  const notesArray = parseNotesArray(property?.stepNotes || property?.notes);
 
   const deleteNote = async (noteId: string) => {
     const next = (notesArray || []).filter((n) => n.id !== noteId);
@@ -174,10 +166,9 @@ export default function CompraVendaDetailsPage() {
       await fetch(`/api/compra-venda-imoveis?id=${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepNotes: JSON.stringify(next) }) // CompraVenda uses stepNotes usually
+        body: JSON.stringify({ stepNotes: JSON.stringify(next) })
       });
       setProperty((prev: any) => ({ ...(prev || {}), stepNotes: JSON.stringify(next) }));
-      console.log('Nota excluída', { noteId });
     } catch (e) { console.error('Erro ao excluir nota:', e); }
   };
 
@@ -199,8 +190,6 @@ export default function CompraVendaDetailsPage() {
         }
       };
       loadAssignments();
-
-      // Realtime subscription would go here similar to Vistos
     }
   }, [params.id]);
 
@@ -212,7 +201,7 @@ export default function CompraVendaDetailsPage() {
         setProperty(record);
         
         const steps: StepData[] = WORKFLOW_STEPS.map((s, index) => ({
-          id: s.id, // 1-based in WORKFLOW_STEPS
+          id: s.id,
           title: s.title,
           description: s.description,
           completed: false,
@@ -227,12 +216,10 @@ export default function CompraVendaDetailsPage() {
           return [];
         })();
 
-        // Mark completed steps
         steps.forEach(s => {
             s.completed = completedFromServer.includes(s.id);
         });
 
-        // Initialize editable lists
         const rgList = (record.rgVendedores || "").split(",").filter(Boolean);
         const cpfList = (record.cpfVendedores || "").split(",").filter(Boolean);
         const dobList = (record.dataNascimentoVendedores || "").split(",").filter(Boolean);
@@ -267,7 +254,6 @@ export default function CompraVendaDetailsPage() {
         setCaseData(data);
         setStatus(data.status);
         
-        // Expand current step
         setExpandedSteps(prev => ({ ...prev, [recordCurrentStep]: true }));
       }
     } catch (error) {
@@ -308,61 +294,6 @@ export default function CompraVendaDetailsPage() {
     }
   };
 
-  const handleRenameDocument = (document: Document) => {
-    setEditingDocument(document);
-    setNewDocumentName(document.name || document.document_name || document.file_name || "");
-    setShowEditDialog(true);
-  };
-
-  const confirmRenameDocument = async () => {
-    if (!editingDocument || !newDocumentName.trim()) return;
-    try {
-      const res = await fetch(`/api/documents/rename/${editingDocument.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ document_name: newDocumentName.trim() })
-      });
-      if (res.ok) {
-        await fetchDocuments();
-        setShowEditDialog(false);
-        setEditingDocument(null);
-        setNewDocumentName("");
-      }
-    } catch (error) {
-      console.error("Erro ao renomear documento:", error);
-    }
-  };
-
-  const handleFileUpload = async (files: FileList | File[] | null, stepId?: number) => {
-    const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
-    if (!arr.length) return;
-    const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
-    setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
-    try {
-      for (const file of arr) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('caseId', String(params.id));
-        fd.append('moduleType', 'compra_venda_imoveis');
-        fd.append('fieldName', 'documentoAnexado');
-        fd.append('clientName', caseData?.clientName || 'Cliente');
-        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (res.ok) {
-          const payload = await res.json();
-          const newDoc = payload?.document;
-          if (newDoc) {
-            setDocuments(prev => [newDoc, ...prev]);
-          }
-        }
-      }
-      await fetchDocuments();
-    } catch (error) {
-      console.error("Erro ao fazer upload:", error);
-    } finally {
-      setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
-    }
-  };
-
   const handleSpecificFileUpload = async (file: File, fieldKey: string, stepId: number) => {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
@@ -389,82 +320,14 @@ export default function CompraVendaDetailsPage() {
     }
   };
 
-  const renderDocLinks = (fieldKey: string) => {
-    const list = (documents || []).filter((d: any) => (d.field_name || d.fieldName) === fieldKey);
-    if (!list.length) return null as any;
-    return (
-      <div className="mt-2 flex flex-wrap gap-2">
-        {list.map((doc: any) => (
-          <div key={String(doc.id)} className="group relative w-8 h-8">
-            <a
-              href={doc.file_path || doc.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={doc.document_name || doc.name || doc.file_name || 'Documento'}
-              className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4 text-blue-600" />
-            </a>
-            <button
-              type="button"
-              aria-label="Excluir"
-              title="Excluir"
-              className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-            >
-              <X className="h-3 w-3 text-gray-600" />
-            </button>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const UploadDocBlock = ({ inputId, disabledKey, onSelect }: { inputId: string; disabledKey: string; onSelect: (f: File) => void }) => (
-    <div className="space-y-3">
-      <Label>Upload de Documentos</Label>
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-        <input
-          type="file"
-          id={inputId}
-          className="hidden"
-          multiple
-          onChange={(e) => {
-            const list = Array.from(e.target.files || []);
-            list.forEach((f) => onSelect(f));
-          }}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => document.getElementById(inputId)?.click()}
-          disabled={uploadingFiles[disabledKey]}
-        >
-          {uploadingFiles[disabledKey] ? (
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mr-2" />
-          ) : (
-            <Upload className="w-4 h-4 mr-2" />
-          )}
-          Fazer Upload de Arquivos
-        </Button>
-      </div>
-    </div>
-  );
-
-  const toggleStepExpansion = (stepId: number) => {
-    setExpandedSteps(prev => ({ ...prev, [stepId]: !prev[stepId] }));
-  };
-
   const handleStepCompletion = async (stepId: number) => {
     if (!caseData) return;
     const isCompleted = caseData.steps.find(s => s.id === stepId)?.completed;
     
-    // Logic: If marking complete, add to list. If unmarking, remove.
     const newCompleted = isCompleted 
         ? (caseData.completedSteps || [] as any).filter((id: number) => id !== stepId)
         : [...(caseData.completedSteps || [] as any), stepId];
         
-    // Update current step logic (simple progression)
     const nextStep = isCompleted ? stepId : Math.min(stepId + 1, WORKFLOW_STEPS.length);
 
     try {
@@ -473,7 +336,7 @@ export default function CompraVendaDetailsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ completedSteps: newCompleted, currentStep: nextStep })
         });
-        fetchCaseData(); // Refresh to update UI
+        fetchCaseData();
     } catch (e) {
         console.error("Erro ao atualizar etapa:", e);
     }
@@ -536,7 +399,6 @@ export default function CompraVendaDetailsPage() {
       }
       return false;
     } catch (e) {
-      console.error("Erro ao salvar assignment:", e);
       return false;
     }
   };
@@ -560,7 +422,7 @@ export default function CompraVendaDetailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      fetchCaseData(); // Refresh
+      fetchCaseData();
       setSaveMessages(prev => ({ ...prev, 1: 'Dados salvos' }));
     } catch (e) {
       console.error(e);
@@ -574,345 +436,287 @@ export default function CompraVendaDetailsPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prazoSinal: caseData?.prazoSinal, prazoEscritura: caseData?.prazoEscritura })
         });
-        setSaveMessages(prev => ({ ...prev, 4: 'Prazos salvos' })); // Step 4 usually has deadlines
+        setSaveMessages(prev => ({ ...prev, 4: 'Prazos salvos' }));
     } catch (e) {
         console.error(e);
     }
   }
 
-  const renderStepContent = (step: StepData) => {
-    const stepId = step.id;
-
-    if (stepId === 1) { // Cadastro Documentos
-        const renderField = (label: string, value: string, onChange: (val: string) => void, docKey?: string) => (
-            <div className="space-y-2">
-                {isEditingDocuments ? <Label>{label}</Label> : null}
-                {isEditingDocuments ? (
-                    <Input value={value} onChange={(e) => onChange(e.target.value)} className="h-9" />
+  // Helper functions for Rendering
+  const renderHeader = (title: string, onEdit?: () => void, isEditing?: boolean, onSave?: () => void, onCancel?: () => void) => (
+    <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-slate-500" />
+            {title}
+        </h3>
+        {onEdit && (
+            <div className="flex items-center gap-2">
+                {!isEditing ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2 bg-white" onClick={onEdit}>
+                        <Edit2 className="w-3 h-3 mr-1" /> Editar
+                    </Button>
                 ) : (
-                    <div className="text-xs leading-snug">
-                        <span className="font-medium">{label}:</span> {value || '-'}
-                    </div>
-                )}
-                {docKey && (
                     <>
-                        {isEditingDocuments && (
-                            <div className="mt-1 flex items-center gap-2">
-                                <input 
-                                    type="file" 
-                                    id={`up-${docKey}-${stepId}`} 
-                                    className="hidden" 
-                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSpecificFileUpload(f, docKey, stepId); }} 
-                                />
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => document.getElementById(`up-${docKey}-${stepId}`)?.click()}
-                                    disabled={uploadingFiles[`${docKey}-${stepId}`]}
-                                >
-                                    {uploadingFiles[`${docKey}-${stepId}`] ? <div className="w-3 h-3 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
-                                    Upload
-                                </Button>
-                            </div>
-                        )}
-                        {renderDocLinks(docKey)}
+                        <Button size="sm" variant="default" className="h-7 px-2 bg-slate-900" onClick={onSave}>
+                            <Save className="w-3 h-3 mr-1" /> Salvar
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onCancel}>
+                            <X className="w-3 h-3" />
+                        </Button>
                     </>
                 )}
             </div>
-        );
+        )}
+    </div>
+  );
 
-        return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-end">
-                  {isEditingDocuments ? (
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => { saveStep1Fields(); setIsEditingDocuments(false); }}>
-                        <Save className="w-4 h-4 mr-2" />
-                        Salvar
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setIsEditingDocuments(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+  const renderRow = (label: string, valueKey: keyof CaseData | undefined, fileKey: string, isEditing: boolean, onChangeValue?: (val: string) => void, customValue?: React.ReactNode, stepId?: number) => {
+    // Find doc by fieldName or infer from fileKey
+    const fileUrl = (documents || []).find(d => d.fieldName === fileKey || d.field_name === fileKey)?.url || (documents || []).find(d => d.fieldName === fileKey || d.field_name === fileKey)?.file_path;
+    const fileName = (documents || []).find(d => d.fieldName === fileKey || d.field_name === fileKey)?.name || 'Documento';
 
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-base">Dados do Cliente e Imóvel</h4>
-                        {!isEditingDocuments && (
-                            <Button size="icon" variant="outline" className="h-7 w-7 p-0" onClick={() => setIsEditingDocuments(true)}>
-                                <Edit className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2 p-3 bg-white border rounded-lg shadow-xs">
-                        {renderField("Nome do Cliente", caseData?.clientName || "", (v) => setCaseData(prev => prev ? ({...prev, clientName: v}) : null))}
-                        {renderField("Endereço Imóvel", caseData?.enderecoImovel || "", (v) => setCaseData(prev => prev ? ({...prev, enderecoImovel: v}) : null), "comprovanteEnderecoImovelDoc")}
-                        {renderField("Matrícula", caseData?.numeroMatricula || "", (v) => setCaseData(prev => prev ? ({...prev, numeroMatricula: v}) : null), "numeroMatriculaDoc")}
-                        {renderField("Contribuinte", caseData?.cadastroContribuinte || "", (v) => setCaseData(prev => prev ? ({...prev, cadastroContribuinte: v}) : null), "cadastroContribuinteDoc")}
-                    </div>
-                </div>
-
-                {/* Vendedores */}
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-base">Vendedores</h4>
-                         {!isEditingDocuments && (
-                            <Button size="icon" variant="outline" className="h-7 w-7 p-0" onClick={() => setIsEditingDocuments(true)}>
-                                <Edit className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
-                    <div className="space-y-3">
-                        {editableSellers.map((seller, idx) => (
-                            <div key={idx} className="p-3 bg-slate-50 border rounded-lg grid md:grid-cols-3 gap-3 relative group">
-                                {isEditingDocuments && editableSellers.length > 1 && (
-                                    <button 
-                                        onClick={() => setEditableSellers(prev => prev.filter((_, i) => i !== idx))}
-                                        className="absolute top-2 right-2 text-red-500 hover:bg-red-50 p-1 rounded"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                                
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">RG</Label> : <span className="text-xs font-medium block">RG:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            value={seller.rg || ""} 
-                                            onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, rg: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{seller.rg || '-'}</span>
-                                    )}
-                                    {(isEditingDocuments || ((documents || []).some((d: any) => (d.field_name || d.fieldName) === `rgVendedorDoc_${idx}`))) && (
-                                        <>
-                                            {isEditingDocuments && (
-                                                <div className="mt-1">
-                                                    <input type="file" id={`up-rg-${idx}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSpecificFileUpload(f, `rgVendedorDoc_${idx}`, stepId); }} />
-                                                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => document.getElementById(`up-rg-${idx}`)?.click()}>
-                                                        <Upload className="w-3 h-3 mr-1" /> Upload
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {renderDocLinks(`rgVendedorDoc_${idx}`)}
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">CPF</Label> : <span className="text-xs font-medium block">CPF:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            value={seller.cpf || ""} 
-                                            onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, cpf: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{seller.cpf || '-'}</span>
-                                    )}
-                                    {(isEditingDocuments || ((documents || []).some((d: any) => (d.field_name || d.fieldName) === `cpfVendedorDoc_${idx}`))) && (
-                                        <>
-                                            {isEditingDocuments && (
-                                                <div className="mt-1">
-                                                    <input type="file" id={`up-cpf-${idx}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSpecificFileUpload(f, `cpfVendedorDoc_${idx}`, stepId); }} />
-                                                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => document.getElementById(`up-cpf-${idx}`)?.click()}>
-                                                        <Upload className="w-3 h-3 mr-1" /> Upload
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {renderDocLinks(`cpfVendedorDoc_${idx}`)}
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">Nascimento</Label> : <span className="text-xs font-medium block">Nascimento:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            type="date" 
-                                            value={seller.dataNascimento || ""} 
-                                            onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, dataNascimento: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{formatDateBR(seller.dataNascimento)}</span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                        {isEditingDocuments && (
-                            <Button size="sm" variant="outline" onClick={() => setEditableSellers(prev => [...prev, {}])}>
-                                <Plus className="w-4 h-4 mr-2" /> Adicionar Vendedor
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Compradores */}
-                <div className="space-y-3">
-                     <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-base">Compradores</h4>
-                         {!isEditingDocuments && (
-                            <Button size="icon" variant="outline" className="h-7 w-7 p-0" onClick={() => setIsEditingDocuments(true)}>
-                                <Edit className="w-4 h-4" />
-                            </Button>
-                        )}
-                    </div>
-                    <div className="space-y-3">
-                        {editableCompradores.map((comp, idx) => (
-                            <div key={idx} className="p-3 bg-slate-50 border rounded-lg grid md:grid-cols-3 gap-3 relative group">
-                                 {isEditingDocuments && editableCompradores.length > 1 && (
-                                    <button 
-                                        onClick={() => setEditableCompradores(prev => prev.filter((_, i) => i !== idx))}
-                                        className="absolute top-2 right-2 text-red-500 hover:bg-red-50 p-1 rounded"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                )}
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">RNM</Label> : <span className="text-xs font-medium block">RNM:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            value={comp.rnm || ""} 
-                                            onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, rnm: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{comp.rnm || '-'}</span>
-                                    )}
-                                     {(isEditingDocuments || ((documents || []).some((d: any) => (d.field_name || d.fieldName) === `rnmCompradorDoc_${idx}`))) && (
-                                        <>
-                                            {isEditingDocuments && (
-                                                <div className="mt-1">
-                                                    <input type="file" id={`up-rnm-${idx}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSpecificFileUpload(f, `rnmCompradorDoc_${idx}`, stepId); }} />
-                                                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => document.getElementById(`up-rnm-${idx}`)?.click()}>
-                                                        <Upload className="w-3 h-3 mr-1" /> Upload
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {renderDocLinks(`rnmCompradorDoc_${idx}`)}
-                                        </>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">CPF</Label> : <span className="text-xs font-medium block">CPF:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            value={comp.cpf || ""} 
-                                            onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, cpf: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{comp.cpf || '-'}</span>
-                                    )}
-                                     {(isEditingDocuments || ((documents || []).some((d: any) => (d.field_name || d.fieldName) === `cpfCompradorDoc_${idx}`))) && (
-                                        <>
-                                            {isEditingDocuments && (
-                                                <div className="mt-1">
-                                                    <input type="file" id={`up-cpfc-${idx}`} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSpecificFileUpload(f, `cpfCompradorDoc_${idx}`, stepId); }} />
-                                                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => document.getElementById(`up-cpfc-${idx}`)?.click()}>
-                                                        <Upload className="w-3 h-3 mr-1" /> Upload
-                                                    </Button>
-                                                </div>
-                                            )}
-                                            {renderDocLinks(`cpfCompradorDoc_${idx}`)}
-                                        </>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    {isEditingDocuments ? <Label className="text-xs">Endereço</Label> : <span className="text-xs font-medium block">Endereço:</span>}
-                                    {isEditingDocuments ? (
-                                        <Input 
-                                            value={comp.endereco || ""} 
-                                            onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, endereco: e.target.value} : s))} 
-                                            className="h-8 text-sm" 
-                                        />
-                                    ) : (
-                                        <span className="text-sm">{comp.endereco || '-'}</span>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                         {isEditingDocuments && (
-                            <Button size="sm" variant="outline" onClick={() => setEditableCompradores(prev => [...prev, {}])}>
-                                <Plus className="w-4 h-4 mr-2" /> Adicionar Comprador
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (stepId === 4) { // Assinatura - Prazos
-        return (
-            <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Prazo Sinal</Label>
-                        <Input type="date" value={caseData?.prazoSinal || ""} onChange={(e) => setCaseData(prev => prev ? ({...prev, prazoSinal: e.target.value}) : null)} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Prazo Escritura</Label>
-                        <Input type="date" value={caseData?.prazoEscritura || ""} onChange={(e) => setCaseData(prev => prev ? ({...prev, prazoEscritura: e.target.value}) : null)} />
-                    </div>
-                </div>
-                <Button size="sm" onClick={savePrazos}>Salvar Prazos</Button>
-                {saveMessages[4] && <div className="text-green-600 text-sm">{saveMessages[4]}</div>}
-                
-                <div className="mt-4">
-                    <UploadDocBlock 
-                        inputId={`contrato-assinado-${stepId}`}
-                        disabledKey={`contrato-assinado-${stepId}`}
-                        onSelect={(f) => handleSpecificFileUpload(f, "assinaturaContratoDoc", stepId)}
-                    />
-                    {renderDocLinks("assinaturaContratoDoc")}
-                </div>
-            </div>
-        );
-    }
-
-    // Default generic step content
     return (
-        <div className="space-y-4">
-            <UploadDocBlock 
-                inputId={`upload-${stepId}`} 
-                disabledKey={`upload-${stepId}`} 
-                onSelect={(f) => handleFileUpload([f], stepId)} 
-            />
-            {renderDocLinks(`documentoAnexado`)} {/* Shows generic docs if mapped, or we can use step specific keys if needed */}
-            
-            {/* Specific docs for other steps */}
-            {stepId === 2 && renderDocLinks("certidoesDoc")}
-            {stepId === 3 && renderDocLinks("contratoDoc")}
-            {stepId === 5 && renderDocLinks("escrituraDoc")}
-            {stepId === 6 && renderDocLinks("matriculaCartorioDoc")}
-
-            <div>
-                <Label>Observações</Label>
-                <Textarea 
-                    rows={3} 
-                    value={notes[stepId] || ""} 
-                    onChange={(e) => setNotes(prev => ({...prev, [stepId]: e.target.value}))} 
-                    placeholder="Adicione observações..."
-                />
-                <Button size="sm" className="mt-2" onClick={() => saveStepNotes(stepId)}>Salvar Observações</Button>
-                {saveMessages[stepId] && <div className="text-green-600 text-sm mt-1">{saveMessages[stepId]}</div>}
+        <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</Label>
+            <div className="flex flex-col gap-2">
+                {valueKey && (
+                    isEditing ? (
+                        <Input 
+                            value={String(caseData?.[valueKey] || "")} 
+                            onChange={(e) => onChangeValue?.(e.target.value)}
+                            className="h-9 bg-white"
+                        />
+                    ) : (
+                        <div className="text-sm font-medium text-slate-900 min-h-[20px]">
+                            {String(caseData?.[valueKey] || "-")}
+                        </div>
+                    )
+                )}
+                {customValue}
+                
+                <div className="flex items-center gap-2 mt-1">
+                     {fileUrl ? (
+                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 w-full">
+                            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline truncate flex-1">
+                                {fileName}
+                            </a>
+                             <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                    const doc = documents.find(d => d.fieldName === fileKey || d.field_name === fileKey);
+                                    if(doc) handleDeleteDocument(doc);
+                                }}
+                            >
+                                <X className="w-3 h-3" />
+                            </Button>
+                        </div>
+                     ) : (
+                        <div className="flex items-center gap-2 w-full">
+                            <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 border border-dashed border-slate-300 rounded-md text-sm text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFiles[`${fileKey}-${stepId}`] ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <Upload className="w-3.5 h-3.5" />
+                                {uploadingFiles[`${fileKey}-${stepId}`] ? 'Enviando...' : 'Anexar arquivo'}
+                                <input 
+                                    type="file" 
+                                    className="hidden" 
+                                    onChange={(e) => { const f = e.target.files?.[0]; if(f) handleSpecificFileUpload(f, fileKey, stepId || 0); }}
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                />
+                            </label>
+                        </div>
+                     )}
+                </div>
             </div>
         </div>
     );
   };
 
-  const currentStepIndex = (caseData?.currentStep || 1) - 1;
+  const getDocRequirements = () => {
+    const reqs = [
+        { label: "Comprovante de Endereço", key: "comprovanteEnderecoImovelDoc", group: "Cadastro Documentos", required: true },
+        { label: "Matrícula do Imóvel", key: "numeroMatriculaDoc", group: "Cadastro Documentos", required: true },
+        { label: "Cadastro de Contribuinte", key: "cadastroContribuinteDoc", group: "Cadastro Documentos", required: true },
+    ];
+    
+    editableSellers.forEach((_, i) => {
+        reqs.push({ label: `RG Vendedor ${i+1}`, key: `rgVendedorDoc_${i}`, group: "Cadastro Documentos", required: true });
+        reqs.push({ label: `CPF Vendedor ${i+1}`, key: `cpfVendedorDoc_${i}`, group: "Cadastro Documentos", required: true });
+        reqs.push({ label: `Certidão Estado Civil Vendedor ${i+1}`, key: `certidaoEstadoCivilVendedorDoc_${i}`, group: "Cadastro Documentos", required: true });
+    });
 
-  if (loading) {
-    return <div className="p-6"><Skeleton className="h-10 w-64 mb-4"/><Skeleton className="h-96 w-full"/></div>;
-  }
+    editableCompradores.forEach((_, i) => {
+        reqs.push({ label: `RNM Comprador ${i+1}`, key: `rnmCompradorDoc_${i}`, group: "Cadastro Documentos", required: true });
+        reqs.push({ label: `CPF Comprador ${i+1}`, key: `cpfCompradorDoc_${i}`, group: "Cadastro Documentos", required: true });
+        reqs.push({ label: `Certidão Estado Civil Comprador ${i+1}`, key: `certidaoEstadoCivilCompradorDoc_${i}`, group: "Cadastro Documentos", required: true });
+    });
 
-  if (!caseData) return <div className="p-6">Caso não encontrado</div>;
+    reqs.push({ label: "Certidões", key: "certidoesDoc", group: "Emitir Certidões", required: false });
+    reqs.push({ label: "Minuta do Contrato", key: "contratoDoc", group: "Fazer/Analisar Contrato", required: true });
+    reqs.push({ label: "Contrato Assinado", key: "assinaturaContratoDoc", group: "Assinatura de contrato", required: true });
+    reqs.push({ label: "Comprovante Pagamento Sinal", key: "comprovanteSinalDoc", group: "Assinatura de contrato", required: false });
+    reqs.push({ label: "Escritura", key: "escrituraDoc", group: "Escritura", required: true });
+    reqs.push({ label: "Matrícula Atualizada", key: "matriculaCartorioDoc", group: "Cobrar a Matrícula", required: true });
+
+    return reqs;
+  };
+
+  const pendingDocs = getDocRequirements().filter(req => 
+    !documents.some(doc => (doc.fieldName === req.key || (doc as any).field_name === req.key))
+  ).map(doc => ({
+      ...doc,
+      priority: doc.required ? "high" : "medium" as any,
+      status: "pending" as any
+  }));
+  const totalDocs = getDocRequirements().length;
+  const completedDocs = totalDocs - pendingDocs.length;
+
+  const renderStepContent = (step: StepData) => {
+    const stepId = step.id;
+
+    if (stepId === 1) { // Cadastro
+        return (
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Dados Iniciais", 
+                    () => setIsEditingDocuments(true), 
+                    isEditingDocuments,
+                    () => { saveStep1Fields(); setIsEditingDocuments(false); },
+                    () => setIsEditingDocuments(false)
+                )}
+                <div className="p-4 md:p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         {renderRow("Nome do Cliente", "clientName", "", isEditingDocuments, (v) => setCaseData(prev => prev ? ({...prev, clientName: v}) : null), undefined, stepId)}
+                         {renderRow("Endereço Imóvel", "enderecoImovel", "comprovanteEnderecoImovelDoc", isEditingDocuments, (v) => setCaseData(prev => prev ? ({...prev, enderecoImovel: v}) : null), undefined, stepId)}
+                         {renderRow("Matrícula", "numeroMatricula", "numeroMatriculaDoc", isEditingDocuments, (v) => setCaseData(prev => prev ? ({...prev, numeroMatricula: v}) : null), undefined, stepId)}
+                         {renderRow("Contribuinte", "cadastroContribuinte", "cadastroContribuinteDoc", isEditingDocuments, (v) => setCaseData(prev => prev ? ({...prev, cadastroContribuinte: v}) : null), undefined, stepId)}
+                    </div>
+                    
+                    {/* Vendedores */}
+                    <div className="border-t pt-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-semibold text-sm">Vendedores</h4>
+                            {isEditingDocuments && <Button size="sm" variant="outline" onClick={() => setEditableSellers(prev => [...prev, {}])}><Plus className="w-3 h-3 mr-1"/> Adicionar</Button>}
+                        </div>
+                        <div className="space-y-4">
+                            {editableSellers.map((seller, idx) => (
+                                <div key={idx} className="bg-slate-50 p-3 rounded-lg border relative">
+                                    {isEditingDocuments && editableSellers.length > 1 && (
+                                        <button onClick={() => setEditableSellers(prev => prev.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-red-500"><X className="w-3 h-3"/></button>
+                                    )}
+                                    <div className="grid md:grid-cols-3 gap-4">
+                                        {renderRow("RG", undefined, `rgVendedorDoc_${idx}`, isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input value={seller.rg || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, rg: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{seller.rg || '-'}</span>, stepId
+                                        )}
+                                        {renderRow("CPF", undefined, `cpfVendedorDoc_${idx}`, isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input value={seller.cpf || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, cpf: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{seller.cpf || '-'}</span>, stepId
+                                        )}
+                                        {renderRow("Nascimento", undefined, "", isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input type="date" value={seller.dataNascimento || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? {...s, dataNascimento: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{formatDateBR(seller.dataNascimento)}</span>, stepId
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Compradores */}
+                    <div className="border-t pt-4">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-semibold text-sm">Compradores</h4>
+                            {isEditingDocuments && <Button size="sm" variant="outline" onClick={() => setEditableCompradores(prev => [...prev, {}])}><Plus className="w-3 h-3 mr-1"/> Adicionar</Button>}
+                        </div>
+                        <div className="space-y-4">
+                            {editableCompradores.map((comp, idx) => (
+                                <div key={idx} className="bg-slate-50 p-3 rounded-lg border relative">
+                                    {isEditingDocuments && editableCompradores.length > 1 && (
+                                        <button onClick={() => setEditableCompradores(prev => prev.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-red-500"><X className="w-3 h-3"/></button>
+                                    )}
+                                    <div className="grid md:grid-cols-3 gap-4">
+                                        {renderRow("RNM", undefined, `rnmCompradorDoc_${idx}`, isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input value={comp.rnm || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, rnm: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{comp.rnm || '-'}</span>, stepId
+                                        )}
+                                        {renderRow("CPF", undefined, `cpfCompradorDoc_${idx}`, isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input value={comp.cpf || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, cpf: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{comp.cpf || '-'}</span>, stepId
+                                        )}
+                                        {renderRow("Endereço", undefined, "", isEditingDocuments, undefined, 
+                                            isEditingDocuments ? <Input value={comp.endereco || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? {...s, endereco: e.target.value} : s))} className="h-9 bg-white" /> : <span className="text-sm font-medium">{comp.endereco || '-'}</span>, stepId
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+             </div>
+        );
+    }
+
+    if (stepId === 4) { // Assinatura - Prazos
+        return (
+             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Assinatura e Prazos", undefined, false)}
+                <div className="p-4 md:p-6 space-y-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-slate-500 uppercase">Prazo Sinal</Label>
+                            <div className="flex gap-2">
+                                <Input type="date" value={caseData?.prazoSinal || ""} onChange={(e) => setCaseData(prev => prev ? ({...prev, prazoSinal: e.target.value}) : null)} className="h-9 bg-white" />
+                                <Button size="sm" onClick={savePrazos}>Salvar</Button>
+                            </div>
+                        </div>
+                         <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-slate-500 uppercase">Prazo Escritura</Label>
+                            <div className="flex gap-2">
+                                <Input type="date" value={caseData?.prazoEscritura || ""} onChange={(e) => setCaseData(prev => prev ? ({...prev, prazoEscritura: e.target.value}) : null)} className="h-9 bg-white" />
+                                <Button size="sm" onClick={savePrazos}>Salvar</Button>
+                            </div>
+                        </div>
+                    </div>
+                    {renderRow("Contrato Assinado", undefined, "assinaturaContratoDoc", false, undefined, undefined, stepId)}
+                </div>
+             </div>
+        );
+    }
+
+    // Default Steps
+    const docKeys: Record<number, string> = {
+        2: "certidoesDoc",
+        3: "contratoDoc",
+        5: "escrituraDoc",
+        6: "matriculaCartorioDoc"
+    };
+    const key = docKeys[stepId];
+
+    return (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader(step.title, undefined, false)}
+            <div className="p-4 md:p-6 space-y-4">
+                 {key && renderRow(step.description, undefined, key, false, undefined, undefined, stepId)}
+                 
+                 <div className="space-y-1 mt-4">
+                    <Label className="text-xs font-semibold text-slate-500 uppercase">Observações</Label>
+                    <div className="flex gap-2">
+                        <Textarea 
+                            rows={3} 
+                            value={notes[stepId] || ""} 
+                            onChange={(e) => setNotes(prev => ({...prev, [stepId]: e.target.value}))} 
+                            placeholder="Adicione observações..."
+                            className="bg-slate-50"
+                        />
+                    </div>
+                    <div className="flex justify-end mt-2">
+                        <Button size="sm" onClick={() => saveStepNotes(stepId)}>Salvar Nota</Button>
+                    </div>
+                    {saveMessages[stepId] && <div className="text-green-600 text-xs text-right">{saveMessages[stepId]}</div>}
+                 </div>
+            </div>
+        </div>
+    );
+  };
+
+  if (loading) return <Skeleton className="h-screen w-full" />;
+  if (!caseData) return <div>Caso não encontrado</div>;
 
   return (
     <div className="w-full p-4 space-y-6 bg-gray-50 min-h-screen">
@@ -924,211 +728,167 @@ export default function CompraVendaDetailsPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">{caseData.clientName}</h1>
-            <p className="text-muted-foreground">{caseData.description}</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{caseData.clientName}</h1>
+            <div className="flex items-center gap-2 text-slate-500">
+                <Badge variant="outline" className="font-normal bg-white">Compra e Venda</Badge>
+            </div>
           </div>
         </div>
         <div className="flex-shrink-0">
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700">
-                        <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                    </Button>
-                </AlertDialogTrigger>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                {/* Dialog content is managed by state, trigger is manual */}
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>Tem certeza que deseja excluir esta ação?</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => {
-                            await fetch(`/api/compra-venda-imoveis?id=${params.id}`, { method: 'DELETE' });
-                            router.push('/dashboard/compra-venda');
-                        }} className="bg-red-600">Excluir</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Excluir documento?</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteDocument}>Excluir</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-            <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Fluxo do Processo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {caseData.steps.map((step, index) => {
-                  const isCurrent = step.id === caseData.currentStep;
-                  const isCompleted = step.completed;
-                  const showConnector = index < caseData.steps.length - 1;
-                  return (
-                    <div key={step.id} className="flex group relative pb-10">
-                      {showConnector ? (
-                        <div className={`absolute left-6 top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
-                      ) : null}
-                        <div className="flex-shrink-0 mr-4">
-                          {isCompleted ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            </div>
-                          ) : isCurrent ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <div className="h-4 w-4 rounded-full bg-blue-500" />
-                            </div>
-                          ) : (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <Circle className="w-6 h-6 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      <div className={`flex-grow pt-2 ${isCurrent ? 'p-4 bg-blue-50 rounded-lg border border-blue-100' : isCompleted ? '' : 'opacity-60'}`}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className={`${isCurrent ? 'text-blue-600 font-bold' : 'font-semibold'} text-base`}>{step.title}</h3>
-                              {isCurrent ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Atual</span>
-                              ) : isCompleted ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Concluído</span>
-                              ) : null}
-                            </div>
-                            {assignments[step.id]?.responsibleName ? (
-                              <div className="mt-1 text-xs text-gray-600">
-                                <span className="font-medium">Responsável:</span> {assignments[step.id]?.responsibleName}
-                                {assignments[step.id]?.dueDate && <span> · Prazo: {formatDateBR(assignments[step.id]?.dueDate)}</span>}
-                              </div>
-                            ) : null}
-                            {/* Prazos display for step 4/5 */}
-                            {step.id === 4 && (caseData.prazoSinal || caseData.prazoEscritura) && (
-                                <div className="mt-1 flex gap-2">
-                                    {caseData.prazoSinal && <Badge variant="outline" className="text-xs">Sinal: {formatDateBR(caseData.prazoSinal)}</Badge>}
-                                    {caseData.prazoEscritura && <Badge variant="outline" className="text-xs">Escritura: {formatDateBR(caseData.prazoEscritura)}</Badge>}
+      <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
+        {/* LEFT COLUMN */}
+        <div className="lg:col-span-8 space-y-6">
+             <Card className="rounded-xl border-gray-200 shadow-sm overflow-hidden">
+                <CardHeader className="bg-white border-b border-gray-100">
+                    <CardTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-blue-600" />
+                        Fluxo do Processo
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="p-6 space-y-1">
+                        {caseData.steps.map((step, index) => {
+                             const isCurrent = step.id === caseData.currentStep;
+                             const isCompleted = step.completed;
+                             const showConnector = index < caseData.steps.length - 1;
+                             
+                             return (
+                                <div key={step.id} className="relative pl-10 pb-8 last:pb-0">
+                                     {showConnector && (
+                                        <div className={`absolute left-[19px] top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
+                                     )}
+                                     
+                                     <div 
+                                        className={`absolute left-0 top-1 w-10 h-10 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all hover:scale-105 z-10 ${
+                                            isCompleted ? 'bg-green-50 border-green-500 text-green-600' :
+                                            isCurrent ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-md' :
+                                            'bg-white border-gray-200 text-gray-300'
+                                        }`}
+                                        onClick={() => handleStepCompletion(step.id)}
+                                     >
+                                         {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5 fill-current" />}
+                                     </div>
+
+                                     <div className="space-y-3">
+                                         <div className="flex items-center justify-between">
+                                             <div className="flex items-center gap-3">
+                                                 <h3 className={`font-semibold text-lg ${isCurrent ? 'text-blue-700' : 'text-slate-700'}`}>
+                                                     {step.title}
+                                                 </h3>
+                                                 {isCurrent && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">Atual</Badge>}
+                                             </div>
+                                             
+                                             <div className="flex items-center gap-2">
+                                                 <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
+                                                     <PopoverTrigger asChild>
+                                                         <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-500">
+                                                             {assignments[step.id]?.responsibleName ? assignments[step.id].responsibleName : "Atribuir"}
+                                                         </Button>
+                                                     </PopoverTrigger>
+                                                     <PopoverContent className="w-80 p-4">
+                                                         <div className="space-y-4">
+                                                             <h4 className="font-semibold text-sm">Definir Responsável</h4>
+                                                             <div className="space-y-2">
+                                                                 <Label>Nome</Label>
+                                                                 <Select value={assignResp} onValueChange={setAssignResp}>
+                                                                     <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                                                     <SelectContent>
+                                                                         {RESPONSAVEIS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                                                     </SelectContent>
+                                                                 </Select>
+                                                             </div>
+                                                             <div className="space-y-2">
+                                                                 <Label>Prazo</Label>
+                                                                 <Input type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
+                                                             </div>
+                                                             <Button size="sm" onClick={() => { handleSaveAssignment(step.id, assignResp, assignDue); setAssignOpenStep(null); }}>Salvar</Button>
+                                                         </div>
+                                                     </PopoverContent>
+                                                 </Popover>
+                                                 
+                                                 <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    onClick={() => setExpandedSteps(prev => ({ ...prev, [step.id]: !prev[step.id] }))}
+                                                 >
+                                                     {expandedSteps[step.id] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                 </Button>
+                                             </div>
+                                         </div>
+
+                                         {(expandedSteps[step.id] || isCurrent) && (
+                                             <div className="pt-2 animate-in slide-in-from-top-2 duration-300">
+                                                 {renderStepContent(step)}
+                                             </div>
+                                         )}
+                                     </div>
                                 </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
-                              <PopoverTrigger asChild>
-                                <button className="text-xs text-gray-600 border border-gray-300 rounded px-3 py-1 bg-white">Definir Responsável</button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[420px]">
-                                <div className="space-y-3">
-                                  <div className="space-y-1">
-                                    <Label>Responsável</Label>
-                                    <Input value={assignResp} onChange={(e) => setAssignResp(e.target.value)} placeholder="Selecione..." />
-                                    <div className="rounded-md border mt-2 bg-white max-h-40 overflow-y-auto">
-                                      {RESPONSAVEIS.map((r) => (
-                                        <button key={r} className="w-full text-left px-2 py-1 text-sm hover:bg-slate-100" onClick={() => setAssignResp(r)}>{r}</button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <Label>Data limite</Label>
-                                    <Input type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <Button size="sm" onClick={() => { handleSaveAssignment(step.id, assignResp, assignDue); setAssignOpenStep(null); }}>Salvar</Button>
-                                  </div>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                            <button className="text-gray-500" onClick={() => toggleStepExpansion(step.id)}>
-                              {expandedSteps[step.id] ? <ChevronUp className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                            </button>
-                          </div>
-                        </div>
-                        {expandedSteps[step.id] ? (
-                          <div className="mt-3">
-                            {renderStepContent(step)}
-                          </div>
-                        ) : null}
-                      </div>
+                             );
+                        })}
                     </div>
-                  );
-                })}
-              </CardContent>
+                </CardContent>
             </Card>
         </div>
 
-        <div className="lg:col-span-4 flex flex-col min-h-[560px] space-y-4">
-          <StatusPanel
-            status={status}
-            onStatusChange={handleStatusChange}
-            currentStep={caseData.currentStep}
-            totalSteps={WORKFLOW_STEPS.length}
-            currentStepTitle={WORKFLOW_STEPS.find(s => s.id === caseData.currentStep)?.title}
-            createdAt={caseData.createdAt}
-            updatedAt={caseData.updatedAt}
-          />
+        {/* RIGHT COLUMN */}
+        <div className="lg:col-span-4 space-y-6">
+            <StatusPanel
+                status={status}
+                onStatusChange={handleStatusChange}
+                currentStep={caseData.currentStep}
+                totalSteps={WORKFLOW_STEPS.length}
+                currentStepTitle={WORKFLOW_STEPS.find(s => s.id === caseData.currentStep)?.title || "Finalizado"}
+                createdAt={caseData.createdAt}
+                updatedAt={caseData.updatedAt}
+            />
 
-          <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="flex items-center w-full justify-between">
-                <span className="flex items-center">Observações</span>
-                <button className="rounded-md border px-2 py-1 text-xs bg-white" onClick={() => setShowNotesModal(true)}>Ver todas</button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <Textarea 
-                rows={12} 
-                placeholder="Adicione observações..." 
-                value={notes[0] || ''} 
-                onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
-                className="flex-1 border-none bg-transparent" 
-              />
-              <div className="flex justify-end mt-2">
-                <Button onClick={() => saveStepNotes(0)}>Salvar</Button>
-              </div>
-            </CardContent>
-          </Card>
+            <PendingDocumentsList
+                documents={pendingDocs}
+                totalDocs={totalDocs}
+                completedDocs={completedDocs}
+                onUploadClick={(doc) => {
+                     // Find step id based on group
+                     const step = WORKFLOW_STEPS.find(s => s.title === doc.group);
+                     if (step) {
+                         setExpandedSteps(prev => ({ ...prev, [step.id]: true }));
+                     }
+                }}
+            />
 
-          <Card className="rounded-xl border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" /> Documentos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50' : ''} hover:bg-gray-50`}
-                     onDragOver={(e) => e.preventDefault()}
-                     onDrop={(e) => { e.preventDefault(); handleFileUpload(e.dataTransfer.files as any); }}>
-                  <Upload className="h-6 w-6 text-blue-500 mb-2" />
-                  <p className="text-sm font-medium text-gray-700">Arraste arquivos aqui</p>
-                </div>
-                {documents.length > 0 && (
-                    <div className="flex flex-wrap gap-3 mt-4">
-                        {documents.map((doc) => (
-                            <div key={doc.id} className="group relative w-10 h-10">
-                                <a href={doc.file_path || doc.url} target="_blank" rel="noopener noreferrer" className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50">
-                                    <FileText className="h-5 w-5 text-blue-600" />
-                                </a>
-                                <button className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 bg-white border rounded-full p-0.5" onClick={(e) => { e.preventDefault(); handleDeleteDocument(doc); }}>
-                                    <X className="h-3 w-3 text-gray-600" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-          </Card>
+            <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <CardTitle className="flex items-center w-full justify-between">
+                    <span className="flex items-center text-sm font-semibold uppercase text-slate-500">Observações Gerais</span>
+                    <button className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-50" onClick={() => setShowNotesModal(true)}>Ver Histórico</button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col">
+                  <Textarea 
+                    rows={6} 
+                    placeholder="Adicione observações gerais..." 
+                    value={notes[0] || ''} 
+                    onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
+                    className="flex-1 border-none bg-slate-50 resize-none mb-2" 
+                  />
+                  <div className="flex justify-end">
+                    <Button size="sm" className="bg-slate-900" onClick={() => saveStepNotes(0)}>Salvar Nota</Button>
+                  </div>
+                </CardContent>
+            </Card>
         </div>
       </div>
-
-      {/* Modal de Notas */}
+      
+       {/* Modal de Notas */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent>
             <DialogHeader><DialogTitle>Notas do Processo</DialogTitle></DialogHeader>
@@ -1143,13 +903,6 @@ export default function CompraVendaDetailsPage() {
             </div>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-            <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Excluir documento?</AlertDialogDescription></AlertDialogHeader>
-            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteDocument}>Excluir</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

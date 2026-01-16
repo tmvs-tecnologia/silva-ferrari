@@ -42,9 +42,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const idNum = parseInt(params.id);
+    const { id } = await params;
+    const idNum = parseInt(id);
     if (isNaN(idNum)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     const { data, error } = await supabaseAdmin
       .from('folders')

@@ -51,9 +51,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const folderId = parseInt(params.id);
+    const { id } = await params;
+    const folderId = parseInt(id);
     if (isNaN(folderId)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     const { searchParams } = new URL(request.url);
     const recordId = parseInt(String(searchParams.get('recordId')));

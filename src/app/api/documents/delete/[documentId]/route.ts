@@ -11,7 +11,7 @@ export async function DELETE(
   context: any
 ) {
   try {
-    const { documentId } = context.params;
+    const { documentId } = await context.params;
 
     if (!documentId) {
       return NextResponse.json(

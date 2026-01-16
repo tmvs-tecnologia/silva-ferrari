@@ -55,6 +55,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import "react-day-picker/dist/style.css";
 import { StatusPanel } from "@/components/detail/StatusPanel";
+import { PendingDocumentsList, PendingDocument } from "@/components/detail/PendingDocumentsList";
 import { formatDateBR } from "@/lib/date";
 import { subscribeTable, unsubscribe } from "@/lib/realtime";
 
@@ -136,6 +137,63 @@ export default function PerdaNacionalidadeDetailPage() {
   const [assignResp, setAssignResp] = useState<string>("");
   const [assignDue, setAssignDue] = useState<string>("");
   const [showNotesModal, setShowNotesModal] = useState(false);
+
+  // Helper for requirements
+  const getDocRequirements = (): PendingDocument[] => {
+    return [
+       // Etapa 0
+       { key: "rnmMaeDoc", label: "RNM da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "cpfMaeDoc", label: "CPF da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "rnmPaiDoc", label: "RNM do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "cpfPaiDoc", label: "CPF do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "passaporteDoc", label: "Passaportes", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+       { key: "documentoChinesDoc", label: "Documento Chinês", group: WORKFLOW_STEPS[0], stepId: 0 },
+       { key: "traducaoJuramentadaDoc", label: "Tradução Juramentada", group: WORKFLOW_STEPS[0], stepId: 0 },
+       
+       // Etapa 1
+       { key: "procuracaoDoc", label: "Procuração", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
+       { key: "pedidoPerdaDoc", label: "Pedido de Perda", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
+
+       // Etapa 2
+       { key: "procuracaoAssinadaDoc", label: "Procuração Assinada", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
+       { key: "pedidoAssinadoDoc", label: "Pedido Assinado", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
+
+       // Etapa 3
+       { key: "protocoloSeiDoc", label: "Protocolo no SEI", group: WORKFLOW_STEPS[3], stepId: 3, required: true },
+
+       // Etapa 4
+       { key: "comprovanteProtocoladoDoc", label: "Comprovante de Protocolo", group: WORKFLOW_STEPS[4], stepId: 4 },
+
+       // Etapa 5
+       { key: "douDoc", label: "DOU (Deferimento)", group: WORKFLOW_STEPS[5], stepId: 5, required: true },
+
+       // Etapa 6
+       { key: "passaporteChinesDoc", label: "Passaporte Chinês", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
+       { key: "portariaDoc", label: "Portaria", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
+
+       // Etapa 7
+       { key: "manifestoDoc", label: "Manifesto", group: WORKFLOW_STEPS[7], stepId: 7, required: true },
+
+       // Etapa 8
+       { key: "protocoloManifestoDoc", label: "Protocolo do Manifesto", group: WORKFLOW_STEPS[8], stepId: 8, required: true },
+
+       // Etapa 9
+       { key: "douRatificacaoDoc", label: "DOU (Ratificação)", group: WORKFLOW_STEPS[9], stepId: 9, required: true },
+    ];
+  };
+
+  const pendingDocs = getDocRequirements().filter(req => 
+    !documents.some(doc => (doc.fieldName === req.key || (doc as any).field_name === req.key))
+  ).map(doc => ({
+      ...doc,
+      priority: doc.required ? "high" : "medium" as any,
+      status: "pending" as any
+  }));
+  
+  const totalDocs = getDocRequirements().length;
+  const completedDocs = totalDocs - pendingDocs.length;
 
   const parseNotesArray = (notesStr?: string) => {
     try {
@@ -1291,13 +1349,13 @@ export default function PerdaNacionalidadeDetailPage() {
           )}
         </div>
 
-        <div className="lg:col-span-4 flex flex-col min-h-[560px] space-y-4">
+        <div className="lg:col-span-4 space-y-6">
           <StatusPanel
             status={status}
             onStatusChange={handleStatusChange}
             currentStep={currentStepIndex + 1}
             totalSteps={caseData.steps.length}
-            currentStepTitle={caseData.steps[currentStepIndex]?.title}
+            currentStepTitle={caseData.steps[currentStepIndex]?.title || "Finalizado"}
             createdAt={caseData.createdAt}
             updatedAt={caseData.updatedAt}
           />
@@ -1319,14 +1377,9 @@ export default function PerdaNacionalidadeDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
-              <Textarea rows={12} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-transparent" />
-              <div className="flex justify-end items-center px-3 py-2 mt-2">
-                <div className="flex flex-col items-end gap-1 w-full">
-                  <Button className="bg-slate-900 text-white" onClick={() => saveStepNotes(0)}>Salvar</Button>
-                  {saveMessages[0] ? (
-                    <span className="text-green-600 text-xs">Salvo com sucesso!</span>
-                  ) : null}
-                </div>
+              <Textarea rows={6} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-slate-50 resize-none mb-2" />
+              <div className="flex justify-end">
+                  <Button size="sm" className="bg-slate-900" onClick={() => saveStepNotes(0)}>Salvar Nota</Button>
               </div>
             </CardContent>
           </Card>
@@ -1437,40 +1490,7 @@ export default function PerdaNacionalidadeDetailPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-4">
-          <Card className="rounded-xl border-gray-200 shadow-sm h-full">
-            <CardHeader>
-              <CardTitle>Responsáveis</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col justify-between h-full">
-              <div className="space-y-4">
-                {(() => {
-                  const items = Object.entries(assignments)
-                    .filter(([_, v]) => v?.responsibleName)
-                    .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase() }));
-                  return items.map((m) => (
-                    <div key={m.key} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
-                          alt={m.name}
-                          className="h-8 w-8 rounded-full border border-gray-200 object-cover"
-                        />
-                        <div>
-                          <p className="font-medium text-sm">{m.name}</p>
-                          <p className="text-xs text-gray-500">{m.role || ''}</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon">
-                        <Mail className="w-5 h-5 text-gray-500" />
-                      </Button>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+
       </div>
 
       {/* Edit Document Dialog */}
