@@ -262,7 +262,7 @@ const DocumentRow = ({
           />
         )}
 
-        {isEditing && (
+        {isEditing && !!docField && (
           <div className="relative">
             <input
               type="file"

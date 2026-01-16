@@ -351,7 +351,7 @@ const DocumentRow = ({
           />
         )}
 
-        {isEditing && (
+        {isEditing && !!docField && (
           <div className="relative w-full sm:w-auto">
             <input
               type="file"
