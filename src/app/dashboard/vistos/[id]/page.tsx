@@ -69,6 +69,7 @@ import { DetailLayout } from "@/components/detail/DetailLayout";
 import { StatusPanel } from "@/components/detail/StatusPanel";
 import { formatDateBR } from "@/lib/date";
 import { subscribeTable, unsubscribe } from "@/lib/realtime";
+import { toast } from "sonner";
 
 // Definindo os workflows para Vistos
 const WORKFLOWS = {
@@ -272,6 +273,7 @@ const DocumentRow = ({
                 const files = e.target.files;
                 if (files && files.length > 0) {
                   Array.from(files).forEach((f) => onUpload(f));
+                  e.target.value = '';
                 }
               }}
             />
@@ -657,28 +659,18 @@ export default function VistoDetailsPage() {
   const handleFileUpload = async (files: FileList | File[] | null, stepId?: number) => {
     const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
     if (!arr.length) return;
+    
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
+
     try {
       for (const file of arr) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('caseId', String(params.id));
-        fd.append('moduleType', 'vistos');
-        fd.append('fieldName', 'documentoAnexado');
-        fd.append('clientName', caseData?.clientName || 'Cliente');
-        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (res.ok) {
-          const payload = await res.json();
-          const newDoc = payload?.document;
-          if (newDoc) {
-            setDocuments(prev => [newDoc, ...prev]);
-          }
-        }
+        await processUpload(file, 'documentoAnexado', stepId);
       }
       await fetchDocuments();
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error("Erro ao realizar upload. Tente novamente.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -688,26 +680,93 @@ export default function VistoDetailsPage() {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('caseId', String(params.id));
-      fd.append('moduleType', 'vistos');
-      fd.append('fieldName', fieldKey); // Garante que o fieldName correto seja enviado
-      fd.append('clientName', caseData?.clientName || 'Cliente');
-      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (res.ok) {
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) {
-          setDocuments(prev => [newDoc, ...prev]);
-        }
-        await fetchDocuments();
-        setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
-      }
+      await processUpload(file, fieldKey, stepId);
+      await fetchDocuments();
     } catch (error) {
-      console.error("Erro ao fazer upload:", error);
+      console.error("Erro ao fazer upload específico:", error);
+      toast.error("Erro ao realizar upload. Tente novamente.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
+    }
+  };
+
+  const processUpload = async (file: File, fieldName: string, stepId?: number) => {
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast.error(`Tipo de arquivo inválido: ${file.name}. Formatos permitidos: PDF, JPEG, PNG, WebP.`);
+      return;
+    }
+
+    // 1. Get Signed URL
+    const signRes = await fetch('/api/documents/upload/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            caseId: params.id,
+            moduleType: 'vistos',
+            fieldName: fieldName,
+            clientName: caseData?.clientName || 'Cliente'
+        })
+    });
+
+    if (!signRes.ok) {
+        throw new Error('Erro ao gerar URL de upload');
+    }
+
+    const { signedUrl, publicUrl } = await signRes.json();
+
+    // 2. Upload with Retry
+    await uploadWithRetry(signedUrl, file);
+
+    // 3. Register Metadata
+    const regRes = await fetch('/api/documents/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            filePath: publicUrl,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            caseId: params.id,
+            moduleType: 'vistos',
+            fieldName: fieldName,
+            clientName: caseData?.clientName || 'Cliente'
+        })
+    });
+
+    if (regRes.ok) {
+        const payload = await regRes.json();
+        if (payload?.document) {
+            setDocuments(prev => [payload.document, ...prev]);
+            toast.success(`Upload concluído: ${file.name}`);
+        }
+    } else {
+        throw new Error('Erro ao registrar metadados');
+    }
+  };
+
+  const uploadWithRetry = async (url: string, file: File, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url);
+                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+                    else reject(new Error(`Status ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(file);
+            });
+            return;
+        } catch (err) {
+            if (i === retries - 1) throw err;
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
+        }
     }
   };
 
@@ -3262,6 +3321,19 @@ export default function VistoDetailsPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-700">Arraste e solte arquivos aqui para anexar</p>
                   <p className="text-xs text-gray-500 mt-1">Ou use os botões de envio nas etapas acima</p>
+                  <input 
+                      type="file" 
+                      id="general-upload" 
+                      className="hidden" 
+                      multiple 
+                      onChange={(e) => { 
+                        const files = e.target.files; 
+                        if (files && files.length > 0) {
+                          handleFileUpload(Array.from(files));
+                          e.target.value = '';
+                        }
+                      }} 
+                  />
                 </div>
 
                 {(documents as any[]).length > 0 ? (

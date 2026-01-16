@@ -362,6 +362,7 @@ const DocumentRow = ({
                 const files = e.target.files;
                 if (files && files.length > 0) {
                   Array.from(files).forEach((f) => onUpload(f));
+                  e.target.value = '';
                 }
               }}
             />
@@ -800,24 +801,8 @@ export default function AcoesCiveisDetailsPage() {
 
             const { signedUrl, fullPath, publicUrl } = await signRes.json();
 
-            // 2. Upload directly to Supabase Storage via Signed URL
-            // Using XMLHttpRequest for potential progress tracking (future) and avoiding Next.js body limits
-            await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('PUT', signedUrl);
-                xhr.setRequestHeader('Content-Type', file.type);
-                
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve(xhr.response);
-                    } else {
-                        reject(new Error(`Upload falhou: ${xhr.statusText}`));
-                    }
-                };
-                
-                xhr.onerror = () => reject(new Error('Erro de rede durante upload'));
-                xhr.send(file);
-            });
+            // 2. Upload with Retry
+            await uploadWithRetry(signedUrl, file);
 
             // 3. Register Metadata in Database
             const regRes = await fetch('/api/documents/register', {
@@ -854,6 +839,33 @@ export default function AcoesCiveisDetailsPage() {
         toast.error("Erro ao realizar upload. Tente novamente.");
     } finally {
         setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
+    }
+  };
+
+  const uploadWithRetry = async (url: string, file: File, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', url);
+                xhr.setRequestHeader('Content-Type', file.type);
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(xhr.response);
+                    } else {
+                        reject(new Error(`Status ${xhr.status}`));
+                    }
+                };
+                
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(file);
+            });
+            return;
+        } catch (err) {
+            if (i === retries - 1) throw err;
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
+        }
     }
   };
 
@@ -1530,7 +1542,13 @@ export default function AcoesCiveisDetailsPage() {
                       id="general-upload" 
                       className="hidden" 
                       multiple 
-                      onChange={(e) => { const files = e.target.files; if (files) handleFileUpload(Array.from(files)); }} 
+                      onChange={(e) => { 
+                        const files = e.target.files; 
+                        if (files && files.length > 0) {
+                          handleFileUpload(Array.from(files));
+                          e.target.value = '';
+                        }
+                      }} 
                   />
                 </div>
 
