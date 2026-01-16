@@ -691,12 +691,7 @@ export default function VistoDetailsPage() {
   };
 
   const processUpload = async (file: File, fieldName: string, stepId?: number) => {
-    // Validate file type
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      toast.error(`Tipo de arquivo inválido: ${file.name}. Formatos permitidos: PDF, JPEG, PNG, WebP.`);
-      return;
-    }
+    const contentType = file.type || 'application/octet-stream';
 
     // 1. Get Signed URL
     const signRes = await fetch('/api/documents/upload/sign', {
@@ -704,7 +699,7 @@ export default function VistoDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             fileName: file.name,
-            fileType: file.type,
+            fileType: contentType,
             caseId: params.id,
             moduleType: 'vistos',
             fieldName: fieldName,
@@ -728,7 +723,7 @@ export default function VistoDetailsPage() {
         body: JSON.stringify({
             filePath: publicUrl,
             fileName: file.name,
-            fileType: file.type,
+            fileType: contentType,
             fileSize: file.size,
             caseId: params.id,
             moduleType: 'vistos',
@@ -754,7 +749,7 @@ export default function VistoDetailsPage() {
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', url);
-                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
                 xhr.onload = () => {
                     if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
                     else reject(new Error(`Status ${xhr.status}`));

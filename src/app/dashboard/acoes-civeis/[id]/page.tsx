@@ -772,13 +772,7 @@ export default function AcoesCiveisDetailsPage() {
 
     try {
         for (const file of arr) {
-            // Validate file type
-            // Support for PDF, JPEG, and AI-generated images (PNG, WebP)
-            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-            if (!validTypes.includes(file.type)) {
-                toast.error(`Tipo de arquivo inválido: ${file.name}. Formatos permitidos: PDF, JPEG, PNG, WebP.`);
-                continue;
-            }
+            const contentType = file.type || 'application/octet-stream';
 
             // 1. Get Signed URL
             const signRes = await fetch('/api/documents/upload/sign', {
@@ -786,7 +780,7 @@ export default function AcoesCiveisDetailsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     fileName: file.name,
-                    fileType: file.type,
+                    fileType: contentType,
                     caseId: id,
                     moduleType: 'acoes_civeis',
                     fieldName: fieldName,
@@ -811,7 +805,7 @@ export default function AcoesCiveisDetailsPage() {
                 body: JSON.stringify({
                     filePath: publicUrl, // Save the public URL as expected by current schema
                     fileName: file.name,
-                    fileType: file.type,
+                    fileType: contentType,
                     fileSize: file.size,
                     caseId: id,
                     moduleType: 'acoes_civeis',
@@ -848,7 +842,7 @@ export default function AcoesCiveisDetailsPage() {
             await new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('PUT', url);
-                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
                 
                 xhr.onload = () => {
                     if (xhr.status >= 200 && xhr.status < 300) {
