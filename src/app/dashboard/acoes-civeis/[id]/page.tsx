@@ -772,9 +772,10 @@ export default function AcoesCiveisDetailsPage() {
     try {
         for (const file of arr) {
             // Validate file type
-            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+            // Support for PDF, JPEG, and AI-generated images (PNG, WebP)
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
             if (!validTypes.includes(file.type)) {
-                toast.error(`Tipo de arquivo inválido: ${file.name}. Apenas PDF e JPEG são permitidos.`);
+                toast.error(`Tipo de arquivo inválido: ${file.name}. Formatos permitidos: PDF, JPEG, PNG, WebP.`);
                 continue;
             }
 
