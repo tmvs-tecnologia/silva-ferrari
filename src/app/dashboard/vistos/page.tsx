@@ -52,6 +52,7 @@ interface Visto {
   country?: string;
   travelStartDate?: string;
   travelEndDate?: string;
+  stepData?: Record<string, any>;
 }
 
 export default function VistosPage() {
@@ -685,6 +686,18 @@ export default function VistosPage() {
                           <Calendar className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           <span className="font-medium">Prazo:</span>
                           <span>{(() => {
+                            // Check for Prazo de Cumprimento in stepData
+                            if (visto.stepData) {
+                                for (const key in visto.stepData) {
+                                    if (visto.stepData[key]?.prazoCumprimento) {
+                                        const p = visto.stepData[key].prazoCumprimento;
+                                        const m = String(p).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                        if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+                                        try { const d = new Date(p); return isNaN(d.getTime()) ? p : d.toLocaleDateString("pt-BR"); } catch { return p; }
+                                    }
+                                }
+                            }
+
                             const iso = vistosAssignments[String(visto.id)]?.dueDate;
                             if (!iso) return "—";
                             const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
