@@ -2,6 +2,65 @@ import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore
 import { createClient } from '@supabase/supabase-js';
 
+function normalizeMimeToken(value: any): string {
+  const t = String(value || '').trim();
+  if (!t) return '';
+  return t.split(';')[0].trim().toLowerCase();
+}
+
+function getFileExtension(fileName?: string): string {
+  const name = String(fileName || '').trim();
+  const idx = name.lastIndexOf('.');
+  if (idx === -1) return '';
+  return name.slice(idx + 1).toLowerCase();
+}
+
+function normalizeFileTypeFallback(fileType: any, fileName?: string): string {
+  const t = normalizeMimeToken(fileType);
+  const ext = getFileExtension(fileName);
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+  };
+  const normalizedFromExt = map[ext] || 'application/octet-stream';
+  if (!t) return normalizedFromExt;
+  return t;
+}
+
+function isTooLongForColumn(err: any): boolean {
+  const msg = String(err?.message || err?.details || '').toLowerCase();
+  return err?.code === '22001' || msg.includes('too long') || msg.includes('value too long');
+}
+
+function isUnknownColumn(err: any, columnName: string): boolean {
+  const msg = String(err?.message || err?.details || '').toLowerCase();
+  const c = String(columnName || '').toLowerCase();
+  return (
+    err?.code === '42703' ||
+    err?.code === 'PGRST204' ||
+    msg.includes(`could not find the '${c}' column`) ||
+    msg.includes(`could not find the "${c}" column`) ||
+    msg.includes(`column "${c}"`) ||
+    msg.includes(`column '${c}'`) ||
+    msg.includes(`column ${c}`)
+  );
+}
+
+function toShortTypeForDb(fileType: string, fileName?: string): string {
+  const t = normalizeMimeToken(fileType);
+  const ext = getFileExtension(fileName);
+  if (t === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (t === 'application/msword') return 'doc';
+  if (t === 'application/pdf') return 'pdf';
+  if (t.startsWith('image/')) return t.split('/')[1]?.trim().slice(0, 50) || 'image';
+  if (ext) return ext;
+  return (t || 'application/octet-stream').slice(0, 50);
+}
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -36,26 +95,59 @@ export async function POST(request: NextRequest) {
     console.log('💾 Registrando metadados:', { fileName, recordId, fieldName });
 
     // Insert into documents table
-    const { data: insertedDoc, error: insertError } = await supabaseAdmin
-      .from('documents')
-      .insert({
-        module_type: moduleType || 'acoes_civeis',
-        record_id: parseInt(recordId),
-        client_name: clientName || 'Cliente Desconhecido',
-        field_name: fieldName,
-        document_name: fileName,
-        file_name: fileName,
-        file_path: filePath, // Should be the Public URL
-        file_type: fileType,
-        file_size: fileSize,
-        uploaded_at: new Date().toISOString(),
-      })
-      .select('*')
-      .single();
+    const fileTypeResolved = normalizeFileTypeFallback(fileType, fileName);
+    const shortTypeForDb = toShortTypeForDb(fileTypeResolved, fileName);
+    const insertPayloadBase = {
+      module_type: moduleType || 'acoes_civeis',
+      record_id: parseInt(recordId),
+      client_name: clientName || 'Cliente Desconhecido',
+      field_name: fieldName,
+      document_name: fileName,
+      file_name: fileName,
+      file_path: filePath,
+      file_size: fileSize,
+      uploaded_at: new Date().toISOString(),
+    } as const;
+
+    const attemptInsert = async (payload: Record<string, any>) => {
+      return await supabaseAdmin.from('documents').insert(payload).select('*').single();
+    };
+
+    let insertPayload: Record<string, any> = {
+      ...insertPayloadBase,
+      file_type: shortTypeForDb,
+      mime_type: fileTypeResolved,
+    };
+
+    let { data: insertedDoc, error: insertError } = await attemptInsert(insertPayload);
 
     if (insertError) {
-      console.error('❌ Erro ao inserir documento:', insertError);
-      throw insertError;
+      if (isUnknownColumn(insertError, 'mime_type')) {
+        const { mime_type: _ignored, ...withoutMime } = insertPayload;
+        insertPayload = withoutMime;
+        const retry = await attemptInsert(insertPayload);
+        insertedDoc = retry.data as any;
+        insertError = retry.error as any;
+      }
+      if (insertError && isTooLongForColumn(insertError)) {
+        const retry = await attemptInsert({
+          ...insertPayload,
+          file_type: String(insertPayload.file_type || '').slice(0, 50),
+        });
+        insertedDoc = retry.data as any;
+        insertError = retry.error as any;
+      }
+      if (insertError) {
+        console.error('❌ Erro ao inserir documento:', insertError);
+        return NextResponse.json(
+          {
+            error: 'Erro ao registrar metadados do documento',
+            code: insertError.code || 'DOCUMENT_REGISTER_FAILED',
+            details: insertError.message || insertError.details || null,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Update parent table
@@ -156,6 +248,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Erro no registro:', error);
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Erro inesperado ao registrar metadados', code: 'UNEXPECTED_ERROR', details: (error as Error).message },
+      { status: 500 }
+    );
   }
 }

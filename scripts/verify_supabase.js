@@ -2,10 +2,12 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
-// Load env vars manually if dotenv is not available, or just use the known keys for this environment
-const SUPABASE_URL = "https://phfzqvmofnqwxszdgjch.supabase.co";
-// Using service role key for verification to ensure we have permissions
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoZnpxdm1vZm5xd3hzemRnamNoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTY4MTUzMiwiZXhwIjoyMDc3MjU3NTMyfQ.CPi3Ighr9H8M-3ImsgEUtP44HawTJ_PtfNKEhROStZk";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error('Missing SUPABASE env vars (NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
