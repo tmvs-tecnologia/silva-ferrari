@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { NotificationService } from '@/lib/notification'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
+import { getSupabaseAdminClient, getSupabaseServerClient } from '@/lib/supabase-server'
 
 function mapDbToFrontend(record: any) {
   if (!record) return record
@@ -23,7 +20,13 @@ function mapDbToFrontend(record: any) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = (() => {
+      try {
+        return getSupabaseAdminClient()
+      } catch {
+        return getSupabaseServerClient()
+      }
+    })()
     const { searchParams } = new URL(request.url)
     const moduleType = searchParams.get('moduleType')
     const recordId = searchParams.get('recordId')
@@ -59,7 +62,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = (() => {
+      try {
+        return getSupabaseAdminClient()
+      } catch {
+        return getSupabaseServerClient()
+      }
+    })()
     const body = await request.json()
     const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone, workflowName } = body
 
@@ -190,7 +199,13 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = (() => {
+      try {
+        return getSupabaseAdminClient()
+      } catch {
+        return getSupabaseServerClient()
+      }
+    })()
     const body = await request.json()
     const { moduleType, recordId, stepIndex, responsibleName, dueDate, isDone } = body
 
@@ -226,7 +241,13 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const supabase = (() => {
+      try {
+        return getSupabaseAdminClient()
+      } catch {
+        return getSupabaseServerClient()
+      }
+    })()
     const { searchParams } = new URL(request.url)
     const moduleType = searchParams.get('moduleType')
     const recordId = searchParams.get('recordId')

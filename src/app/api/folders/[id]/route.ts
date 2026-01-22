@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const idNum = parseInt(params.id);
     if (isNaN(idNum)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     const { data, error } = await supabaseAdmin
@@ -24,6 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const idNum = parseInt(params.id);
     if (isNaN(idNum)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     const body = await request.json();
@@ -44,6 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const { id } = await params;
     const idNum = parseInt(id);
     if (isNaN(idNum)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
@@ -59,4 +57,3 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ error: 'Erro interno: ' + (error as Error).message }, { status: 500 });
   }
 }
-

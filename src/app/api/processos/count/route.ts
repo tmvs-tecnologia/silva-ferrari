@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore - Supabase types will be resolved in production
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(_request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const tables = [
       'acoes_civeis',

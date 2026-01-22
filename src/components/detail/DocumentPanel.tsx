@@ -5,6 +5,7 @@ import { FileText, Upload, Download, Trash2, File, FileImage, FileSpreadsheet, F
 import { FIELD_TO_DOCUMENT_NAME } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { documentIconClassName } from "@/components/ui/document-style";
 
 interface Document {
   id: string | number;
@@ -86,22 +87,22 @@ export function DocumentPanel({
     const name = String(doc.file_path || doc.file_name || "").toLowerCase();
     const hasExt = name.includes(".");
     const ext = hasExt ? name.split(".").pop() || "" : "";
-    if (["png","jpg","jpeg","gif","webp","svg"].includes(ext)) return <FileImage className="h-5 w-5 text-blue-600" />;
-    if (["pdf"].includes(ext)) return <FileText className="h-5 w-5 text-red-600" />;
-    if (["xls","xlsx","csv"].includes(ext)) return <FileSpreadsheet className="h-5 w-5 text-green-600" />;
-    if (["mp4","mov","avi","mkv","webm"].includes(ext)) return <FileVideo className="h-5 w-5 text-indigo-600" />;
-    if (["mp3","wav","aac","flac","ogg"].includes(ext)) return <FileAudio className="h-5 w-5 text-purple-600" />;
-    if (["zip","rar","7z","tar","gz"].includes(ext)) return <FileArchive className="h-5 w-5 text-amber-600" />;
-    if (["doc","docx","rtf","odt"].includes(ext)) return <FileText className="h-5 w-5 text-blue-600" />;
-    if (["json","js","ts","tsx","py","java","go","rb","c","cpp","md","txt"].includes(ext)) return <FileCode className="h-5 w-5 text-slate-600" />;
-    return <Paperclip className="h-5 w-5 text-slate-600" />;
+    if (["png","jpg","jpeg","gif","webp","svg"].includes(ext)) return <FileImage className={`${documentIconClassName} text-blue-600`} />;
+    if (["pdf"].includes(ext)) return <FileText className={`${documentIconClassName} text-red-600`} />;
+    if (["xls","xlsx","csv"].includes(ext)) return <FileSpreadsheet className={`${documentIconClassName} text-green-600`} />;
+    if (["mp4","mov","avi","mkv","webm"].includes(ext)) return <FileVideo className={`${documentIconClassName} text-indigo-600`} />;
+    if (["mp3","wav","aac","flac","ogg"].includes(ext)) return <FileAudio className={`${documentIconClassName} text-purple-600`} />;
+    if (["zip","rar","7z","tar","gz"].includes(ext)) return <FileArchive className={`${documentIconClassName} text-amber-600`} />;
+    if (["doc","docx","rtf","odt"].includes(ext)) return <FileText className={`${documentIconClassName} text-blue-600`} />;
+    if (["json","js","ts","tsx","py","java","go","rb","c","cpp","md","txt"].includes(ext)) return <FileCode className={`${documentIconClassName} text-slate-600`} />;
+    return <Paperclip className={`${documentIconClassName} text-slate-600`} />;
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
+          <FileText className={documentIconClassName} />
           Documentos do Cliente
         </CardTitle>
       </CardHeader>

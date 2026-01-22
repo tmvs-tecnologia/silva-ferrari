@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore - Supabase types will be resolved in production
-import { createClient } from '@supabase/supabase-js';
 import { NotificationService } from '@/lib/notification';
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 // Helper function to convert DB fields to frontend format
 function mapVistosDbFieldsToFrontend(record: any) {
@@ -71,12 +71,9 @@ function mapVistosDbFieldsToFrontend(record: any) {
   };
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -165,7 +162,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const body = await request.json();
 
     // Validate required fields
@@ -284,7 +281,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -425,7 +422,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 

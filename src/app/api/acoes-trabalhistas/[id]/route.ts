@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: Request,
   context: any
 ) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const { id } = await context.params;
 
     // Validate ID
@@ -52,7 +49,7 @@ export async function DELETE(
   context: any
 ) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const { id } = context.params;
 
     // Validate ID

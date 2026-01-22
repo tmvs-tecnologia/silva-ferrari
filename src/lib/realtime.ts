@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabaseBrowserClient } from '@/lib/supabase'
 
 type ChangeEvent = 'insert' | 'update' | 'delete'
 
@@ -12,6 +12,8 @@ export function subscribeTable(
   }
 ) {
   const { channelName, table, events, filter, onChange } = opts
+  const supabase = getSupabaseBrowserClient()
+  if (!supabase) return null
   const channel = supabase.channel(channelName || `rt-${table}-${Math.random().toString(36).slice(2)}`)
   events.forEach((ev) => {
     channel.on('postgres_changes', { event: ev, schema: 'public', table, filter }, onChange)
@@ -23,4 +25,3 @@ export function subscribeTable(
 export function unsubscribe(channel: { unsubscribe: () => void } | null | undefined) {
   if (channel && typeof channel.unsubscribe === 'function') channel.unsubscribe()
 }
-

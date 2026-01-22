@@ -1,12 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 // @ts-ignore - Supabase types will be resolved in production
-import { createClient } from '@supabase/supabase-js';
 import { NotificationService } from '@/lib/notification';
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
+
+function parseNotesEnvelope(notes: any): { entries: any[]; stepData: Record<string, any>; text: string } {
+  if (notes === null || notes === undefined) return { entries: [], stepData: {}, text: '' };
+
+  if (typeof notes === 'string') {
+    const trimmed = notes.trim();
+    if (!trimmed) return { entries: [], stepData: {}, text: '' };
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return { entries: parsed, stepData: {}, text: '' };
+      if (parsed && typeof parsed === 'object') {
+        const entries = Array.isArray((parsed as any).entries) ? (parsed as any).entries : (Array.isArray((parsed as any).notes) ? (parsed as any).notes : []);
+        const stepData = (parsed as any).stepData && typeof (parsed as any).stepData === 'object' ? (parsed as any).stepData : {};
+        const text = typeof (parsed as any).text === 'string' ? (parsed as any).text : '';
+        return { entries, stepData, text };
+      }
+      return { entries: [], stepData: {}, text: trimmed };
+    } catch {
+      return { entries: [], stepData: {}, text: trimmed };
+    }
+  }
+
+  if (Array.isArray(notes)) return { entries: notes, stepData: {}, text: '' };
+  if (notes && typeof notes === 'object') {
+    const entries = Array.isArray((notes as any).entries) ? (notes as any).entries : (Array.isArray((notes as any).notes) ? (notes as any).notes : []);
+    const stepData = (notes as any).stepData && typeof (notes as any).stepData === 'object' ? (notes as any).stepData : {};
+    const text = typeof (notes as any).text === 'string' ? (notes as any).text : '';
+    return { entries, stepData, text };
+  }
+
+  return { entries: [], stepData: {}, text: String(notes) };
+}
 
 // Helper function to convert snake_case to camelCase for vistos
 function mapVistosDbFieldsToFrontend(record: any) {
   if (!record) return record;
 
+  const parsedNotes = parseNotesEnvelope(record.notes);
   return {
     id: record.id,
     clientName: record.client_name,
@@ -115,6 +148,8 @@ function mapVistosDbFieldsToFrontend(record: any) {
     contratoTrabalhoIndeterminadoDoc: record.contrato_trabalho_indeterminado_doc,
     procurador: record.procurador,
     numeroProcesso: record.numero_processo,
+    cargo: record.cargo,
+    salario: record.salario,
     // Renovação 1 ano
     ctps: record.ctps,
     ctpsDoc: record.ctps_doc,
@@ -128,6 +163,7 @@ function mapVistosDbFieldsToFrontend(record: any) {
     justificativaMudancaEmpregadorDoc: record.justificativa_mudanca_empregador_doc,
     statusFinal: record.status_final,
     statusFinalOutro: record.status_final_outro,
+    stepData: parsedNotes.stepData,
     status: record.status,
     notes: record.notes,
     createdAt: record.created_at,
@@ -135,12 +171,9 @@ function mapVistosDbFieldsToFrontend(record: any) {
   };
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -243,7 +276,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const body = await request.json();
 
     // Validate required fields
@@ -437,7 +470,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
@@ -452,7 +485,7 @@ export async function PUT(request: NextRequest) {
     // Check if record exists
     const { data: existing, error: existError } = await supabase
       .from('vistos')
-      .select('id')
+      .select('id, notes')
       .eq('id', parseInt(id))
       .single();
 
@@ -867,8 +900,33 @@ export async function PUT(request: NextRequest) {
       updateData.status_final_outro = body.statusFinalOutro?.trim() || null;
     }
 
-    if (body.notes !== undefined) {
-      updateData.notes = body.notes?.trim() || null;
+    const shouldMergeNotes = body.stepData !== undefined || body.notes !== undefined;
+    if (shouldMergeNotes) {
+      const envelope = parseNotesEnvelope(existing?.notes);
+
+      if (body.stepData !== undefined && body.stepData && typeof body.stepData === 'object') {
+        envelope.stepData = body.stepData;
+      }
+
+      if (body.notes !== undefined) {
+        if (body.notes === null) {
+          envelope.entries = [];
+          envelope.text = '';
+        } else if (typeof body.notes === 'string') {
+          const parsed = parseNotesEnvelope(body.notes);
+          if (parsed.entries.length) envelope.entries = parsed.entries;
+          if (parsed.text) envelope.text = parsed.text;
+        } else if (Array.isArray(body.notes)) {
+          envelope.entries = body.notes;
+        } else if (body.notes && typeof body.notes === 'object') {
+          const parsed = parseNotesEnvelope(body.notes);
+          envelope.entries = parsed.entries;
+          envelope.text = parsed.text;
+          envelope.stepData = parsed.stepData || envelope.stepData;
+        }
+      }
+
+      updateData.notes = JSON.stringify({ entries: envelope.entries, stepData: envelope.stepData, text: envelope.text });
     }
 
     const { data: updated, error } = await supabase
@@ -882,7 +940,7 @@ export async function PUT(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(mapVistosDbFieldsToFrontend(updated), { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);
@@ -894,7 +952,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = getSupabaseAdminClient();
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 function normalizeMimeToken(value: any): string {
   const t = String(value || '').trim();
@@ -61,15 +60,11 @@ function toShortTypeForDb(fileType: string, fileName?: string): string {
   return (t || 'application/octet-stream').slice(0, 50);
 }
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const body = await request.json();
     const { 
       filePath, // Public URL or Storage Path? Current implementation expects Public URL for 'file_path' column

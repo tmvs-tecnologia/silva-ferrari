@@ -67,8 +67,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
-import "react-day-picker/dist/style.css";
 
 const WORKFLOWS = {
   "Ação Criminal": [
@@ -311,12 +309,13 @@ export default function AcaoCriminalDetailPage() {
   const handleStepCompletion = async (stepIndex: number) => {
     const nextCurrent = stepIndex + 1;
     try {
-      const { error } = await supabase
-        .from('acoes_criminais')
-        .update({ current_step: nextCurrent })
-        .eq('id', Number(id));
+      const res = await fetch(`/api/acoes-criminais?id=${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStep: nextCurrent }),
+      });
 
-      if (!error) {
+      if (res.ok) {
         setCaseData(prev => prev ? ({ ...prev, currentStep: nextCurrent }) : null);
       }
     } catch (error) {

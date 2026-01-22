@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore
-import { createClient } from '@supabase/supabase-js';
 import { BUCKET_NAME } from '@/lib/supabase';
-
-// Create Supabase client with service role key for storage operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 // Map field names to organized folder structure (copied from upload/route.ts)
 const FIELD_TO_STEP_MAP: Record<string, string> = {
@@ -54,6 +47,7 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const body = await request.json();
     const { fileName, fileType, caseId, moduleType, fieldName, clientName, entityId } = body;
 

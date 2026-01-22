@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdminClient } from '@/lib/supabase-server'
 
 const WEBHOOK_URL = 'https://n8n.intelektus.tech/webhook/notificacao';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -7,10 +7,7 @@ export type NotificationType = 'new_process' | 'new_responsible' | 'deadline_war
 
 export class NotificationService {
   private static getSupabase() {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    return getSupabaseAdminClient()
   }
 
   static async createNotification(

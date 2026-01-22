@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: Request,
   context: any
 ) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const { caseId } = await context.params;
     const { searchParams } = new URL(request.url);
     const moduleType = searchParams.get('moduleType') || 'acoes_civeis';

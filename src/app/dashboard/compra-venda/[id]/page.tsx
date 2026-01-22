@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documentIconClassName } from "@/components/ui/document-style";
 import {
   ArrowLeft, 
   Save, 
@@ -25,6 +26,7 @@ import {
   ChevronDown,
   Edit2
 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -298,6 +300,14 @@ export default function CompraVendaDetailsPage() {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
+        }
+      };
       const fd = new FormData();
       fd.append('file', file);
       fd.append('caseId', String(params.id));
@@ -305,16 +315,17 @@ export default function CompraVendaDetailsPage() {
       fd.append('fieldName', fieldKey);
       fd.append('clientName', caseData?.clientName || 'Cliente');
       const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (res.ok) {
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) {
-          setDocuments(prev => [newDoc, ...prev]);
-        }
-        await fetchDocuments();
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+      const payload = await res.json();
+      const newDoc = payload?.document;
+      if (newDoc) {
+        setDocuments(prev => [newDoc, ...prev]);
       }
+      await fetchDocuments();
+      toast.success(`Upload concluído: ${file.name}`);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -497,7 +508,7 @@ export default function CompraVendaDetailsPage() {
                 <div className="flex items-center gap-2 mt-1">
                      {fileUrl ? (
                         <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 w-full">
-                            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <FileText className={`${documentIconClassName} text-blue-600 flex-shrink-0`} />
                             <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline truncate flex-1">
                                 {fileName}
                             </a>

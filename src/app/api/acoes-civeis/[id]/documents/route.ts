@@ -1,11 +1,5 @@
 import { NextResponse } from "next/server";
-// @ts-ignore - Supabase types will be resolved in production
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from "@/lib/supabase-server";
 
 export async function GET(
   request: Request,
@@ -13,6 +7,7 @@ export async function GET(
 ) {
   const { id } = params;
   try {
+    const supabase = getSupabaseAdminClient();
 
     // Buscar documentos relacionados a esta ação cível
     const { data: documents, error } = await supabase

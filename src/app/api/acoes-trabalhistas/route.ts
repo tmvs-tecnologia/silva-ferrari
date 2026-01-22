@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { NotificationService } from '@/lib/notification';
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
@@ -30,10 +30,7 @@ function mapDbFieldsToFrontend(record: any) {
 export async function GET(request: NextRequest) {
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
@@ -118,10 +115,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const body = await request.json();
     const { 
@@ -208,10 +202,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
@@ -354,10 +345,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');

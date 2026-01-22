@@ -1,9 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let cachedBrowserClient: SupabaseClient | null | undefined;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabaseBrowserClient(): SupabaseClient | null {
+  if (cachedBrowserClient !== undefined) return cachedBrowserClient;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    cachedBrowserClient = null;
+    return null;
+  }
+  cachedBrowserClient = createClient(supabaseUrl, supabaseAnonKey);
+  return cachedBrowserClient;
+}
 
 // Helper functions for organized file paths with client identification
 export const getFilePath = {
@@ -101,7 +110,7 @@ export const FIELD_TO_DOCUMENT_NAME: Record<string, string> = {
   documentoFinalizacaoDoc: 'Documento de Finalização',
   // Vistos - nomes amigáveis
   declaracaoResidenciaDocFile: 'Declaração de Residência',
-  foto3x4DocFile: 'Foto digital 3x4',
+  foto3x4DocFile: 'Foto/Selfie',
   documentoChinesDocFile: 'Documento Chinês',
   antecedentesCriminaisDocFile: 'Antecedentes Criminais',
   extratosBancariosDocFile: 'Extratos Bancários (Últimos 3)',

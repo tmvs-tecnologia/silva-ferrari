@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-// @ts-ignore - Supabase types will be resolved in production
-import { createClient } from '@supabase/supabase-js';
 import { getFilePath, BUCKET_NAME, FIELD_TO_DOCUMENT_NAME } from '@/lib/supabase';
-
-// Create Supabase client with service role key for storage operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 // Map field names to organized folder structure
 const FIELD_TO_STEP_MAP: Record<string, string> = {
@@ -67,10 +60,46 @@ const sanitizeClientName = (name: string): string => {
     .toLowerCase();
 };
 
+const getFileExtension = (fileName?: string): string => {
+  const name = String(fileName || '').trim();
+  const idx = name.lastIndexOf('.');
+  if (idx === -1) return '';
+  return name.slice(idx + 1).toLowerCase();
+};
+
+const normalizeFileTypeFallback = (fileType: any, fileName?: string): string => {
+  const t = String(fileType || '').trim();
+  const ext = getFileExtension(fileName);
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  };
+  const normalizedFromExt = map[ext] || ext || 'application/octet-stream';
+  if (!t) return normalizedFromExt;
+  return t;
+};
+
+const isTooLongForColumn = (err: any): boolean => {
+  const msg = String(err?.message || err?.details || '').toLowerCase();
+  return err?.code === '22001' || msg.includes('too long') || msg.includes('value too long');
+};
+
+const toShortTypeForDb = (fileType: string, fileName?: string): string => {
+  const t = String(fileType || '').trim();
+  const ext = getFileExtension(fileName);
+  if (t === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+  if (t === 'application/msword') return 'doc';
+  if (t === 'application/pdf') return 'pdf';
+  if (ext) return ext;
+  return (t || 'application/octet-stream').slice(0, 50);
+};
+
 export const runtime = 'nodejs'; // Use Node.js runtime for larger file handling capabilities
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const caseId = formData.get('caseId') as string;
@@ -247,27 +276,48 @@ export async function POST(request: NextRequest) {
 
     // Save document metadata to database (only for permanent uploads)
     console.log('💾 Salvando metadados no banco de dados...');
-    const { data: insertedDoc, error: insertError } = await supabaseAdmin
-      .from('documents')
-      .insert({
-        module_type: moduleType,
-        record_id: parseInt(recordId),
-        client_name: finalClientName || 'Cliente Desconhecido',
-        field_name: fieldName,
-        document_name: originalName, // Exact original name
-        file_name: originalName,     // Exact original name
-        file_path: publicUrl,
-        file_type: contentType,
-        file_size: file.size,
-        uploaded_at: new Date().toISOString(),
-      })
-      .select('*')
-      .single();
+    const fileTypeResolved = normalizeFileTypeFallback(contentType, originalName);
+    const insertPayloadBase = {
+      module_type: moduleType,
+      record_id: parseInt(recordId),
+      client_name: finalClientName || 'Cliente Desconhecido',
+      field_name: fieldName,
+      document_name: originalName,
+      file_name: originalName,
+      file_path: publicUrl,
+      file_size: file.size,
+      uploaded_at: new Date().toISOString(),
+    } as const;
+
+    const attemptInsert = async (resolvedType: string) => {
+      return await supabaseAdmin
+        .from('documents')
+        .insert({ ...insertPayloadBase, file_type: resolvedType })
+        .select('*')
+        .single();
+    };
+
+    let { data: insertedDoc, error: insertError } = await attemptInsert(fileTypeResolved);
 
 
     if (insertError) {
-      console.error('❌ Erro ao salvar metadados:', insertError);
-      throw insertError;
+      if (isTooLongForColumn(insertError)) {
+        const shortType = toShortTypeForDb(fileTypeResolved, originalName);
+        const retry = await attemptInsert(shortType);
+        insertedDoc = retry.data as any;
+        insertError = retry.error as any;
+      }
+      if (insertError) {
+        console.error('❌ Erro ao salvar metadados:', insertError);
+        return NextResponse.json(
+          {
+            error: 'Erro ao registrar metadados do documento',
+            code: insertError.code || 'DOCUMENT_METADATA_FAILED',
+            details: insertError.message || insertError.details || null,
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Update the case with the file URL (skip for generic uploads or modules without doc columns)
@@ -417,10 +467,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -498,10 +545,7 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const supabase = getSupabaseAdminClient();
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

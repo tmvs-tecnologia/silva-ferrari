@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./layout.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
+import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -66,6 +67,7 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="antialiased force-light">
         <ErrorReporter />
+        <Toaster />
         <Script id="sw-unregister" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {

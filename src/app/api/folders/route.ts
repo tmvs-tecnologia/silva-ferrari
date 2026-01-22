@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const { searchParams } = new URL(request.url);
     const moduleType = searchParams.get('moduleType') || undefined;
 
@@ -24,6 +20,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdminClient();
     const body = await request.json();
     const name = String(body.name || '').trim();
     const moduleType = String(body.moduleType || '').trim();
@@ -43,4 +40,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erro interno: ' + (error as Error).message }, { status: 500 });
   }
 }
-

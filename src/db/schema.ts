@@ -196,6 +196,8 @@ export const vistos = pgTable('vistos', {
   contratoTrabalhoIndeterminadoDoc: text('contrato_trabalho_indeterminado_doc'),
   procurador: text('procurador'),
   numeroProcesso: text('numero_processo'),
+  cargo: text('cargo'),
+  salario: text('salario'),
   // Renovação 1 ano
   ctps: text('ctps'),
   ctpsDoc: text('ctps_doc'),
@@ -209,6 +211,9 @@ export const vistos = pgTable('vistos', {
   justificativaMudancaEmpregadorDoc: text('justificativa_mudanca_empregador_doc'),
   statusFinal: text('status_final'),
   statusFinalOutro: text('status_final_outro'),
+  dataFinalizacao: text('data_finalizacao'),
+  observacoesFinais: text('observacoes_finais'),
+  dataAgendamentoPf: text('data_agendamento_pf'),
   notes: text('notes'),
   status: text('status').notNull().default('Em Andamento'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

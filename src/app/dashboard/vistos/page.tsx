@@ -75,7 +75,6 @@ export default function VistosPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [statusFinalOverrides, setStatusFinalOverrides] = useState<Record<string, { statusFinal: string; statusFinalOutro: string | null }>>({});
   const [datePopoverFor, setDatePopoverFor] = useState<string | null>(null);
   const [dateRangeEdit, setDateRangeEdit] = useState<{ from?: Date; to?: Date }>({});
   const [viewMode, setViewMode] = useState<'cards' | 'folders'>('cards');
@@ -287,54 +286,12 @@ export default function VistosPage() {
     return steps[clampedIndex];
   };
 
-  const getFinalStatusOrder = (type: string) => {
-    const t = (type || "").toLowerCase();
-    if (t.includes("turismo")) return ["Aprovado", "Negado", "Aguardando"];
-    if (t.includes("trabalho") && t.includes("brasil")) return ["Deferido", "Indeferido", "Aguardando", "Outro"];
-    return ["Deferido", "Indeferido", "Outro"];
-  };
-
-  const cycleStatusFinal = (current: string | undefined, type: string) => {
-    const order = getFinalStatusOrder(type);
-    const idx = order.indexOf(String(current || ""));
-    const nextIdx = ((idx < 0 ? -1 : idx) + 1) % order.length;
-    return order[nextIdx];
-  };
-
   const getStatusFinalClass = (s: string) => {
     const v = (s || "").toLowerCase();
     if (v === "deferido" || v === "aprovado") return "text-emerald-600 font-semibold";
     if (v === "indeferido" || v === "negado") return "text-red-600 font-semibold";
     if (v === "aguardando") return "text-amber-600 font-semibold";
     return "text-slate-700 dark:text-slate-300";
-  };
-
-  const handleStatusFinalToggle = async (v: Visto) => {
-    const id = String(v.id);
-    const current = String(statusFinalOverrides[id]?.statusFinal ?? v.statusFinal ?? "");
-    const next = cycleStatusFinal(current, v.type);
-    const optimistic: { statusFinal: string; statusFinalOutro: string | null } = {
-      statusFinal: next,
-      statusFinalOutro: next === "Outro" ? (statusFinalOverrides[id]?.statusFinalOutro ?? v.statusFinalOutro ?? "Outro") : null,
-    };
-    setStatusFinalOverrides((prev) => ({ ...prev, [id]: optimistic }));
-
-    const payload: any = { statusFinal: optimistic.statusFinal, statusFinalOutro: optimistic.statusFinalOutro };
-    try {
-      await fetch(`/api/vistos?id=${v.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      // Mantém o estado otimista sem fazer refetch para evitar reset visual
-    } catch (e) {
-      console.error('Erro ao alternar status final:', e);
-      // Em caso de erro, reverte para o valor anterior
-      setStatusFinalOverrides((prev) => ({
-        ...prev,
-        [id]: { statusFinal: current || "", statusFinalOutro: v.statusFinalOutro ?? null }
-      }));
-    }
   };
 
   const handleDelete = async (id: string) => {
@@ -700,18 +657,13 @@ export default function VistosPage() {
                           <span className="font-medium">Data de criação:</span>
                           <span>{new Date(visto.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</span>
                         </div>
-                        <div className="flex items-center gap-2 cursor-pointer w-full" onClick={() => handleStatusFinalToggle(visto)}>
+                        <div className="flex items-center gap-2 w-full">
                           <Circle className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           <span className="font-medium">Status Processo:</span>
-                          <span className={(() => {
-                            const override = statusFinalOverrides[String(visto.id)];
-                            const s = String((override?.statusFinal ?? visto.statusFinal) || "");
-                            return getStatusFinalClass(s);
-                          })()}>{(() => {
-                            const override = statusFinalOverrides[String(visto.id)];
-                            const s = String((override?.statusFinal ?? visto.statusFinal) || "");
-                            if (!s) return "—";
-                            if (s === "Outro") return String((override?.statusFinalOutro ?? visto.statusFinalOutro) || "Outro");
+                          <span className={getStatusFinalClass(String(visto.statusFinal || ""))}>{(() => {
+                            const s = String(visto.statusFinal || "");
+                            if (!s) return "-";
+                            if (s === "Outro") return String(visto.statusFinalOutro || "Outro");
                             return s;
                           })()}</span>
                         </div>
