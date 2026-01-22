@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
   ArrowLeft,
   Save,
@@ -67,7 +68,8 @@ import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import "react-day-picker/dist/style.css";
 import { DetailLayout } from "@/components/detail/DetailLayout";
 import { StatusPanel } from "@/components/detail/StatusPanel";
-import { formatDateBR } from "@/lib/date";
+import { formatDateBR, formatISODateLocal } from "@/lib/date";
+import { DocumentChip } from "@/components/ui/document-chip";
 import { subscribeTable, unsubscribe } from "@/lib/realtime";
 import { toast } from "sonner";
 
@@ -223,6 +225,58 @@ const DocumentRow = ({
   // Coletar arquivos anexados
   const attachedDocs = (documents || []).filter((d: any) => (d.field_name || d.fieldName) === docField);
 
+  const handlePreview = async (doc: any) => {
+    // Tenta abrir direto primeiro, se falhar, tenta fallback
+    const loadingToast = toast.loading("Gerando link seguro...");
+    
+    try {
+      const res = await fetch('/api/documents/sign-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: doc.file_path || doc.url })
+      });
+      
+      toast.dismiss(loadingToast);
+
+      if (res.ok) {
+        const { signedUrl } = await res.json();
+        if (signedUrl) {
+            const newWindow = window.open(signedUrl, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                // Popup bloqueado
+                toast.error("Popup bloqueado. Clique aqui para abrir.", {
+                    action: {
+                        label: "Abrir Documento",
+                        onClick: () => window.open(signedUrl, '_blank')
+                    },
+                    duration: 5000
+                });
+            }
+            return;
+        }
+      }
+      
+      // Fallback para URL original se falhar
+      console.warn("Falha ao gerar URL assinada, usando original");
+      const originalUrl = doc.file_path || doc.url;
+      const fallbackWindow = window.open(originalUrl, '_blank');
+       if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
+             toast.error("Popup bloqueado. Clique para abrir.", {
+                action: {
+                    label: "Abrir",
+                    onClick: () => window.open(originalUrl, '_blank')
+                }
+            });
+       }
+
+    } catch (e) {
+      console.error("Erro ao gerar preview:", e);
+      toast.dismiss(loadingToast);
+      const originalUrl = doc.file_path || doc.url;
+      window.open(originalUrl, '_blank');
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -299,31 +353,13 @@ const DocumentRow = ({
       {attachedDocs.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {attachedDocs.map((doc: any, idx: number) => (
-            <div key={idx} className="relative group">
-              <a
-                href={doc.file_path || doc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center p-2 rounded-md bg-slate-100 border border-slate-200 hover:bg-sky-50 hover:border-sky-200 transition-all"
-                title={doc.document_name || doc.name}
-              >
-                <FileText className="h-5 w-5 text-slate-500 group-hover:text-sky-600" />
-              </a>
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteDoc(doc);
-                  }}
-                  className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
-                  title="Remover arquivo"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <DocumentChip
+              key={idx}
+              name={doc.document_name || doc.name || doc.file_name || "Documento"}
+              onOpen={() => handlePreview(doc)}
+              onDelete={isEditing ? () => onDeleteDoc(doc) : undefined}
+              className="bg-slate-100 border-slate-200 hover:bg-sky-50 hover:border-sky-200 transition-all"
+            />
           ))}
         </div>
       )}
@@ -372,6 +408,9 @@ export default function VistoDetailsPage() {
   const [assignResp, setAssignResp] = useState<string>("");
   const [assignDue, setAssignDue] = useState<string>("");
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showResponsibleModal, setShowResponsibleModal] = useState(false);
+  const [pendingNote, setPendingNote] = useState<{ stepId: number; text: string } | null>(null);
+  const [noteResponsible, setNoteResponsible] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
@@ -387,8 +426,9 @@ export default function VistoDetailsPage() {
     try {
       const v = (notesStr || '').trim();
       if (!v) return [] as Array<{ id: string; stepId?: number; content: string; timestamp: string }>;
-      const arr = JSON.parse(v);
-      if (Array.isArray(arr)) return arr as any;
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed)) return parsed as any;
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).entries)) return (parsed as any).entries as any;
       return [] as any;
     } catch { return [] as any; }
   };
@@ -523,6 +563,7 @@ export default function VistoDetailsPage() {
       if (!record) throw new Error("Visto não encontrado");
 
       setVisto(record);
+      
       const rawTypeStr = String(record.type || "");
       const lowerType = rawTypeStr.toLowerCase();
       let flowType: VistoType = "Visto de Trabalho";
@@ -531,7 +572,53 @@ export default function VistoDetailsPage() {
       } else if (lowerType.includes("turismo")) flowType = "Visto de Turismo";
       else if (lowerType.includes("estudante")) flowType = "Visto de Estudante";
       else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
-      const steps: StepData[] = (WORKFLOWS[flowType as keyof typeof WORKFLOWS] || WORKFLOWS["Visto de Trabalho"]).map((title: string, index: number) => ({
+
+      // Initialize stepData with values from DB record
+      const initialStepData: { [key: number]: any } = {};
+      
+      // Map fields from record to stepData
+      // Find "Processo Finalizado" step index
+      const workflowSteps = WORKFLOWS[flowType as keyof typeof WORKFLOWS] || WORKFLOWS["Visto de Trabalho"];
+      const finalizadoIndex = workflowSteps.findIndex((s: string) => s === "Processo Finalizado");
+      
+      if (finalizadoIndex !== -1) {
+        const stepDataFromRecord =
+          record?.stepData && typeof record.stepData === 'object'
+            ? (record.stepData[finalizadoIndex] ?? record.stepData[String(finalizadoIndex)] ?? {})
+            : {};
+
+        const fallbackFromRoot = {
+          cargo: record.cargo,
+          salario: record.salario,
+          dataFinalizacao: record.dataFinalizacao,
+          statusFinal: record.statusFinal,
+          statusFinalOutro: record.statusFinalOutro,
+          observacoesFinais: record.observacoesFinais,
+          dataAgendamentoPf: record.dataAgendamentoPf,
+          publicacaoDou: record.publicacaoDou,
+        } as Record<string, any>;
+
+        Object.keys(fallbackFromRoot).forEach((k) => {
+          if (fallbackFromRoot[k] === undefined) delete fallbackFromRoot[k];
+        });
+
+        initialStepData[finalizadoIndex] = {
+          ...(stepDataFromRecord && typeof stepDataFromRecord === 'object' ? stepDataFromRecord : {}),
+          ...fallbackFromRoot,
+        };
+      }
+      
+      setStepData(prev => {
+        // Merge with existing stepData to avoid losing transient state if any
+        const merged = { ...(record?.stepData && typeof record.stepData === 'object' ? record.stepData : {}), ...prev };
+        Object.keys(initialStepData).forEach(key => {
+            const k = Number(key);
+            merged[k] = { ...merged[k], ...initialStepData[k] };
+        });
+        return merged;
+      });
+
+      const steps: StepData[] = workflowSteps.map((title: string, index: number) => ({
         id: index,
         title,
         description: `Descrição da etapa ${title}`,
@@ -670,7 +757,7 @@ export default function VistoDetailsPage() {
       await fetchDocuments();
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
-      toast.error("Erro ao realizar upload. Tente novamente.");
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -684,7 +771,7 @@ export default function VistoDetailsPage() {
       await fetchDocuments();
     } catch (error) {
       console.error("Erro ao fazer upload específico:", error);
-      toast.error("Erro ao realizar upload. Tente novamente.");
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -692,6 +779,14 @@ export default function VistoDetailsPage() {
 
   const processUpload = async (file: File, fieldName: string, stepId?: number) => {
     const contentType = file.type || 'application/octet-stream';
+    const getErrorMessage = async (res: Response, fallback: string) => {
+      try {
+        const data = await res.json().catch(() => ({} as any));
+        return String(data?.error || data?.message || fallback);
+      } catch {
+        return fallback;
+      }
+    };
 
     // 1. Get Signed URL
     const signRes = await fetch('/api/documents/upload/sign', {
@@ -708,7 +803,7 @@ export default function VistoDetailsPage() {
     });
 
     if (!signRes.ok) {
-        throw new Error('Erro ao gerar URL de upload');
+        throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
     }
 
     const { signedUrl, publicUrl } = await signRes.json();
@@ -739,7 +834,7 @@ export default function VistoDetailsPage() {
             toast.success(`Upload concluído: ${file.name}`);
         }
     } else {
-        throw new Error('Erro ao registrar metadados');
+        throw new Error(await getErrorMessage(regRes, 'Erro ao registrar metadados'));
     }
   };
 
@@ -834,10 +929,20 @@ export default function VistoDetailsPage() {
     stepDebounceRefs.current[stepId] = setTimeout(async () => {
       // persistir todo o stepData após merge para manter alterações após recarga
       try {
+        const payload: any = { stepData: next };
+        // Lift specific fields to top level if present in this update
+        if (data.cargo !== undefined) payload.cargo = data.cargo;
+        if (data.salario !== undefined) payload.salario = data.salario;
+        if (data.dataFinalizacao !== undefined) payload.dataFinalizacao = data.dataFinalizacao;
+        if (data.observacoesFinais !== undefined) payload.observacoesFinais = data.observacoesFinais;
+        if (data.dataAgendamentoPf !== undefined) payload.dataAgendamentoPf = data.dataAgendamentoPf;
+        if (data.statusFinal !== undefined) payload.statusFinal = data.statusFinal;
+        if (data.statusFinalOutro !== undefined) payload.statusFinalOutro = data.statusFinalOutro;
+
         const res = await fetch(`/api/vistos?id=${params.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stepData: next })
+          body: JSON.stringify(payload)
         });
         if (res.ok) {
           setSaveMessages(prev => ({ ...prev, [stepId]: 'Salvo' }));
@@ -886,17 +991,25 @@ export default function VistoDetailsPage() {
     }, 1000); // 1 segundo de espera
   };
 
-  const saveStepNotes = async (stepId: number) => {
+  const saveStepNotes = (stepId: number) => {
     const text = (notes[stepId] || '').trim();
     if (!text) return;
+    setPendingNote({ stepId, text });
+    setNoteResponsible("");
+    setShowResponsibleModal(true);
+  };
+
+  const confirmSaveNote = async () => {
+    if (!pendingNote || !noteResponsible.trim()) return;
+    const { stepId, text } = pendingNote;
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
-    const assigned = assignments[stepId] || assignments[currentStepIndex] || {};
-    const assignedName = assigned.responsibleName || '';
-    const suggestion = RESPONSAVEIS.find((r) => r.includes(assignedName || '')) || '';
+    
+    const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
-    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: assignedName || 'Equipe', authorRole: role }];
+    
+    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/vistos?id=${params.id}`, {
         method: 'PUT',
@@ -908,11 +1021,14 @@ export default function VistoDetailsPage() {
         setCaseData((prev) => prev ? { ...prev, updatedAt: new Date().toISOString() } : prev);
         setVisto((prev: any) => ({ ...(prev || {}), notes: JSON.stringify(next) }));
         setNotes((prev) => ({ ...prev, [stepId]: '' }));
-        console.log('Nota salva', { id, stepId, authorName: assignedName || 'Equipe', timestamp: iso });
+        console.log('Nota salva', { id, stepId, authorName: noteResponsible, timestamp: iso });
       }
     } catch (error) {
       console.error('Erro ao salvar notas da etapa:', error);
     }
+    setShowResponsibleModal(false);
+    setPendingNote(null);
+    setNoteResponsible("");
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -1028,10 +1144,23 @@ export default function VistoDetailsPage() {
 
   const handleSaveVisto = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
 
-      const response = await fetch(`/api/vistos/${id}`, {
-        method: 'PATCH',
+      // Extract cargo and salario from stepData if available to ensure persistence even if debounce hasn't fired
+      let additionalFields: any = {};
+      Object.values(stepData).forEach((s: any) => {
+          if (s?.cargo) additionalFields.cargo = s.cargo;
+          if (s?.salario) additionalFields.salario = s.salario;
+          if (s?.dataFinalizacao) additionalFields.dataFinalizacao = s.dataFinalizacao;
+          if (s?.observacoesFinais) additionalFields.observacoesFinais = s.observacoesFinais;
+          if (s?.dataAgendamentoPf) additionalFields.dataAgendamentoPf = s.dataAgendamentoPf;
+          if (s?.statusFinal) additionalFields.statusFinal = s.statusFinal;
+          if (s?.statusFinalOutro) additionalFields.statusFinalOutro = s.statusFinalOutro;
+          if (s?.publicacaoDou) additionalFields.publicacaoDou = s.publicacaoDou;
+      });
+
+      const response = await fetch(`/api/vistos?id=${params.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -1046,7 +1175,11 @@ export default function VistoDetailsPage() {
           numeroProcesso: visto?.numeroProcesso,
 
           // Preservar outros campos
-          ...visto
+          ...visto,
+          
+          // Override with latest step data
+          ...additionalFields,
+          stepData
         }),
       });
 
@@ -1065,7 +1198,7 @@ export default function VistoDetailsPage() {
       console.error('Erro ao salvar:', error);
       // alert("Erro ao salvar dados. Tente novamente.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -1092,7 +1225,11 @@ export default function VistoDetailsPage() {
       isEditing={isEditingDocuments}
       onEdit={() => setIsEditingDocuments(true)}
       onCancel={() => setIsEditingDocuments(false)}
-      onSave={() => { setIsEditingDocuments(false); handleSaveVisto(); fetchCaseData(); }}
+      onSave={async () => {
+        setIsEditingDocuments(false);
+        await handleSaveVisto();
+        await fetchCaseData();
+      }}
     />
   );
 
@@ -1307,7 +1444,7 @@ export default function VistoDetailsPage() {
                   {renderRow(stepId, "CPF", "cpf", "cpfDoc")}
                   {renderRow(stepId, "RNM", "rnm", "rnmDoc")}
                   {renderRow(stepId, "Comprovante de Endereço", "comprovanteEndereco", "comprovanteEnderecoDoc")}
-                  {renderRow(stepId, "Foto digital 3x4", undefined, "foto3x4Doc")}
+                  {renderRow(stepId, "Foto/Selfie", undefined, "foto3x4Doc")}
                   {renderRow(stepId, "Antecedentes Criminais", "antecedentesCriminais", "antecedentesCriminaisDoc")}
                 </div>
               </div>
@@ -1491,7 +1628,7 @@ export default function VistoDetailsPage() {
                   {renderRow('RNM', 'rnm', 'rnmDoc')}
                   {renderRow('Passaporte', 'passaporte', 'passaporteDoc')}
                   {renderRow('Comprovante de Endereço', 'comprovanteEndereco', 'comprovanteEnderecoDoc')}
-                  {renderRow('Foto digital 3x4', undefined, 'foto3x4Doc')}
+                  {renderRow('Foto/Selfie', undefined, 'foto3x4Doc')}
                   {renderRow('Documento Chinês (quando aplicável)', 'documentoChines', 'documentoChinesDoc')}
                   {!showBrasil && renderRow('Antecedentes Criminais', 'antecedentesCriminais', 'antecedentesCriminaisDoc')}
                 </div>
@@ -1891,7 +2028,7 @@ export default function VistoDetailsPage() {
                       <Input
                         type="date"
                         value={currentStepData.prazoCumprimento || ""}
-                        min={new Date().toISOString().split('T')[0]}
+                        min={formatISODateLocal()}
                         onChange={(e) => saveStepData(stepId, { prazoCumprimento: e.target.value })}
                         className="flex-1 rounded-md border-slate-200 bg-white text-slate-700 text-sm py-2.5"
                       />
@@ -1923,7 +2060,7 @@ export default function VistoDetailsPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => saveStepData(stepId, { dataProtocolo: new Date().toISOString().split('T')[0] })}
+                          onClick={() => saveStepData(stepId, { dataProtocolo: formatISODateLocal() })}
                           className="px-3"
                           title="Definir data de hoje"
                         >
@@ -2090,7 +2227,7 @@ export default function VistoDetailsPage() {
                             <Input
                               type="date"
                               value={currentStepData.dataAgendamentoPf || ""}
-                              min={new Date().toISOString().split('T')[0]}
+                              min={formatISODateLocal()}
                               onChange={(e) => saveStepData(stepId, { dataAgendamentoPf: e.target.value })}
                               className="flex-1 rounded-md border-slate-200 bg-white text-slate-700 text-sm py-2.5"
                             />
@@ -2724,7 +2861,7 @@ export default function VistoDetailsPage() {
           { key: "cpfDoc", label: "CPF" },
           { key: "rnmDoc", label: "RNM" },
           { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
-          { key: "foto3x4Doc", label: "Foto digital 3x4" },
+          { key: "foto3x4Doc", label: "Foto/Selfie" },
           { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
         ]
       },
@@ -2775,7 +2912,7 @@ export default function VistoDetailsPage() {
           { key: "rnmDoc", label: "RNM" },
           { key: "passaporteDoc", label: "Passaporte" },
           { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
-          { key: "foto3x4Doc", label: "Foto digital 3x4" },
+          { key: "foto3x4Doc", label: "Foto/Selfie" },
           { key: "documentoChinesDoc", label: "Documento Chinês" },
           { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
         ]
@@ -2956,8 +3093,8 @@ export default function VistoDetailsPage() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-8">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-8 lg:flex-[2] min-w-0">
           {showWorkflow && (
             <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px] relative">
               <CardHeader>
@@ -3119,116 +3256,16 @@ export default function VistoDetailsPage() {
               </CardContent>
             </Card>
           )}
-        </div>
-
-        <div className="lg:col-span-4 flex flex-col min-h-[560px] space-y-4">
-          <StatusPanel
-            key={`status-panel-${currentStepIndex}-${caseData.updatedAt}`}
-            status={status}
-            onStatusChange={handleStatusChange}
-            currentStep={currentStepIndex + 1}
-            totalSteps={caseData.steps.length}
-            currentStepTitle={caseData.steps[currentStepIndex]?.title}
-            workflowTitle={(() => {
-              const t = (visto?.type || caseData.type || '');
-              const c = (visto?.country || (caseData as any)?.country || '');
-              if (t === 'Visto de Trabalho' && c === 'Brasil') return 'Visto de Trabalho - Brasil';
-              return t.replace(/:/g, ' - ');
-            })()}
-            createdAt={caseData.createdAt}
-            updatedAt={caseData.updatedAt}
-          />
-
-          <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="flex items-center w-full justify-between">
-                <span className="flex items-center">
-                  Observações
-                </span>
-                <button
-                  type="button"
-                  className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
-                  onClick={() => setShowNotesModal(true)}
-                  title="Ver todas as notas"
-                >
-                  <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
-                </button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <Textarea rows={12} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-transparent" />
-              <div className="flex justify-end items-center px-3 py-2 mt-2">
-                <div className="flex flex-col items-end gap-1 w-full">
-                  <Button className="bg-slate-900 text-white" onClick={() => saveStepNotes(0)}>Salvar</Button>
-                  {saveMessages[0] ? (
-                    <span className="text-green-600 text-xs">Salvo com sucesso!</span>
-                  ) : null}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Modal de Notas */}
-        <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
-          <DialogContent showCloseButton={false}>
-            <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Notas do Processo</h2>
-              <DialogClose className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                <X className="h-5 w-5" />
-                <span className="sr-only">Fechar</span>
-              </DialogClose>
-            </div>
-            <div className="p-6 overflow-y-auto flex-grow bg-white dark:bg-gray-800 max-h-[60vh]">
-              <div className="space-y-3">
-                {notesArray.length ? notesArray.map((n) => {
-                  const d = new Date(n.timestamp);
-                  const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                  return (
-                    <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
-                      <button
-                        type="button"
-                        aria-label="Excluir"
-                        title="Excluir"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
-                      >
-                        <X className="h-3 w-3 text-gray-600" />
-                      </button>
-                      <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
-                        {(() => {
-                          const name = String(n.authorName || '').trim();
-                          const showName = !!name && name.toLowerCase() !== 'equipe';
-                          return `${formatted}${showName ? ` - ${name}${n.authorRole ? ` (${n.authorRole})` : ''}` : ''}`;
-                        })()}
-                      </div>
-                      <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">{n.content}</p>
-                    </div>
-                  );
-                }) : (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Nenhuma nota encontrada.</div>
-                )}
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end items-center rounded-b-xl">
-              <Button className="bg-slate-900 text-white shadow-md hover:bg-slate-800 hover:shadow-lg transform hover:scale-105 active:scale-95 h-9 px-4 py-2" onClick={() => setShowNotesModal(false)}>
-                Fechar
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-        <div className="lg:col-span-8">
           <Card className="rounded-xl border-gray-200 shadow-sm">
-            <CardHeader>
+            <CardHeader className="px-2.5">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Documentos do Cliente
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2.5">
               {((caseData?.type as string) === "Visto de Trabalho - Brasil" || String(caseData?.type || "").toLowerCase().includes("turismo")) && (
                 <div className="mb-8 space-y-6">
-                  {/* Progress Bar */}
                   <div
                     className="space-y-2 cursor-pointer group select-none"
                     onClick={() => setIsPendingDocsOpen(!isPendingDocsOpen)}
@@ -3250,7 +3287,6 @@ export default function VistoDetailsPage() {
                     </div>
                   </div>
 
-                  {/* Pending List or Success */}
                   {pendingDocs.length > 0 ? (
                     <div
                       id="pending-docs-section"
@@ -3307,8 +3343,8 @@ export default function VistoDetailsPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
+              <div className="grid grid-cols-1 gap-4">
+                <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
                   onDragOver={(e) => { e.preventDefault(); }}
                   onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
                   <div className="p-3 bg-blue-50 rounded-full mb-3">
@@ -3332,32 +3368,44 @@ export default function VistoDetailsPage() {
                 </div>
 
                 {(documents as any[]).length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {(documents as any[]).map((doc: any) => (
-                      <div key={String(doc.id)} className="group relative w-10 h-10">
-                        <a
-                          href={doc.file_path || doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={doc.document_name || doc.file_name}
-                          className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-                        >
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </a>
-                        <button
-                          type="button"
-                          aria-label="Excluir"
-                          title="Excluir"
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-                        >
-                          <X className="h-3 w-3 text-gray-600" />
-                        </button>
-                      </div>
-                    ))}
+                  <div className={documentGridClassName}>
+                    {(documents as any[]).map((doc: any) => {
+                      const displayName = doc.document_name || doc.file_name || doc.name || "Documento";
+                      return (
+                        <div key={String(doc.id)} className="min-w-0 flex flex-col items-center">
+                          <div className={documentTileClassName}>
+                            <a
+                              href={doc.file_path || doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={displayName}
+                              className={documentLinkClassName}
+                            >
+                              <FileText className={`${documentIconClassName} text-blue-600`} />
+                            </a>
+                            <button
+                              type="button"
+                              aria-label="Excluir"
+                              title="Excluir"
+                              className={documentDeleteButtonClassName}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteDocument(doc as any);
+                              }}
+                            >
+                              <X className="h-3 w-3 text-gray-600" />
+                            </button>
+                          </div>
+                          <div className={documentNameClassName} title={displayName}>
+                            {displayName}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="col-span-1 md:col-span-2 text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">Nenhum documento anexado ainda</p>
                     <p className="text-xs mt-1">Arraste arquivos para esta área ou use os botões de upload nas etapas</p>
@@ -3368,41 +3416,202 @@ export default function VistoDetailsPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-4">
-          <Card className="rounded-xl border-gray-200 shadow-sm h-full">
-            <CardHeader>
-              <CardTitle>Responsáveis</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col justify-between h-full">
-              <div className="space-y-4">
-                {(() => {
-                  const items = Object.entries(assignments)
-                    .filter(([_, v]) => v?.responsibleName)
-                    .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() }));
-                  return items.map((m) => (
-                    <div key={m.key} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
-                          alt={m.name}
-                          className="h-8 w-8 rounded-full border border-gray-200 object-cover"
-                        />
-                        <div>
-                          <p className="font-medium text-sm">{m.name}</p>
-                          <p className="text-xs text-gray-500">{m.role || ''}</p>
+        <div className="flex flex-col gap-8 lg:flex-[1] min-w-0">
+          <div className="flex flex-col min-h-[560px] space-y-4">
+            <StatusPanel
+              key={`status-panel-${currentStepIndex}-${caseData.updatedAt}`}
+              status={status}
+              onStatusChange={handleStatusChange}
+              currentStep={currentStepIndex + 1}
+              totalSteps={caseData.steps.length}
+              currentStepTitle={caseData.steps[currentStepIndex]?.title}
+              workflowTitle={(() => {
+                const t = (visto?.type || caseData.type || '');
+                const c = (visto?.country || (caseData as any)?.country || '');
+                if (t === 'Visto de Trabalho' && c === 'Brasil') return 'Visto de Trabalho - Brasil';
+                return t.replace(/:/g, ' - ');
+              })()}
+              createdAt={caseData.createdAt}
+              updatedAt={caseData.updatedAt}
+            />
+
+            <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center w-full justify-between">
+                  <span className="flex items-center">
+                    Observações
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
+                    onClick={() => setShowNotesModal(true)}
+                    title="Ver todas as notas"
+                  >
+                    <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
+                  </button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col min-h-[400px]">
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-h-[400px] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+                  {Array.isArray(notesArray) && notesArray.length > 0 ? (
+                    [...notesArray].reverse().map((n) => {
+                      const d = new Date(n.timestamp);
+                      const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                      const name = String(n.authorName || '').trim();
+                      const showName = !!name && name.toLowerCase() !== 'equipe';
+                      
+                      return (
+                        <div key={n.id || Math.random().toString()} className="group relative bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                              {formatted}
+                              {showName && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span className="text-slate-600 dark:text-slate-400">{name}</span>
+                                </>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); deleteNote(n.id); }}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all text-slate-400"
+                              title="Excluir nota"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-center space-y-2">
+                      <div className="p-3 bg-slate-50 rounded-full">
+                        <FileText className="h-6 w-6 text-slate-300" />
                       </div>
-                      <Button variant="ghost" size="icon">
-                        <Mail className="w-5 h-5 text-gray-500" />
+                      <p className="text-sm text-slate-500">Nenhuma observação registrada.</p>
+                      <p className="text-xs text-slate-400">Utilize o campo abaixo para adicionar.</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+                  <div className="relative">
+                    <Textarea 
+                      rows={3} 
+                      placeholder="Adicione uma nova observação..." 
+                      value={notes[0] || ''} 
+                      onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
+                      className="w-full resize-none pr-12 min-h-[80px]" 
+                    />
+                    <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                      {saveMessages[0] && (
+                        <span className="text-green-600 text-xs font-medium animate-in fade-in slide-in-from-right-2 bg-white/80 px-2 py-1 rounded">
+                          Salvo!
+                        </span>
+                      )}
+                      <Button 
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm" 
+                        onClick={() => saveStepNotes(0)}
+                        disabled={!notes[0]?.trim()}
+                        title="Salvar observação"
+                      >
+                        <Save className="h-4 w-4" />
                       </Button>
                     </div>
-                  ));
-                })()}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div>
+            <Card className="rounded-xl border-gray-200 shadow-sm h-full">
+              <CardHeader>
+                <CardTitle>Responsáveis</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col justify-between h-full">
+                <div className="space-y-4">
+                  {(() => {
+                    const items = Object.entries(assignments)
+                      .filter(([_, v]) => v?.responsibleName)
+                      .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() }));
+                    return items.map((m) => (
+                      <div key={m.key} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
+                            alt={m.name}
+                            className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                          />
+                          <div>
+                            <p className="font-medium text-sm">{m.name}</p>
+                            <p className="text-xs text-gray-500">{m.role || ''}</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon">
+                          <Mail className="w-5 h-5 text-gray-500" />
+                        </Button>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
+
+      {/* Modal de Notas */}
+      <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
+        <DialogContent showCloseButton={false}>
+          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Notas do Processo</h2>
+            <DialogClose className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Fechar</span>
+            </DialogClose>
+          </div>
+          <div className="p-6 overflow-y-auto flex-grow bg-white dark:bg-gray-800 max-h-[60vh]">
+            <div className="space-y-3">
+              {notesArray.length ? notesArray.map((n) => {
+                const d = new Date(n.timestamp);
+                const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
+                    <button
+                      type="button"
+                      aria-label="Excluir"
+                      title="Excluir"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
+                    >
+                      <X className="h-3 w-3 text-gray-600" />
+                    </button>
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
+                      {(() => {
+                        const name = String(n.authorName || '').trim();
+                        const showName = !!name && name.toLowerCase() !== 'equipe';
+                        return `${formatted}${showName ? ` - ${name}${n.authorRole ? ` (${n.authorRole})` : ''}` : ''}`;
+                      })()}
+                    </div>
+                    <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                  </div>
+                );
+              }) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">Nenhuma nota encontrada.</div>
+              )}
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end items-center rounded-b-xl">
+            <Button className="bg-slate-900 text-white shadow-md hover:bg-slate-800 hover:shadow-lg transform hover:scale-105 active:scale-95 h-9 px-4 py-2" onClick={() => setShowNotesModal(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Document Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -3521,6 +3730,87 @@ export default function VistoDetailsPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Responsável */}
+      <Dialog open={showResponsibleModal} onOpenChange={setShowResponsibleModal}>
+        <DialogContent className="sm:max-w-[500px] bg-card text-card-foreground border border-border shadow-xl rounded-2xl p-6 overflow-hidden gap-6">
+          <DialogHeader className="mb-0">
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3 text-foreground">
+              <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              Responsável pela Observação
+            </DialogTitle>
+            <DialogDescription className="text-base text-muted-foreground mt-2 ml-1">
+              Identifique quem está registrando esta observação para manter o histórico do processo organizado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="responsible" className="text-sm font-semibold text-foreground ml-1">
+                Nome do Responsável
+              </Label>
+              <div className="relative group">
+                <User className="absolute left-3.5 top-3 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  id="responsible"
+                  value={noteResponsible}
+                  onChange={(e) => setNoteResponsible(e.target.value)}
+                  className="pl-11 h-11 text-base bg-background border-input focus:border-ring focus:ring-4 focus:ring-ring/10 rounded-xl transition-all shadow-sm hover:border-ring/50"
+                  placeholder="Digite ou selecione abaixo..."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">
+                Seleção Rápida
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {RESPONSAVEIS.map((resp) => {
+                  const name = resp.split(' – ')[1] || resp;
+                  const isSelected = noteResponsible === name;
+                  return (
+                    <button
+                      key={resp}
+                      type="button"
+                      onClick={() => setNoteResponsible(name)}
+                      className={`
+                        group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
+                        ${isSelected 
+                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]' 
+                          : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5'}
+                      `}
+                    >
+                      {isSelected && <CheckCircle className="w-3.5 h-3.5 animate-in zoom-in duration-200" />}
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-muted/30 border-t border-border flex items-center justify-end gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowResponsibleModal(false)}
+              className="h-10 px-4 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              onClick={confirmSaveNote} 
+              disabled={!noteResponsible.trim()}
+              className="h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Confirmar e Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div >
   );

@@ -24,6 +24,7 @@ import { ptBR } from "date-fns/locale";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Textarea } from "@/components/ui/textarea";
+import { DocumentChip } from "@/components/ui/document-chip";
 
 interface Vendedor {
   rg: string;
@@ -378,31 +379,13 @@ export default function NovaCompraVendaPage() {
               const fileName = url.split('/').pop() || `Documento ${idx + 1}`;
               const decodedName = decodeURIComponent(fileName);
               return (
-                <div key={idx} className="relative group">
-                  <a 
-                    href={url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
-                    title={decodedName}
-                  >
-                    <FileText className="h-5 w-5 text-slate-500 group-hover:text-sky-600 dark:text-slate-400 dark:group-hover:text-sky-400" />
-                  </a>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleRemoveFile(docField, url);
-                      }}
-                      className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
-                      title="Remover arquivo"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                <DocumentChip
+                  key={idx}
+                  name={decodedName}
+                  href={url}
+                  onDelete={!readOnly ? () => handleRemoveFile(docField, url) : undefined}
+                  className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
+                />
               );
             })}
           </div>
@@ -448,29 +431,13 @@ export default function NovaCompraVendaPage() {
                         const fileName = url.split('/').pop() || `Documento ${idx + 1}`;
                         const decodedName = decodeURIComponent(fileName);
                         return (
-                            <div key={idx} className="relative group">
-                                <a 
-                                    href={url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
-                                    title={decodedName}
-                                >
-                                    <FileText className="h-5 w-5 text-slate-500 group-hover:text-sky-600 dark:text-slate-400 dark:group-hover:text-sky-400" />
-                                </a>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleRemoveFile(docField, url);
-                                    }}
-                                    className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
-                                    title="Remover arquivo"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </div>
+                            <DocumentChip
+                              key={idx}
+                              name={decodedName}
+                              href={url}
+                              onDelete={() => handleRemoveFile(docField, url)}
+                              className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
+                            />
                         );
                     })}
                 </div>

@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { DocumentChip } from "@/components/ui/document-chip";
 
 const CASE_TYPES = [
   "Exame DNA",
@@ -491,29 +492,12 @@ export default function NovaAcaoCivelPage() {
         {/* File Preview List - Vistos Style */}
         {fileUrl && (
           <div className="flex flex-wrap gap-2 mt-2">
-            <div className="relative group">
-              <a 
-                href={fileUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center justify-center p-2 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
-                title="Visualizar documento"
-              >
-                <FileText className="h-5 w-5 text-slate-500 group-hover:text-sky-600 dark:text-slate-400 dark:group-hover:text-sky-400" />
-              </a>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  removeDocument(docField);
-                }}
-                className="absolute -top-1.5 -right-1.5 p-0.5 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
-                title="Remover arquivo"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
+            <DocumentChip
+              name={decodeURIComponent((fileUrl.split("/").pop() || "Documento"))}
+              href={fileUrl}
+              onDelete={() => removeDocument(docField)}
+              className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
+            />
           </div>
         )}
       </div>

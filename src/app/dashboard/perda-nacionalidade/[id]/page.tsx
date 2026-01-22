@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
   ArrowLeft,
   Save,
@@ -28,6 +29,8 @@ import {
   Mail,
   Edit
 } from "lucide-react";
+import { toast } from "sonner";
+import { DocumentChip } from "@/components/ui/document-chip";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -411,6 +414,14 @@ export default function PerdaNacionalidadeDetailPage() {
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
+        }
+      };
       for (const file of arr) {
         const fd = new FormData();
         fd.append('file', file);
@@ -419,17 +430,16 @@ export default function PerdaNacionalidadeDetailPage() {
         fd.append('fieldName', 'documentoAnexado');
         fd.append('clientName', caseData?.clientName || 'Cliente');
         const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (res.ok) {
-          const payload = await res.json();
-          const newDoc = payload?.document;
-          if (newDoc) {
-            setDocuments(prev => [newDoc, ...prev]);
-          }
-        }
+        if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+        const payload = await res.json();
+        const newDoc = payload?.document;
+        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+        toast.success(`Upload concluído: ${file.name}`);
       }
       await fetchDocuments();
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -439,6 +449,14 @@ export default function PerdaNacionalidadeDetailPage() {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
+        }
+      };
       const fd = new FormData();
       fd.append('file', file);
       fd.append('caseId', String(params.id));
@@ -446,17 +464,16 @@ export default function PerdaNacionalidadeDetailPage() {
       fd.append('fieldName', fieldKey);
       fd.append('clientName', caseData?.clientName || 'Cliente');
       const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (res.ok) {
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) {
-          setDocuments(prev => [newDoc, ...prev]);
-        }
-        await fetchDocuments();
-        setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
-      }
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+      const payload = await res.json();
+      const newDoc = payload?.document;
+      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+      await fetchDocuments();
+      setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
+      toast.success(`Upload concluído: ${file.name}`);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -468,26 +485,13 @@ export default function PerdaNacionalidadeDetailPage() {
     return (
       <div className="mt-2 flex flex-wrap gap-2">
         {list.map((doc: any) => (
-          <div key={String(doc.id)} className="group relative w-8 h-8">
-            <a
-              href={doc.file_path || doc.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={doc.document_name || doc.name || doc.file_name || 'Documento'}
-              className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4 text-blue-600" />
-            </a>
-            <button
-              type="button"
-              aria-label="Excluir"
-              title="Excluir"
-              className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-            >
-              <X className="h-3 w-3 text-gray-600" />
-            </button>
-          </div>
+          <DocumentChip
+            key={String(doc.id)}
+            name={doc.document_name || doc.name || doc.file_name || "Documento"}
+            href={doc.file_path || doc.url}
+            onDelete={() => handleDeleteDocument(doc as any)}
+            className="bg-white hover:bg-gray-50 border-gray-200"
+          />
         ))}
       </div>
     );
@@ -1193,8 +1197,8 @@ export default function PerdaNacionalidadeDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-8">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-8 lg:flex-[2] min-w-0">
           {showWorkflow && (
             <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px]">
               <CardHeader>
@@ -1347,9 +1351,76 @@ export default function PerdaNacionalidadeDetailPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card className="rounded-xl border-gray-200 shadow-sm">
+            <CardHeader className="px-2.5">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Documentos do Cliente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-2.5">
+              <div className="grid grid-cols-1 gap-4">
+                <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
+                     onDragOver={(e) => { e.preventDefault(); }}
+                     onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
+                  <div className="p-3 bg-blue-50 rounded-full mb-3">
+                    <Upload className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-700">Arraste e solte arquivos aqui para anexar</p>
+                  <p className="text-xs text-gray-500 mt-1">Ou use os botões de envio nas etapas acima</p>
+                </div>
+
+                {(documents as any[]).length > 0 ? (
+                  <div className={documentGridClassName}>
+                    {(documents as any[]).map((doc: any) => {
+                      const displayName = doc.document_name || doc.file_name || doc.name || "Documento";
+                      return (
+                        <div key={String(doc.id)} className="min-w-0 flex flex-col items-center">
+                          <div className={documentTileClassName}>
+                            <a
+                              href={doc.file_path || doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={displayName}
+                              className={documentLinkClassName}
+                            >
+                              <FileText className={`${documentIconClassName} text-blue-600`} />
+                            </a>
+                            <button
+                              type="button"
+                              aria-label="Excluir"
+                              title="Excluir"
+                              className={documentDeleteButtonClassName}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteDocument(doc as any);
+                              }}
+                            >
+                              <X className="h-3 w-3 text-gray-600" />
+                            </button>
+                          </div>
+                          <div className={documentNameClassName} title={displayName}>
+                            {displayName}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum documento anexado ainda</p>
+                    <p className="text-xs mt-1">Arraste arquivos para esta área ou use os botões de upload nas etapas</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
+        <div className="flex flex-col gap-8 lg:flex-[1] min-w-0">
           <StatusPanel
             status={status}
             onStatusChange={handleStatusChange}
@@ -1383,115 +1454,57 @@ export default function PerdaNacionalidadeDetailPage() {
               </div>
             </CardContent>
           </Card>
-    </div>
-
-    {/* Modal de Notas */}
-    <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
-      <DialogContent showCloseButton={false}>
-        <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Notas do Processo</h2>
-          <DialogClose className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-            <X className="h-5 w-5" />
-            <span className="sr-only">Fechar</span>
-          </DialogClose>
         </div>
-        <div className="p-6 overflow-y-auto flex-grow bg-white dark:bg-gray-800 max-h-[60vh]">
-          <div className="space-y-3">
-            {notesArray.length ? notesArray.map((n) => {
-              const d = new Date(n.timestamp);
-              const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-              return (
-                <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
-                  <button
-                    type="button"
-                    aria-label="Excluir"
-                    title="Excluir"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
-                  >
-                    <X className="h-3 w-3 text-gray-600" />
-                  </button>
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
-                    {(() => {
-                      const name = String(n.authorName || '').trim();
-                      const showName = !!name && name.toLowerCase() !== 'equipe';
-                      return `${formatted}${showName ? ` - ${name}${n.authorRole ? ` (${n.authorRole})` : ''}` : ''}`;
-                    })()}
-                  </div>
-                  <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">{n.content}</p>
-                </div>
-              );
-            }) : (
-              <div className="text-sm text-gray-500 dark:text-gray-400">Nenhuma nota encontrada.</div>
-            )}
-          </div>
-        </div>
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end items-center rounded-b-xl">
-          <Button className="bg-slate-900 text-white shadow-md hover:bg-slate-800 hover:shadow-lg transform hover:scale-105 active:scale-95 h-9 px-4 py-2" onClick={() => setShowNotesModal(false)}>
-            Fechar
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-        <div className="lg:col-span-8">
-          <Card className="rounded-xl border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Documentos do Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
-                     onDragOver={(e) => { e.preventDefault(); }}
-                     onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
-                  <div className="p-3 bg-blue-50 rounded-full mb-3">
-                    <Upload className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-700">Arraste e solte arquivos aqui para anexar</p>
-                  <p className="text-xs text-gray-500 mt-1">Ou use os botões de envio nas etapas acima</p>
-                </div>
-
-                {(documents as any[]).length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {(documents as any[]).map((doc: any) => (
-                      <div key={String(doc.id)} className="group relative w-10 h-10">
-                        <a
-                          href={doc.file_path || doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={doc.document_name || doc.file_name}
-                          className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-                        >
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </a>
-                        <button
-                          type="button"
-                          aria-label="Excluir"
-                          title="Excluir"
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-                        >
-                          <X className="h-3 w-3 text-gray-600" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="col-span-1 md:col-span-2 text-center py-8 text-muted-foreground">
-                    <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhum documento anexado ainda</p>
-                    <p className="text-xs mt-1">Arraste arquivos para esta área ou use os botões de upload nas etapas</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-
       </div>
+
+      {/* Modal de Notas */}
+      <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
+        <DialogContent showCloseButton={false}>
+          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Notas do Processo</h2>
+            <DialogClose className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Fechar</span>
+            </DialogClose>
+          </div>
+          <div className="p-6 overflow-y-auto flex-grow bg-white dark:bg-gray-800 max-h-[60vh]">
+            <div className="space-y-3">
+              {notesArray.length ? notesArray.map((n) => {
+                const d = new Date(n.timestamp);
+                const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
+                    <button
+                      type="button"
+                      aria-label="Excluir"
+                      title="Excluir"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
+                    >
+                      <X className="h-3 w-3 text-gray-600" />
+                    </button>
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
+                      {(() => {
+                        const name = String(n.authorName || '').trim();
+                        const showName = !!name && name.toLowerCase() !== 'equipe';
+                        return `${formatted}${showName ? ` - ${name}${n.authorRole ? ` (${n.authorRole})` : ''}` : ''}`;
+                      })()}
+                    </div>
+                    <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">{n.content}</p>
+                  </div>
+                );
+              }) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">Nenhuma nota encontrada.</div>
+              )}
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-end items-center rounded-b-xl">
+            <Button className="bg-slate-900 text-white shadow-md hover:bg-slate-800 hover:shadow-lg transform hover:scale-105 active:scale-95 h-9 px-4 py-2" onClick={() => setShowNotesModal(false)}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Document Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

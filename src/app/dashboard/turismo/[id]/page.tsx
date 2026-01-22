@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
   ArrowLeft, 
   Save, 
@@ -26,6 +27,8 @@ import {
   AlertCircle,
   Info
 } from "lucide-react";
+import { toast } from "sonner";
+import { DocumentChip } from "@/components/ui/document-chip";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -265,31 +268,13 @@ const DocumentRow = ({
       {attachedDocs.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {attachedDocs.map((doc: any, idx: number) => (
-            <div key={idx} className="relative group">
-              <a
-                href={doc.file_path || doc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center p-3 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 transition-all min-h-[44px] min-w-[44px]"
-                title={doc.document_name || doc.name}
-              >
-                <FileText className="h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400" />
-              </a>
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteDoc(doc);
-                  }}
-                  className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 z-10"
-                  title="Remover arquivo"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <DocumentChip
+              key={idx}
+              name={doc.document_name || doc.name || doc.file_name || "Documento"}
+              href={doc.file_path || doc.url}
+              onDelete={isEditing ? () => onDeleteDoc(doc) : undefined}
+              className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 transition-all"
+            />
           ))}
         </div>
       )}
@@ -329,6 +314,11 @@ export default function TurismoDetailsPage() {
   const [assignDue, setAssignDue] = useState<string>("");
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
+  
+  // Estados adicionados para correção de erro ReferenceError
+  const [showResponsibleModal, setShowResponsibleModal] = useState(false);
+  const [pendingNote, setPendingNote] = useState<{ stepId: number; text: string } | null>(null);
+  const [noteResponsible, setNoteResponsible] = useState("");
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -576,6 +566,14 @@ export default function TurismoDetailsPage() {
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
+        }
+      };
       for (const file of arr) {
         const fd = new FormData();
         fd.append('file', file);
@@ -584,17 +582,16 @@ export default function TurismoDetailsPage() {
         fd.append('fieldName', 'documentoAnexado');
         fd.append('clientName', caseData?.clientName || 'Cliente');
         const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (res.ok) {
-          const payload = await res.json();
-          const newDoc = payload?.document;
-          if (newDoc) {
-            setDocuments(prev => [newDoc, ...prev]);
-          }
-        }
+        if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+        const payload = await res.json();
+        const newDoc = payload?.document;
+        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+        toast.success(`Upload concluído: ${file.name}`);
       }
       await fetchDocuments();
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -604,6 +601,14 @@ export default function TurismoDetailsPage() {
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
+        }
+      };
       const fd = new FormData();
       fd.append('file', file);
       fd.append('caseId', String(params.id));
@@ -611,17 +616,16 @@ export default function TurismoDetailsPage() {
       fd.append('fieldName', fieldKey);
       fd.append('clientName', caseData?.clientName || 'Cliente');
       const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (res.ok) {
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) {
-          setDocuments(prev => [newDoc, ...prev]);
-        }
-        await fetchDocuments();
-        setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
-      }
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+      const payload = await res.json();
+      const newDoc = payload?.document;
+      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+      await fetchDocuments();
+      setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
+      toast.success(`Upload concluído: ${file.name}`);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
       setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -633,26 +637,13 @@ export default function TurismoDetailsPage() {
     return (
       <div className="mt-2 flex flex-wrap gap-2">
         {list.map((doc: any) => (
-          <div key={String(doc.id)} className="group relative w-8 h-8">
-            <a
-              href={doc.file_path || doc.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={doc.document_name || doc.name || doc.file_name || 'Documento'}
-              className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-            >
-              <FileText className="h-4 w-4 text-blue-600" />
-            </a>
-            <button
-              type="button"
-              aria-label="Excluir"
-              title="Excluir"
-              className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-            >
-              <X className="h-3 w-3 text-gray-600" />
-            </button>
-          </div>
+          <DocumentChip
+            key={String(doc.id)}
+            name={doc.document_name || doc.name || doc.file_name || "Documento"}
+            href={doc.file_path || doc.url}
+            onDelete={() => handleDeleteDocument(doc as any)}
+            className="bg-white hover:bg-gray-50 border-gray-200"
+          />
         ))}
       </div>
     );
@@ -791,17 +782,25 @@ export default function TurismoDetailsPage() {
     }
   };
 
-  const saveStepNotes = async (stepId: number) => {
+  const saveStepNotes = (stepId: number) => {
     const text = (notes[stepId] || '').trim();
     if (!text) return;
+    setPendingNote({ stepId, text });
+    setNoteResponsible("");
+    setShowResponsibleModal(true);
+  };
+
+  const confirmSaveNote = async () => {
+    if (!pendingNote || !noteResponsible.trim()) return;
+    const { stepId, text } = pendingNote;
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
-    const assigned = assignments[stepId] || assignments[currentStepIndex] || {};
-    const assignedName = assigned.responsibleName || '';
-    const suggestion = RESPONSAVEIS.find((r) => r.includes(assignedName || '')) || '';
+    
+    const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
-    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: assignedName || 'Equipe', authorRole: role }];
+    
+    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/turismo?id=${params.id}`, {
         method: 'PUT',
@@ -817,6 +816,9 @@ export default function TurismoDetailsPage() {
     } catch (error) {
       console.error('Erro ao salvar notas da etapa:', error);
     }
+    setShowResponsibleModal(false);
+    setPendingNote(null);
+    setNoteResponsible("");
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -1025,7 +1027,7 @@ export default function TurismoDetailsPage() {
               {renderRow(stepId, "Passaporte", "passaporte", "passaporteDoc")}
               {renderRow(stepId, "Comprovante de Endereço", "comprovanteEndereco", "comprovanteEnderecoDoc")}
               {renderRow(stepId, "Declaração de Residência", undefined, "declaracaoResidenciaDoc")}
-              {renderRow(stepId, "Foto digital 3x4", undefined, "foto3x4Doc")}
+              {renderRow(stepId, "Foto/Selfie", undefined, "foto3x4Doc")}
               {renderRow(stepId, "Documento Chinês", "documentoChines", "documentoChinesDoc")}
               {renderRow(stepId, "Antecedentes Criminais", "antecedentesCriminais", "antecedentesCriminaisDoc")}
             </div>
@@ -1516,7 +1518,7 @@ export default function TurismoDetailsPage() {
         { key: "passaporteDoc", label: "Passaporte" },
         { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
         { key: "declaracaoResidenciaDoc", label: "Declaração de Residência" },
-        { key: "foto3x4Doc", label: "Foto digital 3x4" },
+        { key: "foto3x4Doc", label: "Foto/Selfie" },
         { key: "documentoChinesDoc", label: "Documento Chinês" },
         { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
       ]
@@ -1644,8 +1646,8 @@ export default function TurismoDetailsPage() {
       </div>
 
 
-      <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
-        <div className="lg:col-span-8">
+      <div className="flex flex-col gap-6 lg:gap-8 lg:flex-row lg:items-start">
+        <div className="flex flex-col gap-6 lg:gap-8 lg:flex-[2] min-w-0">
           {showWorkflow && (
             <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px] relative">
               <CardHeader>
@@ -1807,60 +1809,16 @@ export default function TurismoDetailsPage() {
               </CardContent>
             </Card>
           )}
-        </div>
 
-        <div className="lg:col-span-4 flex flex-col min-h-[560px] space-y-4">
-          <StatusPanel
-            status={status}
-            onStatusChange={handleStatusChange}
-            currentStep={currentStepIndex + 1}
-            totalSteps={caseData.steps.length}
-            currentStepTitle={caseData.steps[currentStepIndex]?.title}
-            createdAt={caseData.createdAt}
-            updatedAt={caseData.updatedAt}
-          />
-
-          <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="flex items-center w-full justify-between">
-                <span className="flex items-center">
-                  Observações
-                </span>
-                <button
-                  type="button"
-                  className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
-                  onClick={() => setShowNotesModal(true)}
-                  title="Ver todas as notas"
-                >
-                  <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
-                </button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <Textarea rows={12} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-transparent" />
-              <div className="flex justify-end items-center px-3 py-2 mt-2">
-                <div className="flex flex-col items-end gap-1 w-full">
-                  <Button className="bg-slate-900 text-white" onClick={() => saveStepNotes(0)}>Salvar</Button>
-                  {saveMessages[0] ? (
-                    <span className="text-green-600 text-xs">Salvo com sucesso!</span>
-                  ) : null}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-8">
           <Card className="rounded-xl border-gray-200 shadow-sm">
-            <CardHeader>
+            <CardHeader className="px-2.5">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Documentos do Cliente
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2.5">
               <div className="mb-8 space-y-6">
-                {/* Progress Bar */}
                 <div
                   className="space-y-2 cursor-pointer group select-none"
                   onClick={() => setIsPendingDocsOpen(!isPendingDocsOpen)}
@@ -1882,7 +1840,6 @@ export default function TurismoDetailsPage() {
                   </div>
                 </div>
 
-                {/* Pending List or Success */}
                 {pendingDocs.length > 0 ? (
                   <div
                     id="pending-docs-section"
@@ -1938,8 +1895,8 @@ export default function TurismoDetailsPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
+              <div className="grid grid-cols-1 gap-4">
+                <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
                      onDragOver={(e) => { e.preventDefault(); }}
                      onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
                   <div className="p-3 bg-blue-50 rounded-full mb-3">
@@ -1950,32 +1907,44 @@ export default function TurismoDetailsPage() {
                 </div>
 
                 {(documents as any[]).length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {(documents as any[]).map((doc: any) => (
-                      <div key={String(doc.id)} className="group relative w-10 h-10">
-                        <a
-                          href={doc.file_path || doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={doc.document_name || doc.file_name}
-                          className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-                        >
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </a>
-                        <button
-                          type="button"
-                          aria-label="Excluir"
-                          title="Excluir"
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-                        >
-                          <X className="h-3 w-3 text-gray-600" />
-                        </button>
-                      </div>
-                    ))}
+                  <div className={documentGridClassName}>
+                    {(documents as any[]).map((doc: any) => {
+                      const displayName = doc.document_name || doc.file_name || doc.name || "Documento";
+                      return (
+                        <div key={String(doc.id)} className="min-w-0 flex flex-col items-center">
+                          <div className={documentTileClassName}>
+                            <a
+                              href={doc.file_path || doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={displayName}
+                              className={documentLinkClassName}
+                            >
+                              <FileText className={`${documentIconClassName} text-blue-600`} />
+                            </a>
+                            <button
+                              type="button"
+                              aria-label="Excluir"
+                              title="Excluir"
+                              className={documentDeleteButtonClassName}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteDocument(doc as any);
+                              }}
+                            >
+                              <X className="h-3 w-3 text-gray-600" />
+                            </button>
+                          </div>
+                          <div className={documentNameClassName} title={displayName}>
+                            {displayName}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="col-span-1 md:col-span-2 text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">Nenhum documento anexado ainda</p>
                     <p className="text-xs mt-1">Arraste arquivos para esta área ou use os botões de upload nas etapas</p>
@@ -1986,7 +1955,111 @@ export default function TurismoDetailsPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-4">
+        <div className="flex flex-col gap-6 lg:gap-8 lg:flex-[1] min-w-0">
+          <div className="flex flex-col min-h-[560px] space-y-4">
+          <StatusPanel
+            status={status}
+            onStatusChange={handleStatusChange}
+            currentStep={currentStepIndex + 1}
+            totalSteps={caseData.steps.length}
+            currentStepTitle={caseData.steps[currentStepIndex]?.title}
+            createdAt={caseData.createdAt}
+            updatedAt={caseData.updatedAt}
+          />
+
+          <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
+            <CardHeader className="flex-shrink-0">
+              <CardTitle className="flex items-center w-full justify-between">
+                <span className="flex items-center">
+                  Observações
+                </span>
+                <button
+                  type="button"
+                  className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
+                  onClick={() => setShowNotesModal(true)}
+                  title="Ver todas as notas"
+                >
+                  <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col min-h-[400px]">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-h-[400px] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+                {notesArray.length > 0 ? (
+                  [...notesArray].reverse().map((n) => {
+                    const d = new Date(n.timestamp);
+                    const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const name = String(n.authorName || '').trim();
+                    const showName = !!name && name.toLowerCase() !== 'equipe';
+                    
+                    return (
+                      <div key={n.id} className="group relative bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                            {formatted}
+                            {showName && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                <span className="text-slate-600 dark:text-slate-400">{name}</span>
+                              </>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); deleteNote(n.id); }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all text-slate-400"
+                            title="Excluir nota"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full py-8 text-center space-y-2">
+                    <div className="p-3 bg-slate-50 rounded-full">
+                      <FileText className="h-6 w-6 text-slate-300" />
+                    </div>
+                    <p className="text-sm text-slate-500">Nenhuma observação registrada.</p>
+                    <p className="text-xs text-slate-400">Utilize o campo abaixo para adicionar.</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+                <div className="relative">
+                  <Textarea 
+                    rows={3} 
+                    placeholder="Adicione uma nova observação..." 
+                    value={notes[0] || ''} 
+                    onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
+                    className="w-full resize-none pr-12 min-h-[80px]" 
+                  />
+                  <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                    {saveMessages[0] && (
+                      <span className="text-green-600 text-xs font-medium animate-in fade-in slide-in-from-right-2 bg-white/80 px-2 py-1 rounded">
+                        Salvo!
+                      </span>
+                    )}
+                    <Button 
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm" 
+                      onClick={() => saveStepNotes(0)}
+                      disabled={!notes[0]?.trim()}
+                      title="Salvar observação"
+                    >
+                      <Save className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          </div>
+
+          <div>
           <Card className="rounded-xl border-gray-200 shadow-sm h-full">
             <CardHeader>
               <CardTitle>Responsáveis</CardTitle>
@@ -2019,6 +2092,7 @@ export default function TurismoDetailsPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
 
@@ -2191,6 +2265,87 @@ export default function TurismoDetailsPage() {
               Fechar
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Responsável */}
+      <Dialog open={showResponsibleModal} onOpenChange={setShowResponsibleModal}>
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-6 overflow-hidden gap-6">
+          <DialogHeader className="mb-0">
+            <DialogTitle className="text-xl font-semibold flex items-center gap-3 text-slate-900 dark:text-slate-100">
+              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              Responsável pela Observação
+            </DialogTitle>
+            <DialogDescription className="text-base text-slate-500 dark:text-slate-400 mt-2 ml-1">
+              Identifique quem está registrando esta observação para manter o histórico do processo organizado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="responsible" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                Nome do Responsável
+              </Label>
+              <div className="relative group">
+                <User className="absolute left-3.5 top-3 h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                <Input
+                  id="responsible"
+                  value={noteResponsible}
+                  onChange={(e) => setNoteResponsible(e.target.value)}
+                  className="pl-11 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl transition-all shadow-sm hover:border-blue-400 dark:hover:border-blue-600"
+                  placeholder="Digite ou selecione abaixo..."
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
+                Seleção Rápida
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {RESPONSAVEIS.map((resp) => {
+                  const name = resp.split(' – ')[1] || resp;
+                  const isSelected = noteResponsible === name;
+                  return (
+                    <button
+                      key={resp}
+                      type="button"
+                      onClick={() => setNoteResponsible(name)}
+                      className={`
+                        group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
+                        ${isSelected 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 scale-[1.02]' 
+                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}
+                      `}
+                    >
+                      {isSelected && <CheckCircle className="w-3.5 h-3.5 animate-in zoom-in duration-200" />}
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowResponsibleModal(false)}
+              className="h-10 px-4 text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-lg"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              onClick={confirmSaveNote} 
+              disabled={!noteResponsible.trim()}
+              className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-lg shadow-lg shadow-slate-900/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Confirmar e Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

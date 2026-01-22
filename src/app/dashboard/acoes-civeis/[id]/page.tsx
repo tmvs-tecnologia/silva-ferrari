@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
   ArrowLeft, 
   Save, 
@@ -58,6 +59,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { DocumentChip } from "@/components/ui/document-chip";
 import "react-day-picker/dist/style.css";
 import { StatusPanel } from "@/components/detail/StatusPanel";
 import { formatDateBR } from "@/lib/date";
@@ -310,6 +312,58 @@ const DocumentRow = ({
   // Coletar arquivos anexados
   const attachedDocs = (documents || []).filter((d: any) => (d.field_name || d.fieldName) === docField);
 
+  const handlePreview = async (doc: any) => {
+    // Tenta abrir direto primeiro, se falhar, tenta fallback
+    const loadingToast = toast.loading("Gerando link seguro...");
+    
+    try {
+      const res = await fetch('/api/documents/sign-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: doc.file_path || doc.url })
+      });
+      
+      toast.dismiss(loadingToast);
+
+      if (res.ok) {
+        const { signedUrl } = await res.json();
+        if (signedUrl) {
+            const newWindow = window.open(signedUrl, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                // Popup bloqueado
+                toast.error("Popup bloqueado. Clique aqui para abrir.", {
+                    action: {
+                        label: "Abrir Documento",
+                        onClick: () => window.open(signedUrl, '_blank')
+                    },
+                    duration: 5000
+                });
+            }
+            return;
+        }
+      }
+      
+      // Fallback para URL original se falhar
+      console.warn("Falha ao gerar URL assinada, usando original");
+      const originalUrl = doc.file_path || doc.url;
+      const fallbackWindow = window.open(originalUrl, '_blank');
+       if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
+             toast.error("Popup bloqueado. Clique para abrir.", {
+                action: {
+                    label: "Abrir",
+                    onClick: () => window.open(originalUrl, '_blank')
+                }
+            });
+       }
+
+    } catch (e) {
+      console.error("Erro ao gerar preview:", e);
+      toast.dismiss(loadingToast);
+      const originalUrl = doc.file_path || doc.url;
+      window.open(originalUrl, '_blank');
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -388,31 +442,13 @@ const DocumentRow = ({
       {attachedDocs.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {attachedDocs.map((doc: any, idx: number) => (
-            <div key={idx} className="relative group">
-              <a
-                href={doc.file_path || doc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center p-3 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 transition-all min-h-[44px] min-w-[44px]"
-                title={doc.document_name || doc.name}
-              >
-                <FileText className="h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-sky-600 dark:group-hover:text-sky-400" />
-              </a>
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteDoc(doc);
-                  }}
-                  className="absolute -top-2 -right-2 p-1.5 rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 z-10"
-                  title="Remover arquivo"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-            </div>
+            <DocumentChip
+              key={idx}
+              name={doc.document_name || doc.name || doc.file_name || "Documento"}
+              onOpen={() => handlePreview(doc)}
+              onDelete={isEditing ? () => onDeleteDoc(doc) : undefined}
+              className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 transition-all"
+            />
           ))}
         </div>
       )}
@@ -771,6 +807,14 @@ export default function AcoesCiveisDetailsPage() {
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
 
     try {
+        const getErrorMessage = async (res: Response, fallback: string) => {
+            try {
+                const data = await res.json().catch(() => ({} as any));
+                return String(data?.error || data?.message || fallback);
+            } catch {
+                return fallback;
+            }
+        };
         for (const file of arr) {
             const contentType = file.type || 'application/octet-stream';
 
@@ -789,8 +833,7 @@ export default function AcoesCiveisDetailsPage() {
             });
 
             if (!signRes.ok) {
-                const err = await signRes.json();
-                throw new Error(err.error || 'Erro ao gerar URL de upload');
+                throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
             }
 
             const { signedUrl, fullPath, publicUrl } = await signRes.json();
@@ -814,23 +857,22 @@ export default function AcoesCiveisDetailsPage() {
                 })
             });
 
-            if (regRes.ok) {
-                const payload = await regRes.json();
-                if (payload?.document) {
-                    setDocuments(prev => [payload.document, ...prev]);
-                    toast.success(`Upload concluído: ${file.name}`);
-                } else {
-                     await fetchDocuments();
-                }
+            if (!regRes.ok) {
+                throw new Error(await getErrorMessage(regRes, 'Erro ao salvar metadados do documento'));
+            }
+
+            const payload = await regRes.json();
+            if (payload?.document) {
+                setDocuments(prev => [payload.document, ...prev]);
+                toast.success(`Upload concluído: ${file.name}`);
             } else {
-                console.error('Erro ao registrar documento');
-                toast.error('Erro ao salvar metadados do documento');
+                await fetchDocuments();
             }
         }
         await fetchDocuments();
     } catch (error) {
         console.error("Erro ao fazer upload:", error);
-        toast.error("Erro ao realizar upload. Tente novamente.");
+        toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
         setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -1220,21 +1262,64 @@ export default function AcoesCiveisDetailsPage() {
                     )}
 
                     {/* Generic Notes Area */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                         <Label>Observações da Etapa</Label>
-                        <Textarea 
-                            value={notes[stepIndex] || ""} 
-                            onChange={e => setNotes(prev => ({...prev, [stepIndex]: e.target.value}))}
-                            placeholder="Adicione notas aqui..."
-                            className={!isEditingDocuments ? "bg-slate-50" : "bg-white"}
-                            readOnly={!isEditingDocuments}
-                        />
-                         {isEditingDocuments && (
-                            <div className="flex justify-end">
-                                <Button size="sm" variant="outline" onClick={() => saveStepNotes(stepIndex)}>Salvar Notas</Button>
-                                {saveMessages[stepIndex] && <span className="ml-2 text-green-600 flex items-center text-xs">Salvo</span>}
-                            </div>
-                        )}
+                        
+                        {/* Note Input */}
+                        <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+                            <Textarea 
+                                value={notes[stepIndex] || ""} 
+                                onChange={e => setNotes(prev => ({...prev, [stepIndex]: e.target.value}))}
+                                placeholder="Adicione uma nova nota..."
+                                className={`w-full border-0 focus-visible:ring-0 p-0 resize-none min-h-[80px] ${!isEditingDocuments ? "bg-slate-50 text-slate-500" : "bg-white"}`}
+                                readOnly={!isEditingDocuments}
+                                rows={3}
+                            />
+                            {isEditingDocuments && (
+                                <div className="flex justify-end items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                                    {saveMessages[stepIndex] && (
+                                        <span className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 animate-in fade-in slide-in-from-right-2">Salvo!</span>
+                                    )}
+                                    <Button 
+                                        size="sm" 
+                                        onClick={() => saveStepNotes(stepIndex)}
+                                        className="h-8 text-xs px-4"
+                                        disabled={!notes[stepIndex]}
+                                    >
+                                        Salvar Nota
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes List */}
+                        <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 min-h-[100px] max-h-[300px] overflow-y-auto space-y-3">
+                            {notesArray.filter((n: any) => n.stepId === stepIndex).length > 0 ? (
+                                notesArray.filter((n: any) => n.stepId === stepIndex).map((n: any) => (
+                                    <div key={n.id} className="bg-white p-3 rounded border border-slate-200 shadow-sm relative group">
+                                        <button 
+                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded" 
+                                            onClick={() => deleteNote(n.id)}
+                                            title="Excluir nota"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                                                {(n.authorName || 'S').substring(0,2).toUpperCase()}
+                                            </div>
+                                            <div className="flex flex-col leading-none">
+                                                <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
+                                                <span className="text-[10px] text-slate-400">{new Date(n.timestamp).toLocaleString()}</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-slate-700 whitespace-pre-wrap pl-7">{n.content}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma observação nesta etapa.</p>
+                            )}
+                        </div>
                     </div>
                     
                     {/* Generic Upload Area */}
@@ -1436,13 +1521,13 @@ export default function AcoesCiveisDetailsPage() {
             </Card>
           
           <Card className="rounded-xl border-gray-200 shadow-sm">
-            <CardHeader>
+            <CardHeader className="px-2.5">
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
                 Documentos do Cliente
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2.5">
               <div className="mb-8 space-y-6">
                 {/* Progress Bar */}
                 <div
@@ -1522,8 +1607,8 @@ export default function AcoesCiveisDetailsPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={`col-span-1 md:col-span-2 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
+              <div className="grid grid-cols-1 gap-4">
+                <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
                   onDragOver={(e) => { e.preventDefault(); }}
                   onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
                   <div className="p-3 bg-blue-50 rounded-full mb-3">
@@ -1547,32 +1632,44 @@ export default function AcoesCiveisDetailsPage() {
                 </div>
 
                 {(documents as any[]).length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {(documents as any[]).map((doc: any) => (
-                      <div key={String(doc.id)} className="group relative w-10 h-10">
-                        <a
-                          href={doc.file_path || doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={doc.document_name || doc.file_name}
-                          className="block w-full h-full rounded-md border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50"
-                        >
-                          <FileText className="h-5 w-5 text-blue-600" />
-                        </a>
-                        <button
-                          type="button"
-                          aria-label="Excluir"
-                          title="Excluir"
-                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteDocument(doc as any); }}
-                        >
-                          <X className="h-3 w-3 text-gray-600" />
-                        </button>
-                      </div>
-                    ))}
+                  <div className={documentGridClassName}>
+                    {(documents as any[]).map((doc: any) => {
+                      const displayName = doc.document_name || doc.file_name || doc.name || "Documento";
+                      return (
+                        <div key={String(doc.id)} className="min-w-0 flex flex-col items-center">
+                          <div className={documentTileClassName}>
+                            <a
+                              href={doc.file_path || doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={displayName}
+                              className={documentLinkClassName}
+                            >
+                              <FileText className={`${documentIconClassName} text-blue-600`} />
+                            </a>
+                            <button
+                              type="button"
+                              aria-label="Excluir"
+                              title="Excluir"
+                              className={documentDeleteButtonClassName}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteDocument(doc as any);
+                              }}
+                            >
+                              <X className="h-3 w-3 text-gray-600" />
+                            </button>
+                          </div>
+                          <div className={documentNameClassName} title={displayName}>
+                            {displayName}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="col-span-1 md:col-span-2 text-center py-8 text-muted-foreground">
+                  <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">Nenhum documento anexado ainda</p>
                     <p className="text-xs mt-1">Arraste arquivos para esta área ou use os botões de upload nas etapas</p>
@@ -1610,14 +1707,58 @@ export default function AcoesCiveisDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
-              <Textarea rows={12} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-transparent" />
-              <div className="flex justify-end items-center px-3 py-2 mt-2">
-                <div className="flex flex-col items-end gap-1 w-full">
-                  <Button className="bg-slate-900 text-white" onClick={() => saveStepNotes(0)}>Salvar</Button>
-                  {saveMessages[0] ? (
-                    <span className="text-green-600 text-xs">Salvo com sucesso!</span>
-                  ) : null}
+              <div className="relative mb-4">
+                <Textarea 
+                  rows={4} 
+                  placeholder="Adicione uma nova observação..." 
+                  value={notes[0] || ''} 
+                  onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
+                  className="w-full min-h-[100px] border-slate-200 focus:border-slate-400 bg-white shadow-sm resize-none" 
+                />
+                <div className="flex justify-end items-center gap-2 mt-2">
+                  {saveMessages[0] && (
+                    <span className="text-emerald-600 text-xs font-medium animate-fade-in bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Salvo!</span>
+                  )}
+                  <Button 
+                    size="sm"
+                    className="bg-slate-900 hover:bg-slate-800 text-white h-8 px-4 shadow-sm" 
+                    onClick={() => saveStepNotes(0)}
+                    disabled={!notes[0]}
+                  >
+                    Salvar
+                  </Button>
                 </div>
+              </div>
+
+              <div className="flex-1 min-h-[200px] max-h-[400px] overflow-y-auto space-y-3 p-2 bg-slate-50/50 rounded-lg border border-slate-100">
+                {notesArray.length > 0 ? (
+                  notesArray.map((n) => (
+                    <div key={n.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative group transition-all hover:shadow-md">
+                      <button 
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded" 
+                        onClick={() => deleteNote(n.id)}
+                        title="Excluir nota"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-inner">
+                            {(n.authorName || 'S').substring(0,2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col leading-none">
+                          <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
+                          <span className="text-[10px] text-slate-400">{new Date(n.timestamp).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap pl-8">{n.content}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 italic">
+                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" alt="Empty" className="h-12 w-12 opacity-20 mb-2 grayscale" />
+                    <p className="text-sm">Nenhuma observação registrada.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1785,6 +1926,7 @@ export default function AcoesCiveisDetailsPage() {
       {/* Modal de Notas */}
       <Dialog open={showNotesModal} onOpenChange={setShowNotesModal}>
         <DialogContent showCloseButton={false}>
+          <DialogTitle className="sr-only">Notas do Processo</DialogTitle>
           <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Notas do Processo</h2>
             <DialogClose className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
