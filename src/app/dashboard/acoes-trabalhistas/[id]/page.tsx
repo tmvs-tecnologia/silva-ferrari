@@ -149,7 +149,7 @@ export default function AcaoTrabalhistaDetailPage() {
   const [documents, setDocuments] = useState<CaseDocument[]>([]);
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({});
   const [assignments, setAssignments] = useState<Record<number, { responsibleName?: string; dueDate?: string }>>({});
-  
+
   // Modal states
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -177,9 +177,9 @@ export default function AcaoTrabalhistaDetailPage() {
           // Parse notes
           try {
             const parsedNotes = JSON.parse(data.notes || "[]");
-             // Transform array to object by stepId if needed, or just keep as array for modal
-             // For the textarea per step, we might need a different approach or just use a generic notes field
-          } catch {}
+            // Transform array to object by stepId if needed, or just keep as array for modal
+            // For the textarea per step, we might need a different approach or just use a generic notes field
+          } catch { }
         }
       } catch (error) {
         console.error("Erro ao carregar caso:", error);
@@ -229,45 +229,153 @@ export default function AcaoTrabalhistaDetailPage() {
     loadDocuments();
   }, [id]);
 
+  const validateFile = (file: File) => {
+    // Valid types
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    if (file.size === 0) {
+      alert(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      alert(`Formato inválido: ${file.name}.`);
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      alert(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!validateFile(file)) {
+      e.target.value = "";
+      return;
+    }
+
     setUploadingFields(prev => ({ ...prev, [fieldName]: true }));
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("caseId", id);
-    formData.append("fieldName", fieldName);
-    formData.append("moduleType", "acoes_trabalhistas");
-    formData.append("documentType", fieldName); // Use fieldName as documentType for checking requirements
 
     try {
-      const response = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+      let fileUrl = "";
+      let finalFileName = file.name;
 
-      if (response.ok) {
+      // Standardize file name
+      const sanitizedFileName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const finalFile = new File([file], sanitizedFileName, { type: file.type });
+      finalFileName = sanitizedFileName;
+
+      if (file.size > MAX_DIRECT_SIZE) {
+        // Signed Upload (Temporary)
+        const signRes = await fetch("/api/documents/upload/sign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: sanitizedFileName,
+            fileType: file.type,
+            caseId: id,
+            moduleType: "acoes_trabalhistas",
+            fieldName: fieldName,
+            clientName: caseData?.clientName || "Cliente"
+          })
+        });
+
+        if (!signRes.ok) {
+          const err = await signRes.json();
+          throw new Error(err.error || "Falha ao gerar URL assinada");
+        }
+
+        const { signedUrl, publicUrl } = await signRes.json();
+
+        const uploadRes = await fetch(signedUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type }
+        });
+
+        if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+        fileUrl = publicUrl;
+
+        // Register metadata
+        await fetch("/api/documents/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            isRegisterOnly: true,
+            fileUrl,
+            fileName: sanitizedFileName,
+            fileType: file.type,
+            fileSize: file.size,
+            caseId: id,
+            fieldName: fieldName,
+            moduleType: "acoes_trabalhistas",
+            clientName: caseData?.clientName || "Cliente"
+          })
+        });
+
+      } else {
+        // Direct Upload
+        const formData = new FormData();
+        formData.append("file", finalFile);
+        formData.append("caseId", id);
+        formData.append("fieldName", fieldName);
+        formData.append("moduleType", "acoes_trabalhistas");
+        formData.append("documentType", fieldName);
+
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Erro ao enviar documento");
+        }
         const data = await response.json();
-        
+        fileUrl = data.fileUrl; // or data.fileName depends on the response, usually upload route returns fileUrl or fileName? 
+        // In the original code: setCaseData(..., [fieldName]: data.fileName)
+        // But signed upload returns publicUrl. 
+        // I should verify what data.fileName is.
+        finalFileName = data.fileName;
+      }
+
+      if (fileUrl || finalFileName) {
         // Update case data
-        setCaseData(prev => prev ? { ...prev, [fieldName]: data.fileName } : null);
-        
+        setCaseData(prev => prev ? { ...prev, [fieldName]: finalFileName } : null);
+
         // Refresh documents
         const docsRes = await fetch(`/api/documents/${id}?moduleType=acoes_trabalhistas`);
         if (docsRes.ok) {
-            setDocuments(await docsRes.json());
+          setDocuments(await docsRes.json());
         }
-        
         alert("✅ Arquivo enviado com sucesso!");
-      } else {
-        alert("❌ Erro ao enviar arquivo");
       }
-    } catch (error) {
+
+    } catch (error: any) {
       console.error("Error uploading file:", error);
-      alert("❌ Erro ao enviar arquivo");
+      alert(`❌ Erro ao enviar arquivo: ${error.message}`);
     } finally {
       setUploadingFields(prev => ({ ...prev, [fieldName]: false }));
+      e.target.value = "";
     }
   };
 
@@ -344,68 +452,68 @@ export default function AcaoTrabalhistaDetailPage() {
   // Helper for requirements
   const getDocRequirements = () => {
     return [
-       // Cadastro
-       { label: "Documentos Iniciais", key: "documentosIniciaisFile", group: "Cadastro de Documentos", required: true },
-       { label: "Contrato de Trabalho", key: "contratoTrabalhoFile", group: "Cadastro de Documentos", required: true },
-       { label: "Carteira de Trabalho", key: "carteiraTrabalhistaFile", group: "Cadastro de Documentos", required: true },
-       { label: "Comprovantes Salariais", key: "comprovantesSalariaisFile", group: "Cadastro de Documentos", required: true },
-       { label: "Petição Inicial", key: "peticaoInicialFile", group: "Cadastro de Documentos", required: true },
-       { label: "Procuração", key: "procuracaoTrabalhistaFile", group: "Cadastro de Documentos", required: true },
-       
-       // Resumo
-       { label: "Documento de Resumo", key: "resumoDoc", group: "Resumo" },
+      // Cadastro
+      { label: "Documentos Iniciais", key: "documentosIniciaisFile", group: "Cadastro de Documentos", required: true },
+      { label: "Contrato de Trabalho", key: "contratoTrabalhoFile", group: "Cadastro de Documentos", required: true },
+      { label: "Carteira de Trabalho", key: "carteiraTrabalhistaFile", group: "Cadastro de Documentos", required: true },
+      { label: "Comprovantes Salariais", key: "comprovantesSalariaisFile", group: "Cadastro de Documentos", required: true },
+      { label: "Petição Inicial", key: "peticaoInicialFile", group: "Cadastro de Documentos", required: true },
+      { label: "Procuração", key: "procuracaoTrabalhistaFile", group: "Cadastro de Documentos", required: true },
 
-       // Acompanhamento
-       { label: "Documento de Acompanhamento", key: "acompanhamentoDoc", group: "Acompanhamento" },
-       { label: "Citação Empregador", key: "citacaoEmpregadorFile", group: "Acompanhamento" },
-       { label: "Contestação", key: "contestacaoRecebidaFile", group: "Acompanhamento" },
-       { label: "Ata de Audiência", key: "ataAudienciaInicialFile", group: "Acompanhamento" },
-       { label: "Provas/Testemunhas", key: "provasTestemunhasFile", group: "Acompanhamento" },
-       { label: "Alegações Finais", key: "alegacoesFinaisFile", group: "Acompanhamento" },
+      // Resumo
+      { label: "Documento de Resumo", key: "resumoDoc", group: "Resumo" },
 
-       // Finalizado
-       { label: "Sentença", key: "sentencaTrabalhistaFile", group: "Processo Finalizado" },
-       { label: "Execução/Recurso", key: "execucaoRecursoFile", group: "Processo Finalizado" },
-       { label: "Documento Final", key: "finalizadoDoc", group: "Processo Finalizado" },
+      // Acompanhamento
+      { label: "Documento de Acompanhamento", key: "acompanhamentoDoc", group: "Acompanhamento" },
+      { label: "Citação Empregador", key: "citacaoEmpregadorFile", group: "Acompanhamento" },
+      { label: "Contestação", key: "contestacaoRecebidaFile", group: "Acompanhamento" },
+      { label: "Ata de Audiência", key: "ataAudienciaInicialFile", group: "Acompanhamento" },
+      { label: "Provas/Testemunhas", key: "provasTestemunhasFile", group: "Acompanhamento" },
+      { label: "Alegações Finais", key: "alegacoesFinaisFile", group: "Acompanhamento" },
+
+      // Finalizado
+      { label: "Sentença", key: "sentencaTrabalhistaFile", group: "Processo Finalizado" },
+      { label: "Execução/Recurso", key: "execucaoRecursoFile", group: "Processo Finalizado" },
+      { label: "Documento Final", key: "finalizadoDoc", group: "Processo Finalizado" },
     ];
   };
 
-  const pendingDocs = getDocRequirements().filter(req => 
+  const pendingDocs = getDocRequirements().filter(req =>
     !documents.some(doc => (doc.document_type === req.key || doc.fieldName === req.key)) && !caseData?.[req.key]
   ).map(doc => ({
-      ...doc,
-      priority: doc.required ? "high" : "medium" as any,
-      status: "pending" as any
+    ...doc,
+    priority: doc.required ? "high" : "medium" as any,
+    status: "pending" as any
   }));
-  
+
   const totalDocs = getDocRequirements().length;
   const completedDocs = totalDocs - pendingDocs.length;
 
   // Render Helpers
   const renderHeader = (title: string, onEdit?: () => void, isEditing?: boolean, onSave?: () => void, onCancel?: () => void) => (
     <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-slate-500" />
-            {title}
-        </h3>
-        {onEdit && (
-            <div className="flex items-center gap-2">
-                {!isEditing ? (
-                    <Button size="sm" variant="outline" className="h-7 px-2 bg-white" onClick={onEdit}>
-                        <Edit2 className="w-3 h-3 mr-1" /> Editar
-                    </Button>
-                ) : (
-                    <>
-                        <Button size="sm" variant="default" className="h-7 px-2 bg-slate-900" onClick={onSave}>
-                            <Save className="w-3 h-3 mr-1" /> Salvar
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onCancel}>
-                            <X className="w-3 h-3" />
-                        </Button>
-                    </>
-                )}
-            </div>
-        )}
+      <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+        <FileText className="w-4 h-4 text-slate-500" />
+        {title}
+      </h3>
+      {onEdit && (
+        <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <Button size="sm" variant="outline" className="h-7 px-2 bg-white" onClick={onEdit}>
+              <Edit2 className="w-3 h-3 mr-1" /> Editar
+            </Button>
+          ) : (
+            <>
+              <Button size="sm" variant="default" className="h-7 px-2 bg-slate-900" onClick={onSave}>
+                <Save className="w-3 h-3 mr-1" /> Salvar
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onCancel}>
+                <X className="w-3 h-3" />
+              </Button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 
@@ -414,213 +522,213 @@ export default function AcaoTrabalhistaDetailPage() {
     const fileName = fileUrl ? (fileUrl.split('/').pop() || 'Documento') : null;
 
     return (
-        <div className="space-y-1">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</Label>
-            <div className="flex flex-col gap-2">
-                {valueKey && (
-                    isEditing ? (
-                        <Input 
-                            value={String(caseData?.[valueKey] || "")} 
-                            onChange={(e) => onChangeValue?.(e.target.value)}
-                            className="h-9 bg-white"
-                        />
-                    ) : (
-                        <div className="text-sm font-medium text-slate-900 min-h-[20px]">
-                            {String(caseData?.[valueKey] || "-")}
-                        </div>
-                    )
-                )}
-                {customValue}
-                
-                {/* File Upload Area */}
-                <div className="flex items-center gap-2 mt-1">
-                     {fileUrl ? (
-                        <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 w-full">
-                            <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline truncate flex-1">
-                                {fileName}
-                            </a>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => {
-                                    // Handle delete specific field file if needed, or just clear the field
-                                }}
-                            >
-                                <X className="w-3 h-3" />
-                            </Button>
-                        </div>
-                     ) : (
-                        <div className="flex items-center gap-2 w-full">
-                            <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 border border-dashed border-slate-300 rounded-md text-sm text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFields[fileKey] ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <Upload className="w-3.5 h-3.5" />
-                                {uploadingFields[fileKey] ? 'Enviando...' : 'Anexar arquivo'}
-                                <input 
-                                    type="file" 
-                                    className="hidden" 
-                                    onChange={(e) => handleFileUpload(e, fileKey)}
-                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                                />
-                            </label>
-                        </div>
-                     )}
-                </div>
-            </div>
+      <div className="space-y-1">
+        <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</Label>
+        <div className="flex flex-col gap-2">
+          {valueKey && (
+            isEditing ? (
+              <Input
+                value={String(caseData?.[valueKey] || "")}
+                onChange={(e) => onChangeValue?.(e.target.value)}
+                className="h-9 bg-white"
+              />
+            ) : (
+              <div className="text-sm font-medium text-slate-900 min-h-[20px]">
+                {String(caseData?.[valueKey] || "-")}
+              </div>
+            )
+          )}
+          {customValue}
+
+          {/* File Upload Area */}
+          <div className="flex items-center gap-2 mt-1">
+            {fileUrl ? (
+              <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-md border border-blue-100 w-full">
+                <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-700 hover:underline truncate flex-1">
+                  {fileName}
+                </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    // Handle delete specific field file if needed, or just clear the field
+                  }}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 w-full">
+                <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 border border-dashed border-slate-300 rounded-md text-sm text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFields[fileKey] ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload className="w-3.5 h-3.5" />
+                  {uploadingFields[fileKey] ? 'Enviando...' : 'Anexar arquivo'}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e, fileKey)}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </div>
+      </div>
     );
   };
 
   const renderStepContent = (stepIndex: number) => {
-     if (!caseData) return null;
-     
-     switch(stepIndex) {
-         case 0: // Cadastro
-            return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {renderHeader("Dados Iniciais", 
-                        () => setIsEditingCadastro(true), 
-                        isEditingCadastro,
-                        async () => {
-                             await fetch(`/api/acoes-trabalhistas?id=${id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ 
-                                    reuName: caseData.reuName, 
-                                    numeroProcesso: caseData.numeroProcesso, 
-                                    responsavelName: caseData.responsavelName, 
-                                    responsavelDate: caseData.responsavelDate,
-                                    documentosIniciais: caseData.documentosIniciais,
-                                    contratoTrabalho: caseData.contratoTrabalho,
-                                    carteiraTrabalhista: caseData.carteiraTrabalhista,
-                                    comprovantesSalariais: caseData.comprovantesSalariais
-                                }),
-                             });
-                             setIsEditingCadastro(false);
-                        },
-                        () => setIsEditingCadastro(false)
-                    )}
-                    <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        {renderRow("Autor", undefined, "", false, undefined, <div className="text-sm font-medium">{caseData.clientName}</div>)}
-                        {renderRow("Réu", "reuName", "", isEditingCadastro, (v) => setCaseData({...caseData, reuName: v}))}
-                        {renderRow("Nº Processo", "numeroProcesso", "", isEditingCadastro, (v) => setCaseData({...caseData, numeroProcesso: v}))}
-                        {renderRow("Responsável", "responsavelName", "", isEditingCadastro, (v) => setCaseData({...caseData, responsavelName: v}))}
-                        
-                        {/* Documents Section */}
-                        <div className="md:col-span-2 border-t pt-4 mt-2">
-                            <h4 className="font-semibold text-sm mb-4">Documentação Obrigatória</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {renderRow("Documentos Iniciais", "documentosIniciais", "documentosIniciaisFile", isEditingCadastro, (v) => setCaseData({...caseData, documentosIniciais: v}))}
-                                {renderRow("Contrato de Trabalho", "contratoTrabalho", "contratoTrabalhoFile", isEditingCadastro, (v) => setCaseData({...caseData, contratoTrabalho: v}))}
-                                {renderRow("Carteira de Trabalho", "carteiraTrabalhista", "carteiraTrabalhistaFile", isEditingCadastro, (v) => setCaseData({...caseData, carteiraTrabalhista: v}))}
-                                {renderRow("Comprovantes Salariais", "comprovantesSalariais", "comprovantesSalariaisFile", isEditingCadastro, (v) => setCaseData({...caseData, comprovantesSalariais: v}))}
-                            </div>
-                        </div>
-                    </div>
+    if (!caseData) return null;
+
+    switch (stepIndex) {
+      case 0: // Cadastro
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader("Dados Iniciais",
+              () => setIsEditingCadastro(true),
+              isEditingCadastro,
+              async () => {
+                await fetch(`/api/acoes-trabalhistas?id=${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    reuName: caseData.reuName,
+                    numeroProcesso: caseData.numeroProcesso,
+                    responsavelName: caseData.responsavelName,
+                    responsavelDate: caseData.responsavelDate,
+                    documentosIniciais: caseData.documentosIniciais,
+                    contratoTrabalho: caseData.contratoTrabalho,
+                    carteiraTrabalhista: caseData.carteiraTrabalhista,
+                    comprovantesSalariais: caseData.comprovantesSalariais
+                  }),
+                });
+                setIsEditingCadastro(false);
+              },
+              () => setIsEditingCadastro(false)
+            )}
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {renderRow("Autor", undefined, "", false, undefined, <div className="text-sm font-medium">{caseData.clientName}</div>)}
+              {renderRow("Réu", "reuName", "", isEditingCadastro, (v) => setCaseData({ ...caseData, reuName: v }))}
+              {renderRow("Nº Processo", "numeroProcesso", "", isEditingCadastro, (v) => setCaseData({ ...caseData, numeroProcesso: v }))}
+              {renderRow("Responsável", "responsavelName", "", isEditingCadastro, (v) => setCaseData({ ...caseData, responsavelName: v }))}
+
+              {/* Documents Section */}
+              <div className="md:col-span-2 border-t pt-4 mt-2">
+                <h4 className="font-semibold text-sm mb-4">Documentação Obrigatória</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderRow("Documentos Iniciais", "documentosIniciais", "documentosIniciaisFile", isEditingCadastro, (v) => setCaseData({ ...caseData, documentosIniciais: v }))}
+                  {renderRow("Contrato de Trabalho", "contratoTrabalho", "contratoTrabalhoFile", isEditingCadastro, (v) => setCaseData({ ...caseData, contratoTrabalho: v }))}
+                  {renderRow("Carteira de Trabalho", "carteiraTrabalhista", "carteiraTrabalhistaFile", isEditingCadastro, (v) => setCaseData({ ...caseData, carteiraTrabalhista: v }))}
+                  {renderRow("Comprovantes Salariais", "comprovantesSalariais", "comprovantesSalariaisFile", isEditingCadastro, (v) => setCaseData({ ...caseData, comprovantesSalariais: v }))}
                 </div>
-            );
-         case 1: // Resumo
-            return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {renderHeader("Resumo do Caso",
-                        () => setIsEditingResumo(true),
-                        isEditingResumo,
-                        async () => {
-                             await fetch(`/api/acoes-trabalhistas?id=${id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ resumo: caseData.resumo, contratado: caseData.contratado }),
-                             });
-                             setIsEditingResumo(false);
-                        },
-                        () => setIsEditingResumo(false)
-                    )}
-                    <div className="p-4 md:p-6 space-y-4">
-                        <div className="space-y-1">
-                            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Observações</Label>
-                            {isEditingResumo ? (
-                                <Textarea value={caseData.resumo || ""} onChange={(e) => setCaseData({...caseData, resumo: e.target.value})} rows={5} />
-                            ) : (
-                                <div className="text-sm text-slate-900 whitespace-pre-wrap p-3 bg-slate-50 rounded-md border border-slate-100 min-h-[80px]">
-                                    {caseData.resumo || "Nenhuma observação registrada."}
-                                </div>
-                            )}
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {renderRow("Contratado", undefined, "resumoDoc", isEditingResumo, undefined, 
-                                isEditingResumo ? (
-                                    <div className="flex gap-2">
-                                        <Button type="button" size="sm" variant={caseData.contratado === "Sim" ? "default" : "outline"} onClick={() => setCaseData({...caseData, contratado: "Sim"})}>Sim</Button>
-                                        <Button type="button" size="sm" variant={caseData.contratado === "Não" ? "default" : "outline"} onClick={() => setCaseData({...caseData, contratado: "Não"})}>Não</Button>
-                                    </div>
-                                ) : (
-                                    <div className="text-sm font-medium">{caseData.contratado || "-"}</div>
-                                )
-                            )}
-                        </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 1: // Resumo
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader("Resumo do Caso",
+              () => setIsEditingResumo(true),
+              isEditingResumo,
+              async () => {
+                await fetch(`/api/acoes-trabalhistas?id=${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ resumo: caseData.resumo, contratado: caseData.contratado }),
+                });
+                setIsEditingResumo(false);
+              },
+              () => setIsEditingResumo(false)
+            )}
+            <div className="p-4 md:p-6 space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Observações</Label>
+                {isEditingResumo ? (
+                  <Textarea value={caseData.resumo || ""} onChange={(e) => setCaseData({ ...caseData, resumo: e.target.value })} rows={5} />
+                ) : (
+                  <div className="text-sm text-slate-900 whitespace-pre-wrap p-3 bg-slate-50 rounded-md border border-slate-100 min-h-[80px]">
+                    {caseData.resumo || "Nenhuma observação registrada."}
+                  </div>
+                )}
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {renderRow("Contratado", undefined, "resumoDoc", isEditingResumo, undefined,
+                  isEditingResumo ? (
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant={caseData.contratado === "Sim" ? "default" : "outline"} onClick={() => setCaseData({ ...caseData, contratado: "Sim" })}>Sim</Button>
+                      <Button type="button" size="sm" variant={caseData.contratado === "Não" ? "default" : "outline"} onClick={() => setCaseData({ ...caseData, contratado: "Não" })}>Não</Button>
                     </div>
-                </div>
-            );
-         case 2: // Acompanhamento
-            return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {renderHeader("Acompanhamento Processual",
-                        () => setIsEditingAcompanhamento(true),
-                        isEditingAcompanhamento,
-                        async () => {
-                             await fetch(`/api/acoes-trabalhistas?id=${id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ acompanhamento: caseData.acompanhamento }),
-                             });
-                             setIsEditingAcompanhamento(false);
-                        },
-                        () => setIsEditingAcompanhamento(false)
-                    )}
-                    <div className="p-4 md:p-6 space-y-4">
-                         <div className="space-y-1">
-                            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Histórico</Label>
-                            {isEditingAcompanhamento ? (
-                                <Textarea value={caseData.acompanhamento || ""} onChange={(e) => setCaseData({...caseData, acompanhamento: e.target.value})} rows={8} />
-                            ) : (
-                                <div className="text-sm text-slate-900 whitespace-pre-wrap p-3 bg-slate-50 rounded-md border border-slate-100 min-h-[100px]">
-                                    {caseData.acompanhamento || "Nenhum andamento registrado."}
-                                </div>
-                            )}
-                        </div>
-                         <div className="grid md:grid-cols-2 gap-6">
-                            {renderRow("Documento de Andamento", undefined, "acompanhamentoDoc", isEditingAcompanhamento)}
-                         </div>
-                    </div>
-                </div>
-            );
-         case 3: // Finalizado
-            return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {renderHeader("Finalização",
-                        () => setIsEditingFinalizado(true),
-                        isEditingFinalizado,
-                        async () => {
-                             // Logic to save final notes
-                             await fetch(`/api/acoes-trabalhistas?id=${id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ notes: caseData.notes }), // Simplified
-                             });
-                             setIsEditingFinalizado(false);
-                        },
-                        () => setIsEditingFinalizado(false)
-                    )}
-                    <div className="p-4 md:p-6 space-y-4">
-                         {/* Simplified notes handling for standardization */}
-                         <div className="grid md:grid-cols-2 gap-6">
-                            {renderRow("Documento Final", undefined, "finalizadoDoc", isEditingFinalizado)}
-                         </div>
-                    </div>
-                </div>
-            );
-         default: return null;
-     }
+                  ) : (
+                    <div className="text-sm font-medium">{caseData.contratado || "-"}</div>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      case 2: // Acompanhamento
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader("Acompanhamento Processual",
+              () => setIsEditingAcompanhamento(true),
+              isEditingAcompanhamento,
+              async () => {
+                await fetch(`/api/acoes-trabalhistas?id=${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ acompanhamento: caseData.acompanhamento }),
+                });
+                setIsEditingAcompanhamento(false);
+              },
+              () => setIsEditingAcompanhamento(false)
+            )}
+            <div className="p-4 md:p-6 space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Histórico</Label>
+                {isEditingAcompanhamento ? (
+                  <Textarea value={caseData.acompanhamento || ""} onChange={(e) => setCaseData({ ...caseData, acompanhamento: e.target.value })} rows={8} />
+                ) : (
+                  <div className="text-sm text-slate-900 whitespace-pre-wrap p-3 bg-slate-50 rounded-md border border-slate-100 min-h-[100px]">
+                    {caseData.acompanhamento || "Nenhum andamento registrado."}
+                  </div>
+                )}
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {renderRow("Documento de Andamento", undefined, "acompanhamentoDoc", isEditingAcompanhamento)}
+              </div>
+            </div>
+          </div>
+        );
+      case 3: // Finalizado
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader("Finalização",
+              () => setIsEditingFinalizado(true),
+              isEditingFinalizado,
+              async () => {
+                // Logic to save final notes
+                await fetch(`/api/acoes-trabalhistas?id=${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ notes: caseData.notes }), // Simplified
+                });
+                setIsEditingFinalizado(false);
+              },
+              () => setIsEditingFinalizado(false)
+            )}
+            <div className="p-4 md:p-6 space-y-4">
+              {/* Simplified notes handling for standardization */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {renderRow("Documento Final", undefined, "finalizadoDoc", isEditingFinalizado)}
+              </div>
+            </div>
+          </div>
+        );
+      default: return null;
+    }
   };
 
   if (loading) return <Skeleton className="h-screen w-full" />;
@@ -639,180 +747,179 @@ export default function AcaoTrabalhistaDetailPage() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{caseData.clientName}</h1>
             <div className="flex items-center gap-2 text-slate-500">
-                <Badge variant="outline" className="font-normal bg-white">Ação Trabalhista</Badge>
-                <span>•</span>
-                <span className="text-sm">{caseData.type}</span>
+              <Badge variant="outline" className="font-normal bg-white">Ação Trabalhista</Badge>
+              <span>•</span>
+              <span className="text-sm">{caseData.type}</span>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">
-                        <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                    </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tem certeza que deseja excluir este processo? Todos os dados e documentos serão perdidos.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={async () => {
-                            await fetch(`/api/acoes-trabalhistas?id=${id}`, { method: "DELETE" });
-                            router.push("/dashboard/acoes-trabalhistas");
-                        }} className="bg-red-600 hover:bg-red-700">
-                            Excluir Definitivamente
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+          <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">
+                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir este processo? Todos os dados e documentos serão perdidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={async () => {
+                  await fetch(`/api/acoes-trabalhistas?id=${id}`, { method: "DELETE" });
+                  router.push("/dashboard/acoes-trabalhistas");
+                }} className="bg-red-600 hover:bg-red-700">
+                  Excluir Definitivamente
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
       <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
         {/* LEFT COLUMN: WORKFLOW */}
         <div className="lg:col-span-8 space-y-6">
-            <Card className="rounded-xl border-gray-200 shadow-sm overflow-hidden">
-                <CardHeader className="bg-white border-b border-gray-100">
-                    <CardTitle className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        Fluxo do Processo
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="p-6 space-y-1">
-                        {WORKFLOWS["Ação Trabalhista"].map((step, index) => {
-                             const isCurrent = index === caseData.currentStep;
-                             const isCompleted = index < caseData.currentStep;
-                             const showConnector = index < WORKFLOWS["Ação Trabalhista"].length - 1;
-                             
-                             return (
-                                <div key={index} className="relative pl-10 pb-8 last:pb-0">
-                                     {showConnector && (
-                                        <div className={`absolute left-[19px] top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
-                                     )}
-                                     
-                                     {/* Status Indicator */}
-                                     <div 
-                                        className={`absolute left-0 top-1 w-10 h-10 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all hover:scale-105 z-10 ${
-                                            isCompleted ? 'bg-green-50 border-green-500 text-green-600' :
-                                            isCurrent ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-md' :
-                                            'bg-white border-gray-200 text-gray-300'
-                                        }`}
-                                        onClick={() => handleStepCompletion(index)}
-                                     >
-                                         {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5 fill-current" />}
-                                     </div>
+          <Card className="rounded-xl border-gray-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-white border-b border-gray-100">
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Fluxo do Processo
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="p-6 space-y-1">
+                {WORKFLOWS["Ação Trabalhista"].map((step, index) => {
+                  const isCurrent = index === caseData.currentStep;
+                  const isCompleted = index < caseData.currentStep;
+                  const showConnector = index < WORKFLOWS["Ação Trabalhista"].length - 1;
 
-                                     {/* Step Content */}
-                                     <div className="space-y-3">
-                                         <div className="flex items-center justify-between">
-                                             <div className="flex items-center gap-3">
-                                                 <h3 className={`font-semibold text-lg ${isCurrent ? 'text-blue-700' : 'text-slate-700'}`}>
-                                                     {step}
-                                                 </h3>
-                                                 {isCurrent && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">Atual</Badge>}
-                                             </div>
-                                             
-                                             <div className="flex items-center gap-2">
-                                                 <Popover open={assignOpenStep === index} onOpenChange={(open) => setAssignOpenStep(open ? index : null)}>
-                                                     <PopoverTrigger asChild>
-                                                         <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-500">
-                                                             {assignments[index]?.responsibleName ? assignments[index].responsibleName : "Atribuir"}
-                                                         </Button>
-                                                     </PopoverTrigger>
-                                                     <PopoverContent className="w-80 p-4">
-                                                         <div className="space-y-4">
-                                                             <h4 className="font-semibold text-sm">Definir Responsável</h4>
-                                                             <div className="space-y-2">
-                                                                 <Label>Nome</Label>
-                                                                 <Select value={assignResp} onValueChange={setAssignResp}>
-                                                                     <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                                                     <SelectContent>
-                                                                         {RESPONSAVEIS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                                                                     </SelectContent>
-                                                                 </Select>
-                                                             </div>
-                                                             <div className="space-y-2">
-                                                                 <Label>Prazo</Label>
-                                                                 <Input type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
-                                                             </div>
-                                                             <Button size="sm" onClick={() => { handleSaveAssignment(index, assignResp, assignDue); setAssignOpenStep(null); }}>Salvar</Button>
-                                                         </div>
-                                                     </PopoverContent>
-                                                 </Popover>
-                                                 
-                                                 <Button 
-                                                    variant="ghost" 
-                                                    size="icon" 
-                                                    onClick={() => setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))}
-                                                 >
-                                                     {expandedSteps[index] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                                                 </Button>
-                                             </div>
-                                         </div>
+                  return (
+                    <div key={index} className="relative pl-10 pb-8 last:pb-0">
+                      {showConnector && (
+                        <div className={`absolute left-[19px] top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
+                      )}
 
-                                         {/* Collapsible Content */}
-                                         {(expandedSteps[index] || isCurrent) && (
-                                             <div className="pt-2 animate-in slide-in-from-top-2 duration-300">
-                                                 {renderStepContent(index)}
-                                             </div>
-                                         )}
-                                     </div>
+                      {/* Status Indicator */}
+                      <div
+                        className={`absolute left-0 top-1 w-10 h-10 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all hover:scale-105 z-10 ${isCompleted ? 'bg-green-50 border-green-500 text-green-600' :
+                          isCurrent ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-md' :
+                            'bg-white border-gray-200 text-gray-300'
+                          }`}
+                        onClick={() => handleStepCompletion(index)}
+                      >
+                        {isCompleted ? <CheckCircle className="w-5 h-5" /> : <Circle className="w-5 h-5 fill-current" />}
+                      </div>
+
+                      {/* Step Content */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <h3 className={`font-semibold text-lg ${isCurrent ? 'text-blue-700' : 'text-slate-700'}`}>
+                              {step}
+                            </h3>
+                            {isCurrent && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">Atual</Badge>}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Popover open={assignOpenStep === index} onOpenChange={(open) => setAssignOpenStep(open ? index : null)}>
+                              <PopoverTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-500">
+                                  {assignments[index]?.responsibleName ? assignments[index].responsibleName : "Atribuir"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-80 p-4">
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-sm">Definir Responsável</h4>
+                                  <div className="space-y-2">
+                                    <Label>Nome</Label>
+                                    <Select value={assignResp} onValueChange={setAssignResp}>
+                                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                      <SelectContent>
+                                        {RESPONSAVEIS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Prazo</Label>
+                                    <Input type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
+                                  </div>
+                                  <Button size="sm" onClick={() => { handleSaveAssignment(index, assignResp, assignDue); setAssignOpenStep(null); }}>Salvar</Button>
                                 </div>
-                             );
-                        })}
+                              </PopoverContent>
+                            </Popover>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setExpandedSteps(prev => ({ ...prev, [index]: !prev[index] }))}
+                            >
+                              {expandedSteps[index] ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Collapsible Content */}
+                        {(expandedSteps[index] || isCurrent) && (
+                          <div className="pt-2 animate-in slide-in-from-top-2 duration-300">
+                            {renderStepContent(index)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                </CardContent>
-            </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* RIGHT COLUMN: INFO & DOCS */}
         <div className="lg:col-span-4 space-y-6">
-            <StatusPanel
-                status={status}
-                onStatusChange={handleStatusChange}
-                currentStep={caseData.currentStep + 1}
-                totalSteps={WORKFLOWS["Ação Trabalhista"].length}
-                currentStepTitle={WORKFLOWS["Ação Trabalhista"][caseData.currentStep] || "Finalizado"}
-                createdAt={caseData.createdAt}
-                updatedAt={caseData.updatedAt}
-            />
+          <StatusPanel
+            status={status}
+            onStatusChange={handleStatusChange}
+            currentStep={caseData.currentStep + 1}
+            totalSteps={WORKFLOWS["Ação Trabalhista"].length}
+            currentStepTitle={WORKFLOWS["Ação Trabalhista"][caseData.currentStep] || "Finalizado"}
+            createdAt={caseData.createdAt}
+            updatedAt={caseData.updatedAt}
+          />
 
-            {/* Pending Documents */}
-            <PendingDocumentsList
-                documents={pendingDocs}
-                totalDocs={totalDocs}
-                completedDocs={completedDocs}
-                onUploadClick={(doc) => {
-                     const idx = WORKFLOWS["Ação Trabalhista"].findIndex(w => w === doc.group);
-                     if (idx !== -1) {
-                         setExpandedSteps(prev => ({ ...prev, [idx]: true }));
-                         // Scroll logic could be added here
-                     }
-                }}
-            />
+          {/* Pending Documents */}
+          <PendingDocumentsList
+            documents={pendingDocs}
+            totalDocs={totalDocs}
+            completedDocs={completedDocs}
+            onUploadClick={(doc) => {
+              const idx = WORKFLOWS["Ação Trabalhista"].findIndex(w => w === doc.group);
+              if (idx !== -1) {
+                setExpandedSteps(prev => ({ ...prev, [idx]: true }));
+                // Scroll logic could be added here
+              }
+            }}
+          />
 
-            {/* General Notes */}
-            <Card className="rounded-xl border-gray-200 shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-sm font-semibold uppercase text-slate-500">Observações Gerais</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        <Textarea 
-                            placeholder="Adicione notas gerais..." 
-                            className="resize-none bg-slate-50" 
-                            rows={6}
-                        />
-                        <Button size="sm" className="w-full bg-slate-900">Salvar Notas</Button>
-                    </div>
-                </CardContent>
-            </Card>
+          {/* General Notes */}
+          <Card className="rounded-xl border-gray-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold uppercase text-slate-500">Observações Gerais</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Textarea
+                  placeholder="Adicione notas gerais..."
+                  className="resize-none bg-slate-50"
+                  rows={6}
+                />
+                <Button size="sm" className="w-full bg-slate-900">Salvar Notas</Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

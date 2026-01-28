@@ -228,46 +228,46 @@ const DocumentRow = ({
   const handlePreview = async (doc: any) => {
     // Tenta abrir direto primeiro, se falhar, tenta fallback
     const loadingToast = toast.loading("Gerando link seguro...");
-    
+
     try {
       const res = await fetch('/api/documents/sign-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath: doc.file_path || doc.url })
       });
-      
+
       toast.dismiss(loadingToast);
 
       if (res.ok) {
         const { signedUrl } = await res.json();
         if (signedUrl) {
-            const newWindow = window.open(signedUrl, '_blank');
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                // Popup bloqueado
-                toast.error("Popup bloqueado. Clique aqui para abrir.", {
-                    action: {
-                        label: "Abrir Documento",
-                        onClick: () => window.open(signedUrl, '_blank')
-                    },
-                    duration: 5000
-                });
-            }
-            return;
+          const newWindow = window.open(signedUrl, '_blank');
+          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            // Popup bloqueado
+            toast.error("Popup bloqueado. Clique aqui para abrir.", {
+              action: {
+                label: "Abrir Documento",
+                onClick: () => window.open(signedUrl, '_blank')
+              },
+              duration: 5000
+            });
+          }
+          return;
         }
       }
-      
+
       // Fallback para URL original se falhar
       console.warn("Falha ao gerar URL assinada, usando original");
       const originalUrl = doc.file_path || doc.url;
       const fallbackWindow = window.open(originalUrl, '_blank');
-       if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
-             toast.error("Popup bloqueado. Clique para abrir.", {
-                action: {
-                    label: "Abrir",
-                    onClick: () => window.open(originalUrl, '_blank')
-                }
-            });
-       }
+      if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
+        toast.error("Popup bloqueado. Clique para abrir.", {
+          action: {
+            label: "Abrir",
+            onClick: () => window.open(originalUrl, '_blank')
+          }
+        });
+      }
 
     } catch (e) {
       console.error("Erro ao gerar preview:", e);
@@ -323,6 +323,7 @@ const DocumentRow = ({
               id={`upload-${docField}`}
               className="hidden"
               multiple
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
               onChange={(e) => {
                 const files = e.target.files;
                 if (files && files.length > 0) {
@@ -563,7 +564,7 @@ export default function VistoDetailsPage() {
       if (!record) throw new Error("Visto não encontrado");
 
       setVisto(record);
-      
+
       const rawTypeStr = String(record.type || "");
       const lowerType = rawTypeStr.toLowerCase();
       let flowType: VistoType = "Visto de Trabalho";
@@ -575,12 +576,12 @@ export default function VistoDetailsPage() {
 
       // Initialize stepData with values from DB record
       const initialStepData: { [key: number]: any } = {};
-      
+
       // Map fields from record to stepData
       // Find "Processo Finalizado" step index
       const workflowSteps = WORKFLOWS[flowType as keyof typeof WORKFLOWS] || WORKFLOWS["Visto de Trabalho"];
       const finalizadoIndex = workflowSteps.findIndex((s: string) => s === "Processo Finalizado");
-      
+
       if (finalizadoIndex !== -1) {
         const stepDataFromRecord =
           record?.stepData && typeof record.stepData === 'object'
@@ -607,13 +608,13 @@ export default function VistoDetailsPage() {
           ...fallbackFromRoot,
         };
       }
-      
+
       setStepData(prev => {
         // Merge with existing stepData to avoid losing transient state if any
         const merged = { ...(record?.stepData && typeof record.stepData === 'object' ? record.stepData : {}), ...prev };
         Object.keys(initialStepData).forEach(key => {
-            const k = Number(key);
-            merged[k] = { ...merged[k], ...initialStepData[k] };
+          const k = Number(key);
+          merged[k] = { ...merged[k], ...initialStepData[k] };
         });
         return merged;
       });
@@ -662,7 +663,7 @@ export default function VistoDetailsPage() {
       };
       setCaseData(data);
       setStatus(data.status);
-      
+
       // Parse aggregated notes into step map if present
       const initialNotes: { [key: number]: string } = {};
       if (record.notes) {
@@ -743,15 +744,51 @@ export default function VistoDetailsPage() {
     }
   };
 
+  const validateFile = (file: File) => {
+    // Valid types
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}.`);
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleFileUpload = async (files: FileList | File[] | null, stepId?: number) => {
     const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
     if (!arr.length) return;
-    
+
+    const validFiles = arr.filter(validateFile);
+    if (validFiles.length === 0) return;
+
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
 
     try {
-      for (const file of arr) {
+      for (const file of validFiles) {
         await processUpload(file, 'documentoAnexado', stepId);
       }
       await fetchDocuments();
@@ -764,6 +801,8 @@ export default function VistoDetailsPage() {
   };
 
   const handleSpecificFileUpload = async (file: File, fieldKey: string, stepId: number) => {
+    if (!validateFile(file)) return;
+
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
@@ -790,20 +829,20 @@ export default function VistoDetailsPage() {
 
     // 1. Get Signed URL
     const signRes = await fetch('/api/documents/upload/sign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            fileName: file.name,
-            fileType: contentType,
-            caseId: params.id,
-            moduleType: 'vistos',
-            fieldName: fieldName,
-            clientName: caseData?.clientName || 'Cliente'
-        })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: contentType,
+        caseId: params.id,
+        moduleType: 'vistos',
+        fieldName: fieldName,
+        clientName: caseData?.clientName || 'Cliente'
+      })
     });
 
     if (!signRes.ok) {
-        throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
+      throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
     }
 
     const { signedUrl, publicUrl } = await signRes.json();
@@ -813,50 +852,50 @@ export default function VistoDetailsPage() {
 
     // 3. Register Metadata
     const regRes = await fetch('/api/documents/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            filePath: publicUrl,
-            fileName: file.name,
-            fileType: contentType,
-            fileSize: file.size,
-            caseId: params.id,
-            moduleType: 'vistos',
-            fieldName: fieldName,
-            clientName: caseData?.clientName || 'Cliente'
-        })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filePath: publicUrl,
+        fileName: file.name,
+        fileType: contentType,
+        fileSize: file.size,
+        caseId: params.id,
+        moduleType: 'vistos',
+        fieldName: fieldName,
+        clientName: caseData?.clientName || 'Cliente'
+      })
     });
 
     if (regRes.ok) {
-        const payload = await regRes.json();
-        if (payload?.document) {
-            setDocuments(prev => [payload.document, ...prev]);
-            toast.success(`Upload concluído: ${file.name}`);
-        }
+      const payload = await regRes.json();
+      if (payload?.document) {
+        setDocuments(prev => [payload.document, ...prev]);
+        toast.success(`Upload concluído: ${file.name}`);
+      }
     } else {
-        throw new Error(await getErrorMessage(regRes, 'Erro ao registrar metadados'));
+      throw new Error(await getErrorMessage(regRes, 'Erro ao registrar metadados'));
     }
   };
 
   const uploadWithRetry = async (url: string, file: File, retries = 3) => {
     for (let i = 0; i < retries; i++) {
-        try {
-            await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('PUT', url);
-                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
-                    else reject(new Error(`Status ${xhr.status}`));
-                };
-                xhr.onerror = () => reject(new Error('Network error'));
-                xhr.send(file);
-            });
-            return;
-        } catch (err) {
-            if (i === retries - 1) throw err;
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
-        }
+      try {
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', url);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+            else reject(new Error(`Status ${xhr.status}`));
+          };
+          xhr.onerror = () => reject(new Error('Network error'));
+          xhr.send(file);
+        });
+        return;
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
+      }
     }
   };
 
@@ -1005,10 +1044,10 @@ export default function VistoDetailsPage() {
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
-    
+
     const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
-    
+
     const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/vistos?id=${params.id}`, {
@@ -1149,14 +1188,14 @@ export default function VistoDetailsPage() {
       // Extract cargo and salario from stepData if available to ensure persistence even if debounce hasn't fired
       let additionalFields: any = {};
       Object.values(stepData).forEach((s: any) => {
-          if (s?.cargo) additionalFields.cargo = s.cargo;
-          if (s?.salario) additionalFields.salario = s.salario;
-          if (s?.dataFinalizacao) additionalFields.dataFinalizacao = s.dataFinalizacao;
-          if (s?.observacoesFinais) additionalFields.observacoesFinais = s.observacoesFinais;
-          if (s?.dataAgendamentoPf) additionalFields.dataAgendamentoPf = s.dataAgendamentoPf;
-          if (s?.statusFinal) additionalFields.statusFinal = s.statusFinal;
-          if (s?.statusFinalOutro) additionalFields.statusFinalOutro = s.statusFinalOutro;
-          if (s?.publicacaoDou) additionalFields.publicacaoDou = s.publicacaoDou;
+        if (s?.cargo) additionalFields.cargo = s.cargo;
+        if (s?.salario) additionalFields.salario = s.salario;
+        if (s?.dataFinalizacao) additionalFields.dataFinalizacao = s.dataFinalizacao;
+        if (s?.observacoesFinais) additionalFields.observacoesFinais = s.observacoesFinais;
+        if (s?.dataAgendamentoPf) additionalFields.dataAgendamentoPf = s.dataAgendamentoPf;
+        if (s?.statusFinal) additionalFields.statusFinal = s.statusFinal;
+        if (s?.statusFinalOutro) additionalFields.statusFinalOutro = s.statusFinalOutro;
+        if (s?.publicacaoDou) additionalFields.publicacaoDou = s.publicacaoDou;
       });
 
       const response = await fetch(`/api/vistos?id=${params.id}`, {
@@ -1176,7 +1215,7 @@ export default function VistoDetailsPage() {
 
           // Preservar outros campos
           ...visto,
-          
+
           // Override with latest step data
           ...additionalFields,
           stepData
@@ -2748,7 +2787,7 @@ export default function VistoDetailsPage() {
   const rawTypeStr = String(visto?.type || caseData?.type || '');
   const t = rawTypeStr.toLowerCase();
   const countryStr = String(visto?.country || (caseData as any)?.country || '').toLowerCase();
-  
+
   const showResidenciaPrevia = t.includes('trabalho') && (t.includes('resid') || t.includes('prévia') || t.includes('previ'));
   const showInvestidor = t.includes('invest');
   const showTrabalhistas = t.includes('trabalhistas');
@@ -2760,97 +2799,97 @@ export default function VistoDetailsPage() {
 
   if (showBrasil) {
     docRequirements = [
-    {
-      title: "1. Identificação",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "passaporteDoc", label: "Passaporte" },
-        { key: "cpfDoc", label: "CPF" },
-        { key: "rnmDoc", label: "RNM" },
-      ]
-    },
-    {
-      title: "2. Documentos da Empresa",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "contratoEmpresaDoc", label: "Contrato Social" },
-        { key: "cartaoCnpjDoc", label: "CNPJ" },
-        { key: "gfipDoc", label: "GFIP" },
-      ]
-    },
-    {
-      title: "3. Certidões",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "antecedentesCriminaisDoc", label: "Certidão Criminal" },
-        { key: "certificadoTrabalhoDoc", label: "Certificado de Trabalho" },
-        { key: "diplomaDoc", label: "Diploma" },
-        { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
-      ]
-    },
-    {
-      title: "4. Traduções",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "traducaoAntecedentesCriminaisDoc", label: "Tradução Certidão Criminal" },
-        { key: "traducaoCertificadoTrabalhoDoc", label: "Tradução Certificado de Trabalho" },
-        { key: "traducaoDiplomaDoc", label: "Tradução Diploma" },
-        { key: "traducaoCertidaoNascimentoDoc", label: "Tradução Certidão de Nascimento" },
-      ]
-    },
-    {
-      title: "5. Procurações",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "procuracaoEmpresaDoc", label: "Procuração Empresa" },
-        { key: "procuracaoEmpresaAssinadaDoc", label: "Procuração Empresa Assinada" },
-        { key: "procuracaoImigranteDoc", label: "Procuração Imigrante" },
-        { key: "procuracaoImigranteAssinadaDoc", label: "Procuração Imigrante Assinada" },
-      ]
-    },
-    {
-      title: "Protocolo",
-      step: "Documentos para Protocolo",
-      fields: [
-        { key: "formularioRn01Doc", label: "Formulário RN 01/2017" },
-        { key: "declaracaoCompreensaoDoc", label: "Declaração de Compreensão" },
-        { key: "declaracaoNaoAntecedentesDoc", label: "Declaração de Não Antecedentes" },
-        { key: "declaracoesEmpresaDoc", label: "Declarações da Empresa" },
-        { key: "convencaoColetivaDoc", label: "Convenção Coletiva" },
-        { key: "contratoTrabalhoDoc", label: "Contrato de Trabalho" },
-        { key: "gruDoc", label: "GRU" },
-        { key: "comprovantePagamentoGruDoc", label: "Comprovante de Pagamento GRU" },
-        { key: "i1CriminalDoc", label: "I1 Criminal" },
-        { key: "i2TrabalhoDoc", label: "I2 Trabalho" },
-        { key: "i3DiplomaDoc", label: "I3 Diploma" },
-        { key: "i6NascimentoDoc", label: "I6 Nascimento" },
-      ]
-    },
-    {
-      title: "Protocolo",
-      step: "Protocolo",
-      fields: [
-        { key: "comprovanteProtocolo", label: "Comprovante de Protocolo" },
-      ]
-    },
-    {
-      title: "Exigências",
-      step: "Exigências",
-      fields: [
-        { key: "cartaExigencia", label: "Carta de Exigência" },
-        { key: "documentosExigidos", label: "Documentos Exigidos" },
-        { key: "cartaResposta", label: "Carta Resposta" },
-      ]
-    },
-    {
-      title: "Processo Finalizado",
-      step: "Processo Finalizado",
-      fields: [
-        { key: "publicacaoDou", label: "Publicação D.O.U" },
-        { key: "agendamentoPfDoc", label: "Comprovante de Agendamento PF" },
-      ]
-    }
-  ];
+      {
+        title: "1. Identificação",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "passaporteDoc", label: "Passaporte" },
+          { key: "cpfDoc", label: "CPF" },
+          { key: "rnmDoc", label: "RNM" },
+        ]
+      },
+      {
+        title: "2. Documentos da Empresa",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "contratoEmpresaDoc", label: "Contrato Social" },
+          { key: "cartaoCnpjDoc", label: "CNPJ" },
+          { key: "gfipDoc", label: "GFIP" },
+        ]
+      },
+      {
+        title: "3. Certidões",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "antecedentesCriminaisDoc", label: "Certidão Criminal" },
+          { key: "certificadoTrabalhoDoc", label: "Certificado de Trabalho" },
+          { key: "diplomaDoc", label: "Diploma" },
+          { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
+        ]
+      },
+      {
+        title: "4. Traduções",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "traducaoAntecedentesCriminaisDoc", label: "Tradução Certidão Criminal" },
+          { key: "traducaoCertificadoTrabalhoDoc", label: "Tradução Certificado de Trabalho" },
+          { key: "traducaoDiplomaDoc", label: "Tradução Diploma" },
+          { key: "traducaoCertidaoNascimentoDoc", label: "Tradução Certidão de Nascimento" },
+        ]
+      },
+      {
+        title: "5. Procurações",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "procuracaoEmpresaDoc", label: "Procuração Empresa" },
+          { key: "procuracaoEmpresaAssinadaDoc", label: "Procuração Empresa Assinada" },
+          { key: "procuracaoImigranteDoc", label: "Procuração Imigrante" },
+          { key: "procuracaoImigranteAssinadaDoc", label: "Procuração Imigrante Assinada" },
+        ]
+      },
+      {
+        title: "Protocolo",
+        step: "Documentos para Protocolo",
+        fields: [
+          { key: "formularioRn01Doc", label: "Formulário RN 01/2017" },
+          { key: "declaracaoCompreensaoDoc", label: "Declaração de Compreensão" },
+          { key: "declaracaoNaoAntecedentesDoc", label: "Declaração de Não Antecedentes" },
+          { key: "declaracoesEmpresaDoc", label: "Declarações da Empresa" },
+          { key: "convencaoColetivaDoc", label: "Convenção Coletiva" },
+          { key: "contratoTrabalhoDoc", label: "Contrato de Trabalho" },
+          { key: "gruDoc", label: "GRU" },
+          { key: "comprovantePagamentoGruDoc", label: "Comprovante de Pagamento GRU" },
+          { key: "i1CriminalDoc", label: "I1 Criminal" },
+          { key: "i2TrabalhoDoc", label: "I2 Trabalho" },
+          { key: "i3DiplomaDoc", label: "I3 Diploma" },
+          { key: "i6NascimentoDoc", label: "I6 Nascimento" },
+        ]
+      },
+      {
+        title: "Protocolo",
+        step: "Protocolo",
+        fields: [
+          { key: "comprovanteProtocolo", label: "Comprovante de Protocolo" },
+        ]
+      },
+      {
+        title: "Exigências",
+        step: "Exigências",
+        fields: [
+          { key: "cartaExigencia", label: "Carta de Exigência" },
+          { key: "documentosExigidos", label: "Documentos Exigidos" },
+          { key: "cartaResposta", label: "Carta Resposta" },
+        ]
+      },
+      {
+        title: "Processo Finalizado",
+        step: "Processo Finalizado",
+        fields: [
+          { key: "publicacaoDou", label: "Publicação D.O.U" },
+          { key: "agendamentoPfDoc", label: "Comprovante de Agendamento PF" },
+        ]
+      }
+    ];
   } else if (t.includes("turismo")) {
     docRequirements = [
       {
@@ -3352,18 +3391,18 @@ export default function VistoDetailsPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-700">Arraste e solte arquivos aqui para anexar</p>
                   <p className="text-xs text-gray-500 mt-1">Ou use os botões de envio nas etapas acima</p>
-                  <input 
-                      type="file" 
-                      id="general-upload" 
-                      className="hidden" 
-                      multiple 
-                      onChange={(e) => { 
-                        const files = e.target.files; 
-                        if (files && files.length > 0) {
-                          handleFileUpload(Array.from(files));
-                          e.target.value = '';
-                        }
-                      }} 
+                  <input
+                    type="file"
+                    id="general-upload"
+                    className="hidden"
+                    multiple
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        handleFileUpload(Array.from(files));
+                        e.target.value = '';
+                      }
+                    }}
                   />
                 </div>
 
@@ -3459,7 +3498,7 @@ export default function VistoDetailsPage() {
                       const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                       const name = String(n.authorName || '').trim();
                       const showName = !!name && name.toLowerCase() !== 'equipe';
-                      
+
                       return (
                         <div key={n.id || Math.random().toString()} className="group relative bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
                           <div className="flex items-center justify-between mb-1.5">
@@ -3495,15 +3534,15 @@ export default function VistoDetailsPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
                   <div className="relative">
-                    <Textarea 
-                      rows={3} 
-                      placeholder="Adicione uma nova observação..." 
-                      value={notes[0] || ''} 
-                      onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
-                      className="w-full resize-none pr-12 min-h-[80px]" 
+                    <Textarea
+                      rows={3}
+                      placeholder="Adicione uma nova observação..."
+                      value={notes[0] || ''}
+                      onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))}
+                      className="w-full resize-none pr-12 min-h-[80px]"
                     />
                     <div className="absolute bottom-2 right-2 flex items-center gap-2">
                       {saveMessages[0] && (
@@ -3511,9 +3550,9 @@ export default function VistoDetailsPage() {
                           Salvo!
                         </span>
                       )}
-                      <Button 
+                      <Button
                         size="sm"
-                        className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm" 
+                        className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm"
                         onClick={() => saveStepNotes(0)}
                         disabled={!notes[0]?.trim()}
                         title="Salvar observação"
@@ -3778,8 +3817,8 @@ export default function VistoDetailsPage() {
                       onClick={() => setNoteResponsible(name)}
                       className={`
                         group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
-                        ${isSelected 
-                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]' 
+                        ${isSelected
+                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]'
                           : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5'}
                       `}
                     >
@@ -3793,16 +3832,16 @@ export default function VistoDetailsPage() {
           </div>
 
           <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-muted/30 border-t border-border flex items-center justify-end gap-3">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => setShowResponsibleModal(false)}
               className="h-10 px-4 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              onClick={confirmSaveNote} 
+            <Button
+              type="submit"
+              onClick={confirmSaveNote}
               disabled={!noteResponsible.trim()}
               className="h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >

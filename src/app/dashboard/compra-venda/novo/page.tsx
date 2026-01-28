@@ -41,7 +41,7 @@ interface Comprador {
 export default function NovaCompraVendaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   // State for dynamic lists
   const [vendedores, setVendedores] = useState<Vendedor[]>([
     { rg: "", cpf: "", dataNascimento: "" }
@@ -73,7 +73,7 @@ export default function NovaCompraVendaPage() {
     inputs.forEach((el) => {
       try {
         el.setAttribute('multiple', '');
-      } catch {}
+      } catch { }
     });
   }, []);
 
@@ -85,7 +85,7 @@ export default function NovaCompraVendaPage() {
       // Collect dynamic documents
       // We need to map the dynamic uploads to something the backend understands or keep them as is if backend logic supports it.
       // The original CompraVenda used "rgVendedorDoc_${index}" which likely went into documents table.
-      
+
       const response = await fetch("/api/compra-venda-imoveis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -158,9 +158,9 @@ export default function NovaCompraVendaPage() {
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -182,7 +182,7 @@ export default function NovaCompraVendaPage() {
       alert(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       alert(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -201,57 +201,114 @@ export default function NovaCompraVendaPage() {
 
     try {
       const uploadedUrls: string[] = [];
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+
       for (const file of files) {
         if (!validateFile(file)) continue;
+        let fileUrl = "";
 
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
+        if (file.size > MAX_DIRECT_SIZE) {
+          // Signed Upload (Temporary)
+          try {
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: file.name,
+                fileType: file.type,
+                clientName: formData.clientName || "Novo Cliente",
+                moduleType: "compra_venda_imoveis"
+              })
+            });
 
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+            if (!signRes.ok) {
+              const err = await signRes.json();
+              throw new Error(err.error || "Falha ao gerar URL assinada");
+            }
 
-        if (response.ok) {
-          const data = await response.json();
-          uploadedUrls.push(data.fileUrl);
+            const { signedUrl, publicUrl } = await signRes.json();
+
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+            fileUrl = publicUrl;
+
+            // Register metadata
+            await fetch("/api/documents/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                isRegisterOnly: true,
+                fileUrl,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fieldName: field,
+                moduleType: "compra_venda_imoveis",
+                clientName: formData.clientName
+              })
+            });
+
+          } catch (err: any) {
+            console.error("Upload assinado falhou:", err);
+            alert(`Erro ao enviar ${file.name}: ${err.message}`);
+            continue;
+          }
         } else {
-          console.error("Upload error");
-          alert("Erro ao enviar documento");
+          // Direct Upload
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", file);
+          formDataUpload.append("moduleType", "compra_venda_imoveis");
+          if (formData.clientName) formDataUpload.append("clientName", formData.clientName);
+
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.fileUrl;
+          } else {
+            console.error("Upload error");
+            alert("Erro ao enviar documento");
+            continue;
+          }
+        }
+
+        if (fileUrl) {
+          uploadedUrls.push(fileUrl);
         }
       }
 
       if (uploadedUrls.length) {
-        // If it's a main field in formData, update it. If it's a dynamic field (like vendedor_0), we use extraUploads or a specific state?
-        // For simplicity and compatibility with convertTemporaryUploads, we'll store everything in extraUploads if it's not in formData,
-        // or just rely on extraUploads for the lists.
-        
-        // Check if field exists in formData
         if (Object.prototype.hasOwnProperty.call(formData, field)) {
-            const currentPrimary = (formData as any)[field] as string | undefined;
-            if (!currentPrimary) {
-                handleChange(field, uploadedUrls[0]);
-                const rest = uploadedUrls.slice(1);
-                if (rest.length) {
-                    setExtraUploads((prev) => ({
-                    ...prev,
-                    [field]: [...(prev[field] || []), ...rest],
-                    }));
-                }
-            } else {
-                setExtraUploads((prev) => ({
-                    ...prev,
-                    [field]: [...(prev[field] || []), ...uploadedUrls],
-                }));
-            }
-        } else {
-            // For dynamic fields (e.g. rgVendedorDoc_0), we just use extraUploads to track them for now, 
-            // but we need a way to link them. 
-            // Actually, the easiest way for dynamic fields is to treat them as "extraUploads" with the key.
-            setExtraUploads((prev) => ({
+          const currentPrimary = (formData as any)[field] as string | undefined;
+          if (!currentPrimary) {
+            handleChange(field, uploadedUrls[0]);
+            const rest = uploadedUrls.slice(1);
+            if (rest.length) {
+              setExtraUploads((prev) => ({
                 ...prev,
-                [field]: [...(prev[field] || []), ...uploadedUrls],
+                [field]: [...(prev[field] || []), ...rest],
+              }));
+            }
+          } else {
+            setExtraUploads((prev) => ({
+              ...prev,
+              [field]: [...(prev[field] || []), ...uploadedUrls],
             }));
+          }
+        } else {
+          setExtraUploads((prev) => ({
+            ...prev,
+            [field]: [...(prev[field] || []), ...uploadedUrls],
+          }));
         }
       }
     } catch (error) {
@@ -266,11 +323,11 @@ export default function NovaCompraVendaPage() {
 
   const handleRemoveFile = (docField: string, fileUrl: string) => {
     if (Object.prototype.hasOwnProperty.call(formData, docField)) {
-        if ((formData as any)[docField] === fileUrl) {
-            handleChange(docField, "");
-        }
+      if ((formData as any)[docField] === fileUrl) {
+        handleChange(docField, "");
+      }
     }
-    
+
     if (extraUploads[docField]) {
       setExtraUploads(prev => ({
         ...prev,
@@ -296,12 +353,12 @@ export default function NovaCompraVendaPage() {
     for (const field of documentFields) {
       const urls = new Set<string>();
       if (Object.prototype.hasOwnProperty.call(formData, field)) {
-          const single = (formData as any)[field] as string | undefined;
-          if (single) urls.add(single);
+        const single = (formData as any)[field] as string | undefined;
+        if (single) urls.add(single);
       }
       const extras = extraUploads[field] || [];
       for (const u of extras) urls.add(u);
-      
+
       for (const u of urls) {
         documentsToConvert.push({ fieldName: field, fileUrl: u });
       }
@@ -328,14 +385,14 @@ export default function NovaCompraVendaPage() {
   const DocumentRow = ({ label, field, docField, placeholder = "Informações", readOnly = false }: { label: string; field?: string; docField: string; placeholder?: string; readOnly?: boolean }) => {
     const attachedFiles: string[] = [];
     if (field && Object.prototype.hasOwnProperty.call(formData, docField)) {
-        const mainFile = (formData as any)[docField] as string | undefined;
-        if (mainFile) attachedFiles.push(mainFile);
+      const mainFile = (formData as any)[docField] as string | undefined;
+      if (mainFile) attachedFiles.push(mainFile);
     }
-    
+
     if (extraUploads[docField] && extraUploads[docField].length > 0) {
       attachedFiles.push(...extraUploads[docField]);
     }
-    
+
     return (
       <div className="space-y-2">
         <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
@@ -355,12 +412,13 @@ export default function NovaCompraVendaPage() {
             />
           )}
           <div className="relative">
-             <input
-                type="file"
-                id={`upload-${docField}`}
-                className="hidden"
-                onChange={(e) => handleDocumentUpload(e, docField)}
-              />
+            <input
+              type="file"
+              id={`upload-${docField}`}
+              className="hidden"
+              onChange={(e) => handleDocumentUpload(e, docField)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
+            />
             <Button
               type="button"
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm"
@@ -372,7 +430,7 @@ export default function NovaCompraVendaPage() {
             </Button>
           </div>
         </div>
-        
+
         {attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
             {attachedFiles.map((url, idx) => {
@@ -397,52 +455,53 @@ export default function NovaCompraVendaPage() {
   // Simplified DocumentRow for dynamic lists (no text input, just label + upload)
   const DynamicDocumentRow = ({ label, docField }: { label: string; docField: string }) => {
     const attachedFiles = extraUploads[docField] || [];
-    
+
     return (
-        <div className="space-y-2">
-            <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
-            <div className="flex gap-3 items-center">
-                <div className="flex-1 flex items-center p-2.5 rounded-md border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm">
-                    <span className={`text-xs ${attachedFiles.length > 0 ? "text-green-600 font-medium" : "italic"}`}>
-                        {attachedFiles.length > 0 ? `${attachedFiles.length} documento(s) anexado(s)` : "Nenhum arquivo selecionado"}
-                    </span>
-                </div>
-                <div className="relative">
-                    <input
-                        type="file"
-                        id={`upload-${docField}`}
-                        className="hidden"
-                        onChange={(e) => handleDocumentUpload(e, docField)}
-                    />
-                    <Button
-                        type="button"
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm"
-                        onClick={() => document.getElementById(`upload-${docField}`)?.click()}
-                        disabled={uploadingDocs[docField]}
-                    >
-                        <Upload className="h-5 w-5 text-slate-500" />
-                        {uploadingDocs[docField] ? "Enviando..." : "Upload"}
-                    </Button>
-                </div>
-            </div>
-             {attachedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {attachedFiles.map((url, idx) => {
-                        const fileName = url.split('/').pop() || `Documento ${idx + 1}`;
-                        const decodedName = decodeURIComponent(fileName);
-                        return (
-                            <DocumentChip
-                              key={idx}
-                              name={decodedName}
-                              href={url}
-                              onDelete={() => handleRemoveFile(docField, url)}
-                              className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
-                            />
-                        );
-                    })}
-                </div>
-            )}
+      <div className="space-y-2">
+        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
+        <div className="flex gap-3 items-center">
+          <div className="flex-1 flex items-center p-2.5 rounded-md border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm">
+            <span className={`text-xs ${attachedFiles.length > 0 ? "text-green-600 font-medium" : "italic"}`}>
+              {attachedFiles.length > 0 ? `${attachedFiles.length} documento(s) anexado(s)` : "Nenhum arquivo selecionado"}
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type="file"
+              id={`upload-${docField}`}
+              className="hidden"
+              onChange={(e) => handleDocumentUpload(e, docField)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
+            />
+            <Button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm"
+              onClick={() => document.getElementById(`upload-${docField}`)?.click()}
+              disabled={uploadingDocs[docField]}
+            >
+              <Upload className="h-5 w-5 text-slate-500" />
+              {uploadingDocs[docField] ? "Enviando..." : "Upload"}
+            </Button>
+          </div>
         </div>
+        {attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {attachedFiles.map((url, idx) => {
+              const fileName = url.split('/').pop() || `Documento ${idx + 1}`;
+              const decodedName = decodeURIComponent(fileName);
+              return (
+                <DocumentChip
+                  key={idx}
+                  name={decodedName}
+                  href={url}
+                  onDelete={() => handleRemoveFile(docField, url)}
+                  className="bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-200 dark:hover:border-sky-800 transition-all"
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -452,17 +511,17 @@ export default function NovaCompraVendaPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard/compra-venda">
-                <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+              <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
                 <ArrowLeft className="h-6 w-6" />
-                </button>
+              </button>
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Nova Transação</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Cadastre uma nova compra e venda de imóvel</p>
             </div>
           </div>
-          <button 
-            className="p-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" 
+          <button
+            className="p-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             onClick={() => document.documentElement.classList.toggle('dark')}
           >
             <Moon className="h-5 w-5 hidden dark:block" />
@@ -473,7 +532,7 @@ export default function NovaCompraVendaPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* Informações Básicas */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -485,34 +544,34 @@ export default function NovaCompraVendaPage() {
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome do Cliente *</Label>
-                <Input 
-                    value={formData.clientName}
-                    onChange={(e) => handleChange("clientName", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
-                    placeholder="Digite o nome completo do cliente"
-                    required 
-                />
-              </div>
-              
-              <div className="md:col-span-2">
-                <DocumentRow 
-                    label="Endereço do Imóvel" 
-                    field="enderecoImovel" 
-                    docField="comprovanteEnderecoImovelDoc" 
-                    placeholder="Endereço completo" 
+                <Input
+                  value={formData.clientName}
+                  onChange={(e) => handleChange("clientName", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
+                  placeholder="Digite o nome completo do cliente"
+                  required
                 />
               </div>
 
-              <DocumentRow 
-                label="Nº Matrícula" 
-                field="numeroMatricula" 
-                docField="numeroMatriculaDoc" 
+              <div className="md:col-span-2">
+                <DocumentRow
+                  label="Endereço do Imóvel"
+                  field="enderecoImovel"
+                  docField="comprovanteEnderecoImovelDoc"
+                  placeholder="Endereço completo"
+                />
+              </div>
+
+              <DocumentRow
+                label="Nº Matrícula"
+                field="numeroMatricula"
+                docField="numeroMatriculaDoc"
               />
-              
-              <DocumentRow 
-                label="Cadastro Contribuinte" 
-                field="cadastroContribuinte" 
-                docField="cadastroContribuinteDoc" 
+
+              <DocumentRow
+                label="Cadastro Contribuinte"
+                field="cadastroContribuinte"
+                docField="cadastroContribuinteDoc"
               />
             </div>
           </div>
@@ -529,53 +588,53 @@ export default function NovaCompraVendaPage() {
               </Button>
             </div>
             <div className="p-8 space-y-8">
-                {vendedores.map((vendedor, index) => (
-                    <div key={index} className="relative p-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
-                         {vendedores.length > 1 && (
-                            <button
-                                type="button"
-                                onClick={() => removeVendedor(index)}
-                                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </button>
-                        )}
-                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Vendedor {index + 1}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">RG / CNH</Label>
-                                <Input 
-                                    value={vendedor.rg}
-                                    onChange={(e) => handleVendedorChange(index, "rg", e.target.value)}
-                                    className="w-full"
-                                />
-                                <div className="mt-2">
-                                    <DynamicDocumentRow label="Documento RG" docField={`rgVendedorDoc_${index}`} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">CPF</Label>
-                                <Input 
-                                    value={vendedor.cpf}
-                                    onChange={(e) => handleVendedorChange(index, "cpf", e.target.value)}
-                                    className="w-full"
-                                />
-                                <div className="mt-2">
-                                    <DynamicDocumentRow label="Documento CPF" docField={`cpfVendedorDoc_${index}`} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">Data de Nascimento</Label>
-                                <Input 
-                                    type="date"
-                                    value={vendedor.dataNascimento}
-                                    onChange={(e) => handleVendedorChange(index, "dataNascimento", e.target.value)}
-                                    className="w-full"
-                                />
-                            </div>
-                        </div>
+              {vendedores.map((vendedor, index) => (
+                <div key={index} className="relative p-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
+                  {vendedores.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeVendedor(index)}
+                      className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Vendedor {index + 1}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">RG / CNH</Label>
+                      <Input
+                        value={vendedor.rg}
+                        onChange={(e) => handleVendedorChange(index, "rg", e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="mt-2">
+                        <DynamicDocumentRow label="Documento RG" docField={`rgVendedorDoc_${index}`} />
+                      </div>
                     </div>
-                ))}
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">CPF</Label>
+                      <Input
+                        value={vendedor.cpf}
+                        onChange={(e) => handleVendedorChange(index, "cpf", e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="mt-2">
+                        <DynamicDocumentRow label="Documento CPF" docField={`cpfVendedorDoc_${index}`} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">Data de Nascimento</Label>
+                      <Input
+                        type="date"
+                        value={vendedor.dataNascimento}
+                        onChange={(e) => handleVendedorChange(index, "dataNascimento", e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -586,95 +645,95 @@ export default function NovaCompraVendaPage() {
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">3</span>
                 Compradores
               </h2>
-               <Button type="button" variant="outline" size="sm" onClick={addComprador} className="gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={addComprador} className="gap-2">
                 <Plus className="h-4 w-4" /> Adicionar Comprador
               </Button>
             </div>
             <div className="p-8 space-y-8">
-                {compradores.map((comprador, index) => (
-                    <div key={index} className="relative p-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
-                        {compradores.length > 1 && (
-                            <button
-                                type="button"
-                                onClick={() => removeComprador(index)}
-                                className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </button>
-                        )}
-                        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Comprador {index + 1}</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">RNM</Label>
-                                <Input 
-                                    value={comprador.rnm}
-                                    onChange={(e) => handleCompradorChange(index, "rnm", e.target.value)}
-                                    className="w-full"
-                                />
-                                <div className="mt-2">
-                                    <DynamicDocumentRow label="Documento RNM" docField={`rnmCompradorDoc_${index}`} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">CPF</Label>
-                                <Input 
-                                    value={comprador.cpf}
-                                    onChange={(e) => handleCompradorChange(index, "cpf", e.target.value)}
-                                    className="w-full"
-                                />
-                                <div className="mt-2">
-                                    <DynamicDocumentRow label="Documento CPF" docField={`cpfCompradorDoc_${index}`} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label className="block text-sm font-medium mb-2">Endereço</Label>
-                                <Input 
-                                    value={comprador.endereco}
-                                    onChange={(e) => handleCompradorChange(index, "endereco", e.target.value)}
-                                    className="w-full"
-                                />
-                            </div>
-                        </div>
+              {compradores.map((comprador, index) => (
+                <div key={index} className="relative p-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20">
+                  {compradores.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeComprador(index)}
+                      className="absolute top-4 right-4 text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Comprador {index + 1}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">RNM</Label>
+                      <Input
+                        value={comprador.rnm}
+                        onChange={(e) => handleCompradorChange(index, "rnm", e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="mt-2">
+                        <DynamicDocumentRow label="Documento RNM" docField={`rnmCompradorDoc_${index}`} />
+                      </div>
                     </div>
-                ))}
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">CPF</Label>
+                      <Input
+                        value={comprador.cpf}
+                        onChange={(e) => handleCompradorChange(index, "cpf", e.target.value)}
+                        className="w-full"
+                      />
+                      <div className="mt-2">
+                        <DynamicDocumentRow label="Documento CPF" docField={`cpfCompradorDoc_${index}`} />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="block text-sm font-medium mb-2">Endereço</Label>
+                      <Input
+                        value={comprador.endereco}
+                        onChange={(e) => handleCompradorChange(index, "endereco", e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Observações */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">4</span>
                 Observações
               </h2>
             </div>
             <div className="p-8">
-                <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Observações Gerais</Label>
-                <Textarea 
-                    value={formData.contractNotes}
-                    onChange={(e) => handleChange("contractNotes", e.target.value)}
-                    className="w-full min-h-[100px]"
-                    placeholder="Adicione observações importantes sobre o processo..."
-                />
+              <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Observações Gerais</Label>
+              <Textarea
+                value={formData.contractNotes}
+                onChange={(e) => handleChange("contractNotes", e.target.value)}
+                className="w-full min-h-[100px]"
+                placeholder="Adicione observações importantes sobre o processo..."
+              />
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700 mt-8">
             <Button
-                type="button"
-                variant="outline"
-                className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
-                onClick={() => router.push("/dashboard/compra-venda")}
+              type="button"
+              variant="outline"
+              className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
+              onClick={() => router.push("/dashboard/compra-venda")}
             >
-                Cancelar
+              Cancelar
             </Button>
             <Button
-                type="submit"
-                className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
-                disabled={loading}
+              type="submit"
+              className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
+              disabled={loading}
             >
-                <Save className="h-4 w-4" />
-                {loading ? "Salvando..." : "Criar Transação"}
+              <Save className="h-4 w-4" />
+              {loading ? "Salvando..." : "Criar Transação"}
             </Button>
           </div>
 

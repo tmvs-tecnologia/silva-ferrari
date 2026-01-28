@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabaseAdmin = getSupabaseAdminClient();
-    const folderId = parseInt(params.id);
+    const { id } = await params;
+    const folderId = parseInt(id);
     if (isNaN(folderId)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
 
     const { data: items, error } = await supabaseAdmin
@@ -20,10 +21,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabaseAdmin = getSupabaseAdminClient();
-    const folderId = parseInt(params.id);
+    const { id } = await params;
+    const folderId = parseInt(id);
     if (isNaN(folderId)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
     const body = await request.json();
     const recordId = parseInt(String(body.recordId));

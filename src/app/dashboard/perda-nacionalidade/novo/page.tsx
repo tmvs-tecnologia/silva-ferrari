@@ -14,7 +14,7 @@ import { DocumentChip } from "@/components/ui/document-chip";
 export default function NovaPerdaNacionalidadePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   // State structure matching Vistos form pattern
   const [formData, setFormData] = useState({
     clientName: "",
@@ -52,7 +52,7 @@ export default function NovaPerdaNacionalidadePage() {
     inputs.forEach((el) => {
       try {
         el.setAttribute('multiple', '');
-      } catch {}
+      } catch { }
     });
   }, []);
 
@@ -63,9 +63,9 @@ export default function NovaPerdaNacionalidadePage() {
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -87,7 +87,7 @@ export default function NovaPerdaNacionalidadePage() {
       toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -106,24 +106,90 @@ export default function NovaPerdaNacionalidadePage() {
 
     try {
       const uploadedUrls: string[] = [];
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+
       for (const file of files) {
         if (!validateFile(file)) continue;
 
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
+        let fileUrl = "";
 
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        if (file.size > MAX_DIRECT_SIZE) {
+          // Signed Upload (Temporary Flow)
+          try {
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: file.name,
+                fileType: file.type,
+                clientName: formData.clientName || "Novo Cliente",
+                moduleType: "perda_nacionalidade"
+              })
+            });
 
-        if (response.ok) {
-          const data = await response.json();
-          uploadedUrls.push(data.fileUrl);
+            if (!signRes.ok) {
+              const err = await signRes.json();
+              throw new Error(err.error || "Falha ao gerar URL assinada");
+            }
+
+            const { signedUrl, publicUrl } = await signRes.json();
+
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+            fileUrl = publicUrl;
+
+            // Register metadata
+            await fetch("/api/documents/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                isRegisterOnly: true,
+                fileUrl,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fieldName: field,
+                moduleType: "perda_nacionalidade",
+                clientName: formData.clientName
+              })
+            });
+
+          } catch (err: any) {
+            console.error("Upload assinado falhou:", err);
+            toast.error(`Erro upload assinado: ${err.message}`);
+            continue;
+          }
         } else {
-          const errorData = await response.json();
-          console.error("Upload error:", errorData);
-          toast.error(errorData.error || "Erro ao enviar documento");
+          // Direct Upload
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", file);
+          formDataUpload.append("moduleType", "perda_nacionalidade");
+          if (formData.clientName) formDataUpload.append("clientName", formData.clientName);
+
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.fileUrl;
+          } else {
+            const errorData = await response.json();
+            console.error("Upload error:", errorData);
+            toast.error(errorData.error || "Erro ao enviar documento");
+            continue;
+          }
+        }
+
+        if (fileUrl) {
+          uploadedUrls.push(fileUrl);
         }
       }
 
@@ -160,7 +226,7 @@ export default function NovaPerdaNacionalidadePage() {
     if ((formData as any)[docField] === fileUrl) {
       handleChange(docField, "");
     }
-    
+
     // Check extra uploads
     if (extraUploads[docField]) {
       setExtraUploads(prev => ({
@@ -239,11 +305,11 @@ export default function NovaPerdaNacionalidadePage() {
       }
 
       const data = await response.json();
-      
+
       if (data?.id) {
         await convertTemporaryUploads(data.id);
       }
-      
+
       toast.success("Processo criado com sucesso!");
       router.push("/dashboard/perda-nacionalidade");
       router.refresh();
@@ -263,7 +329,7 @@ export default function NovaPerdaNacionalidadePage() {
     if (extraUploads[docField] && extraUploads[docField].length > 0) {
       attachedFiles.push(...extraUploads[docField]);
     }
-    
+
     return (
       <div className="space-y-2">
         <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
@@ -283,12 +349,13 @@ export default function NovaPerdaNacionalidadePage() {
             />
           )}
           <div className="relative">
-             <input
-                type="file"
-                id={`upload-${docField}`}
-                className="hidden"
-                onChange={(e) => handleDocumentUpload(e, docField)}
-              />
+            <input
+              type="file"
+              id={`upload-${docField}`}
+              className="hidden"
+              onChange={(e) => handleDocumentUpload(e, docField)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
+            />
             <Button
               type="button"
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm"
@@ -300,7 +367,7 @@ export default function NovaPerdaNacionalidadePage() {
             </Button>
           </div>
         </div>
-        
+
         {/* Lista de arquivos anexados */}
         {attachedFiles.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">
@@ -329,17 +396,17 @@ export default function NovaPerdaNacionalidadePage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard/perda-nacionalidade">
-                <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+              <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
                 <ArrowLeft className="h-6 w-6" />
-                </button>
+              </button>
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Nova Ação - Perda de Nacionalidade</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Preencha os dados para criar um novo processo</p>
             </div>
           </div>
-          <button 
-            className="p-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" 
+          <button
+            className="p-2 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             onClick={() => document.documentElement.classList.toggle('dark')}
           >
             <Moon className="h-5 w-5 hidden dark:block" />
@@ -350,7 +417,7 @@ export default function NovaPerdaNacionalidadePage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* 1. Informações do Cliente */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -362,39 +429,39 @@ export default function NovaPerdaNacionalidadePage() {
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome do Cliente *</Label>
-                <Input 
-                    value={formData.clientName}
-                    onChange={(e) => handleChange("clientName", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
-                    placeholder="Digite o nome completo do cliente"
-                    required 
+                <Input
+                  value={formData.clientName}
+                  onChange={(e) => handleChange("clientName", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
+                  placeholder="Digite o nome completo do cliente"
+                  required
                 />
               </div>
               <div>
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome da Mãe</Label>
-                <Input 
-                    value={formData.nomeMae}
-                    onChange={(e) => handleChange("nomeMae", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                    placeholder="Nome da mãe"
+                <Input
+                  value={formData.nomeMae}
+                  onChange={(e) => handleChange("nomeMae", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                  placeholder="Nome da mãe"
                 />
               </div>
               <div>
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome do Pai</Label>
-                <Input 
-                    value={formData.nomePai}
-                    onChange={(e) => handleChange("nomePai", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                    placeholder="Nome do pai"
+                <Input
+                  value={formData.nomePai}
+                  onChange={(e) => handleChange("nomePai", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                  placeholder="Nome do pai"
                 />
               </div>
               <div className="md:col-span-2">
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome da Criança</Label>
-                <Input 
-                    value={formData.nomeCrianca}
-                    onChange={(e) => handleChange("nomeCrianca", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                    placeholder="Nome da criança"
+                <Input
+                  value={formData.nomeCrianca}
+                  onChange={(e) => handleChange("nomeCrianca", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                  placeholder="Nome da criança"
                 />
               </div>
             </div>
@@ -485,20 +552,20 @@ export default function NovaPerdaNacionalidadePage() {
 
           <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700 mt-8">
             <Button
-                type="button"
-                variant="outline"
-                className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
-                onClick={() => router.push("/dashboard/perda-nacionalidade")}
+              type="button"
+              variant="outline"
+              className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
+              onClick={() => router.push("/dashboard/perda-nacionalidade")}
             >
-                Cancelar
+              Cancelar
             </Button>
             <Button
-                type="submit"
-                className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
-                disabled={loading}
+              type="submit"
+              className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
+              disabled={loading}
             >
-                <Save className="h-4 w-4" />
-                {loading ? "Salvando..." : "Criar Processo"}
+              <Save className="h-4 w-4" />
+              {loading ? "Salvando..." : "Criar Processo"}
             </Button>
           </div>
 

@@ -188,3 +188,61 @@
 nextjs-portal {
   display: none !important;
 }
+
+/* Design System from detalhespasta.html */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.dark .liquid-glass {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.glowing-border {
+  position: relative;
+}
+
+.glowing-border::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.1), rgba(245,158,11,0.5));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.dark .glowing-border::after {
+  background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05), rgba(245,158,11,0.4));
+}
+
+.liquid-blob {
+  position: fixed;
+  z-index: -1;
+  filter: blur(100px);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.row-hover:hover {
+  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.dark .row-hover:hover {
+  background: rgba(30, 41, 59, 0.85);
+}

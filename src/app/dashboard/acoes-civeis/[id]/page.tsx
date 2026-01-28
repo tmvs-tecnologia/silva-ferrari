@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
-  ArrowLeft, 
-  Save, 
-  Trash2, 
-  Edit, 
-  FileText, 
+  ArrowLeft,
+  Save,
+  Trash2,
+  Edit,
+  FileText,
   Upload,
   CheckCircle,
   Circle,
@@ -259,17 +259,17 @@ const SectionHeader = ({
         </Button>
       ) : (
         <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            onClick={onCancel} 
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCancel}
             className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[44px] md:min-h-9"
           >
             Cancelar
           </Button>
-          <Button 
-            size="sm" 
-            onClick={onSave} 
+          <Button
+            size="sm"
+            onClick={onSave}
             className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] md:min-h-9"
           >
             Concluir
@@ -315,46 +315,46 @@ const DocumentRow = ({
   const handlePreview = async (doc: any) => {
     // Tenta abrir direto primeiro, se falhar, tenta fallback
     const loadingToast = toast.loading("Gerando link seguro...");
-    
+
     try {
       const res = await fetch('/api/documents/sign-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath: doc.file_path || doc.url })
       });
-      
+
       toast.dismiss(loadingToast);
 
       if (res.ok) {
         const { signedUrl } = await res.json();
         if (signedUrl) {
-            const newWindow = window.open(signedUrl, '_blank');
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                // Popup bloqueado
-                toast.error("Popup bloqueado. Clique aqui para abrir.", {
-                    action: {
-                        label: "Abrir Documento",
-                        onClick: () => window.open(signedUrl, '_blank')
-                    },
-                    duration: 5000
-                });
-            }
-            return;
+          const newWindow = window.open(signedUrl, '_blank');
+          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            // Popup bloqueado
+            toast.error("Popup bloqueado. Clique aqui para abrir.", {
+              action: {
+                label: "Abrir Documento",
+                onClick: () => window.open(signedUrl, '_blank')
+              },
+              duration: 5000
+            });
+          }
+          return;
         }
       }
-      
+
       // Fallback para URL original se falhar
       console.warn("Falha ao gerar URL assinada, usando original");
       const originalUrl = doc.file_path || doc.url;
       const fallbackWindow = window.open(originalUrl, '_blank');
-       if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
-             toast.error("Popup bloqueado. Clique para abrir.", {
-                action: {
-                    label: "Abrir",
-                    onClick: () => window.open(originalUrl, '_blank')
-                }
-            });
-       }
+      if (!fallbackWindow || fallbackWindow.closed || typeof fallbackWindow.closed === 'undefined') {
+        toast.error("Popup bloqueado. Clique para abrir.", {
+          action: {
+            label: "Abrir",
+            onClick: () => window.open(originalUrl, '_blank')
+          }
+        });
+      }
 
     } catch (e) {
       console.error("Erro ao gerar preview:", e);
@@ -412,6 +412,7 @@ const DocumentRow = ({
               id={`upload-${docField}`}
               className="hidden"
               multiple
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
               onChange={(e) => {
                 const files = e.target.files;
                 if (files && files.length > 0) {
@@ -468,7 +469,7 @@ export default function AcoesCiveisDetailsPage() {
   const [status, setStatus] = useState("");
   const [expandedSteps, setExpandedSteps] = useState<{ [key: number]: boolean }>({});
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({});
-  
+
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
@@ -529,20 +530,20 @@ export default function AcoesCiveisDetailsPage() {
     const iso = new Date().toISOString();
     const noteId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(caseData?.notes);
-    
+
     // Determine Author
     const assigned = assignments[stepId] || assignments[caseData?.currentStep || 0] || {};
     const assignedName = assigned.responsibleName || '';
     const suggestion = RESPONSAVEIS.find((r) => r.includes(assignedName || '')) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
-    
-    const next = [...arr, { 
-        id: noteId, 
-        stepId, 
-        content: text, 
-        timestamp: iso, 
-        authorName: assignedName || 'Equipe', 
-        authorRole: role 
+
+    const next = [...arr, {
+      id: noteId,
+      stepId,
+      content: text,
+      timestamp: iso,
+      authorName: assignedName || 'Equipe',
+      authorRole: role
     }];
 
     try {
@@ -554,7 +555,7 @@ export default function AcoesCiveisDetailsPage() {
       if (res.ok) {
         setSaveMessages(prev => ({ ...prev, [stepId]: 'Salvo' }));
         setTimeout(() => setSaveMessages(prev => ({ ...prev, [stepId]: '' })), 3000);
-        
+
         setCaseData((prev) => prev ? { ...prev, notes: JSON.stringify(next), updatedAt: new Date().toISOString() } : prev);
         setNotes((prev) => ({ ...prev, [stepId]: '' }));
       }
@@ -585,7 +586,7 @@ export default function AcoesCiveisDetailsPage() {
         const mi = pad(d.getMinutes());
         setDnaExamDate(`${yyyy}-${mm}-${dd}`);
         setDnaExamTime(`${hh}:${mi}`);
-      } catch {}
+      } catch { }
     }
   }, [caseData?.dataExameDna]);
 
@@ -600,7 +601,7 @@ export default function AcoesCiveisDetailsPage() {
       fetchCaseData();
       fetchDocuments();
       loadAssignments();
-      
+
       const idNum = Number(id);
       // Realtime subscriptions
       const chCase = subscribeTable({
@@ -643,11 +644,11 @@ export default function AcoesCiveisDetailsPage() {
       const res = await fetch(`/api/acoes-civeis/${id}`);
       if (res.ok) {
         const record = await res.json();
-        
+
         // Map steps based on workflow
         const flowType = (record.type as AcaoType) || "Exame DNA";
         const workflowSteps = WORKFLOWS[flowType] || WORKFLOWS["Exame DNA"];
-        
+
         const steps: StepData[] = workflowSteps.map((title: string, index: number) => ({
           id: index,
           title,
@@ -738,37 +739,37 @@ export default function AcoesCiveisDetailsPage() {
 
   const handleStepCompletion = async (stepId: number) => {
     if (!caseData) return;
-    
+
     const isCurrentlyCompleted = caseData.steps[stepId].completed;
     let newCurrentStep = stepId;
     if (!isCurrentlyCompleted) {
-        newCurrentStep = stepId + 1;
+      newCurrentStep = stepId + 1;
     }
 
     try {
-        const response = await fetch(`/api/acoes-civeis/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ currentStep: newCurrentStep }),
-        });
+      const response = await fetch(`/api/acoes-civeis/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentStep: newCurrentStep }),
+      });
 
-        if (response.ok) {
-            const updatedSteps = caseData.steps.map((s, idx) => ({
-                ...s,
-                completed: idx < newCurrentStep
-            }));
-            setCaseData(prev => prev ? { ...prev, steps: updatedSteps, currentStep: newCurrentStep } : prev);
-            
-             try {
-                await fetch(`/api/step-assignments`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ moduleType: 'acoes_civeis', recordId: id, currentIndex: newCurrentStep })
-                });
-              } catch {}
-        }
+      if (response.ok) {
+        const updatedSteps = caseData.steps.map((s, idx) => ({
+          ...s,
+          completed: idx < newCurrentStep
+        }));
+        setCaseData(prev => prev ? { ...prev, steps: updatedSteps, currentStep: newCurrentStep } : prev);
+
+        try {
+          await fetch(`/api/step-assignments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ moduleType: 'acoes_civeis', recordId: id, currentIndex: newCurrentStep })
+          });
+        } catch { }
+      }
     } catch (error) {
-        console.error("Erro ao atualizar etapa:", error);
+      console.error("Erro ao atualizar etapa:", error);
     }
   };
 
@@ -785,9 +786,9 @@ export default function AcoesCiveisDetailsPage() {
         const dueBR = dueDate ? (() => { const [y, m, d] = dueDate.split("-"); return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`; })() : "—";
         const message = `Tarefa "${stepTitle}" atribuída a ${responsibleName || "—"} com prazo ${dueBR} para: ${caseData?.clientName || ""} - ${caseData?.type || ""}`;
         await fetch(`/api/alerts`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ moduleType: "Ações Cíveis", recordId: id, alertFor: "admin", message, isRead: false })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ moduleType: "Ações Cíveis", recordId: id, alertFor: "admin", message, isRead: false })
         });
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('alerts-updated'));
         return true;
@@ -799,109 +800,146 @@ export default function AcoesCiveisDetailsPage() {
     }
   };
 
+  const validateFile = (file: File) => {
+    // Valid types
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}.`);
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
   const handleFileUpload = async (files: FileList | File[] | null, stepId?: number, fieldName: string = 'documentoAnexado') => {
     const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
     if (!arr.length) return;
-    
+
+    // Validate all files first
+    const validFiles = arr.filter(validateFile);
+    if (validFiles.length === 0) return;
+
     const uploadKey = stepId !== undefined ? `${fieldName}-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
 
     try {
-        const getErrorMessage = async (res: Response, fallback: string) => {
-            try {
-                const data = await res.json().catch(() => ({} as any));
-                return String(data?.error || data?.message || fallback);
-            } catch {
-                return fallback;
-            }
-        };
-        for (const file of arr) {
-            const contentType = file.type || 'application/octet-stream';
-
-            // 1. Get Signed URL
-            const signRes = await fetch('/api/documents/upload/sign', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileName: file.name,
-                    fileType: contentType,
-                    caseId: id,
-                    moduleType: 'acoes_civeis',
-                    fieldName: fieldName,
-                    clientName: caseData?.clientName || 'Cliente'
-                })
-            });
-
-            if (!signRes.ok) {
-                throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
-            }
-
-            const { signedUrl, fullPath, publicUrl } = await signRes.json();
-
-            // 2. Upload with Retry
-            await uploadWithRetry(signedUrl, file);
-
-            // 3. Register Metadata in Database
-            const regRes = await fetch('/api/documents/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    filePath: publicUrl, // Save the public URL as expected by current schema
-                    fileName: file.name,
-                    fileType: contentType,
-                    fileSize: file.size,
-                    caseId: id,
-                    moduleType: 'acoes_civeis',
-                    fieldName: fieldName,
-                    clientName: caseData?.clientName || 'Cliente'
-                })
-            });
-
-            if (!regRes.ok) {
-                throw new Error(await getErrorMessage(regRes, 'Erro ao salvar metadados do documento'));
-            }
-
-            const payload = await regRes.json();
-            if (payload?.document) {
-                setDocuments(prev => [payload.document, ...prev]);
-                toast.success(`Upload concluído: ${file.name}`);
-            } else {
-                await fetchDocuments();
-            }
+      const getErrorMessage = async (res: Response, fallback: string) => {
+        try {
+          const data = await res.json().catch(() => ({} as any));
+          return String(data?.error || data?.message || fallback);
+        } catch {
+          return fallback;
         }
-        await fetchDocuments();
+      };
+      for (const file of arr) {
+        const contentType = file.type || 'application/octet-stream';
+
+        // 1. Get Signed URL
+        const signRes = await fetch('/api/documents/upload/sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: contentType,
+            caseId: id,
+            moduleType: 'acoes_civeis',
+            fieldName: fieldName,
+            clientName: caseData?.clientName || 'Cliente'
+          })
+        });
+
+        if (!signRes.ok) {
+          throw new Error(await getErrorMessage(signRes, 'Erro ao gerar URL de upload'));
+        }
+
+        const { signedUrl, fullPath, publicUrl } = await signRes.json();
+
+        // 2. Upload with Retry
+        await uploadWithRetry(signedUrl, file);
+
+        // 3. Register Metadata in Database
+        const regRes = await fetch('/api/documents/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filePath: publicUrl, // Save the public URL as expected by current schema
+            fileName: file.name,
+            fileType: contentType,
+            fileSize: file.size,
+            caseId: id,
+            moduleType: 'acoes_civeis',
+            fieldName: fieldName,
+            clientName: caseData?.clientName || 'Cliente'
+          })
+        });
+
+        if (!regRes.ok) {
+          throw new Error(await getErrorMessage(regRes, 'Erro ao salvar metadados do documento'));
+        }
+
+        const payload = await regRes.json();
+        if (payload?.document) {
+          setDocuments(prev => [payload.document, ...prev]);
+          toast.success(`Upload concluído: ${file.name}`);
+        } else {
+          await fetchDocuments();
+        }
+      }
+      await fetchDocuments();
     } catch (error) {
-        console.error("Erro ao fazer upload:", error);
-        toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
+      console.error("Erro ao fazer upload:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
     } finally {
-        setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
+      setUploadingFiles(prev => ({ ...prev, [uploadKey]: false }));
     }
   };
 
   const uploadWithRetry = async (url: string, file: File, retries = 3) => {
     for (let i = 0; i < retries; i++) {
-        try {
-            await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('PUT', url);
-                xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-                
-                xhr.onload = () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        resolve(xhr.response);
-                    } else {
-                        reject(new Error(`Status ${xhr.status}`));
-                    }
-                };
-                
-                xhr.onerror = () => reject(new Error('Network error'));
-                xhr.send(file);
-            });
-            return;
-        } catch (err) {
-            if (i === retries - 1) throw err;
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
-        }
+      try {
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', url);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(xhr.response);
+            } else {
+              reject(new Error(`Status ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Network error'));
+          xhr.send(file);
+        });
+        return;
+      } catch (err) {
+        if (i === retries - 1) throw err;
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); // Exponential backoff
+      }
     }
   };
 
@@ -997,118 +1035,120 @@ export default function AcoesCiveisDetailsPage() {
   };
 
   // --- Dynamic Requirements Logic ---
-  
+
   const getDocRequirements = () => {
     if (!caseData) return [];
     const type = caseData.type as AcaoType;
 
     const baseReqs = [
-        {
-            title: "Documentos Pessoais",
-            step: "Cadastro de Documentos",
-            fields: [] as any[]
-        }
+      {
+        title: "Documentos Pessoais",
+        step: "Cadastro de Documentos",
+        fields: [] as any[]
+      }
     ];
 
     if (type === "Exame DNA") {
-        baseReqs[0].fields = [
-            { key: "rnmMae", label: "RNM/RG Mãe" },
-            { key: "rnmPai", label: "RNM/RG Pai" },
-            { key: "rnmSupostoPai", label: "RNM/RG Suposto Pai" },
-            { key: "cpfMae", label: "CPF Mãe" },
-            { key: "cpfPai", label: "CPF Pai" },
-            { key: "certidaoNascimento", label: "Certidão Nascimento" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-            { key: "passaporteMaeFile", label: "Passaporte Mãe (Arquivo)" },
-            { key: "passaportePaiRegistralFile", label: "Passaporte Pai (Arquivo)" },
-            { key: "passaporteSupostoPaiFile", label: "Passaporte Suposto Pai (Arquivo)" },
-        ];
-        baseReqs.push({ title: "Exame", step: "Agendar Exame de DNA", fields: [{ key: "resultadoExameDnaFile", label: "Resultado Exame DNA" }] });
-        baseReqs.push({ title: "Petição", step: "Petição de Declaração de Paternidade (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
+      baseReqs[0].fields = [
+        { key: "rnmMae", label: "RNM/RG Mãe" },
+        { key: "rnmPai", label: "RNM/RG Pai" },
+        { key: "rnmSupostoPai", label: "RNM/RG Suposto Pai" },
+        { key: "cpfMae", label: "CPF Mãe" },
+        { key: "cpfPai", label: "CPF Pai" },
+        { key: "certidaoNascimento", label: "Certidão Nascimento" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+        { key: "passaporteMaeFile", label: "Passaporte Mãe (Arquivo)" },
+        { key: "passaportePaiRegistralFile", label: "Passaporte Pai (Arquivo)" },
+        { key: "passaporteSupostoPaiFile", label: "Passaporte Suposto Pai (Arquivo)" },
+      ];
+      baseReqs.push({ title: "Exame", step: "Agendar Exame de DNA", fields: [{ key: "resultadoExameDnaFile", label: "Resultado Exame DNA" }] });
+      baseReqs.push({ title: "Petição", step: "Petição de Declaração de Paternidade (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
     } else if (type === "Usucapião") {
-        baseReqs[0].fields = [
-            { key: "ownerRnm", label: "RNM Dono" },
-            { key: "ownerCpf", label: "CPF Dono" },
-            { key: "comprovanteEnderecoFile", label: "Comprovante Endereço (Arq)" },
-            { key: "declaracaoVizinhosFile", label: "Declaração Vizinhos" },
-            { key: "matriculaImovelFile", label: "Matrícula Imóvel" },
-            { key: "contaAguaFile", label: "Conta Água" },
-            { key: "contaLuzFile", label: "Conta Luz" },
-            { key: "iptuFile", label: "IPTU" },
-            { key: "laudoEngenhariaFile", label: "Laudo Engenharia" },
-        ];
-        baseReqs.push({ title: "Procuração", step: "Elaboração da Procuração", fields: [{ key: "procuracaoFile", label: "Procuração Assinada" }] });
-        baseReqs.push({ title: "Petição", step: "Elaboração da Petição Inicial", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
-        baseReqs.push({ title: "Guia", step: "Emissão da Guia Judicial", fields: [{ key: "guiaJudicialFile", label: "Guia Judicial" }] });
+      baseReqs[0].fields = [
+        { key: "ownerRnm", label: "RNM Dono" },
+        { key: "ownerCpf", label: "CPF Dono" },
+        { key: "comprovanteEnderecoFile", label: "Comprovante Endereço (Arq)" },
+        { key: "declaracaoVizinhosFile", label: "Declaração Vizinhos" },
+        { key: "matriculaImovelFile", label: "Matrícula Imóvel" },
+        { key: "contaAguaFile", label: "Conta Água" },
+        { key: "contaLuzFile", label: "Conta Luz" },
+        { key: "iptuFile", label: "IPTU" },
+        { key: "laudoEngenhariaFile", label: "Laudo Engenharia" },
+      ];
+      baseReqs.push({ title: "Procuração", step: "Elaboração da Procuração", fields: [{ key: "procuracaoFile", label: "Procuração Assinada" }] });
+      baseReqs.push({ title: "Petição", step: "Elaboração da Petição Inicial", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
+      baseReqs.push({ title: "Guia", step: "Emissão da Guia Judicial", fields: [{ key: "guiaJudicialFile", label: "Guia Judicial" }] });
     } else if (type === "Alteração de Nome") {
-        baseReqs[0].fields = [
-            { key: "rnmMae", label: "RNM/RG Requerente" },
-            { key: "cpfMae", label: "CPF Requerente" },
-            { key: "certidaoNascimento", label: "Certidão Nascimento/Casamento" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-        ];
-        baseReqs.push({ title: "Guia", step: "Emissão da Guia Judicial", fields: [{ key: "guiaJudicialFile", label: "Guia Judicial" }] });
-        baseReqs.push({ title: "Procuração", step: "Elaboração Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
-        baseReqs.push({ title: "Petição", step: "Peticionar", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
+      baseReqs[0].fields = [
+        { key: "rnmMae", label: "RNM/RG Requerente" },
+        { key: "cpfMae", label: "CPF Requerente" },
+        { key: "certidaoNascimento", label: "Certidão Nascimento/Casamento" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+      ];
+      baseReqs.push({ title: "Guia", step: "Emissão da Guia Judicial", fields: [{ key: "guiaJudicialFile", label: "Guia Judicial" }] });
+      baseReqs.push({ title: "Procuração", step: "Elaboração Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
+      baseReqs.push({ title: "Petição", step: "Peticionar", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
     } else if (type === "Guarda" || type === "Acordos de Guarda") {
-        baseReqs[0].fields = [
-            { key: "rnmMae", label: "RNM/RG Mãe" },
-            { key: "cpfMae", label: "CPF Mãe" },
-            { key: "rnmPai", label: "RNM/RG Pai" },
-            { key: "cpfPai", label: "CPF Pai" },
-            { key: "certidaoNascimento", label: "Certidão Nascimento Criança" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-        ];
-        baseReqs.push({ title: "Procuração", step: "Fazer Procuração (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "procuracaoFile", label: "Procuração Assinada" }] });
-        if (type === "Acordos de Guarda") {
-             baseReqs.push({ title: "Acordo", step: "Fazer a Procuração e o Acordo de Guarda (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "acordoGuardaFile", label: "Termo de Acordo" }] });
-        }
-        baseReqs.push({ title: "Petição", step: "Verificar se há Petição", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
+      baseReqs[0].fields = [
+        { key: "rnmMae", label: "RNM/RG Mãe" },
+        { key: "cpfMae", label: "CPF Mãe" },
+        { key: "rnmPai", label: "RNM/RG Pai" },
+        { key: "cpfPai", label: "CPF Pai" },
+        { key: "certidaoNascimento", label: "Certidão Nascimento Criança" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+      ];
+      baseReqs.push({ title: "Procuração", step: "Fazer Procuração (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "procuracaoFile", label: "Procuração Assinada" }] });
+      if (type === "Acordos de Guarda") {
+        baseReqs.push({ title: "Acordo", step: "Fazer a Procuração e o Acordo de Guarda (WENDEL/GUILHERME/FÁBIO)", fields: [{ key: "acordoGuardaFile", label: "Termo de Acordo" }] });
+      }
+      baseReqs.push({ title: "Petição", step: "Verificar se há Petição", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
     } else if (type === "Divórcio Consensual") {
-        baseReqs[0].fields = [
-            { key: "certidaoNascimento", label: "Certidão de Casamento" },
-            { key: "rnmMae", label: "RNM/RG Cônjuge 1" },
-            { key: "cpfMae", label: "CPF Cônjuge 1" },
-            { key: "rnmPai", label: "RNM/RG Cônjuge 2" },
-            { key: "cpfPai", label: "CPF Cônjuge 2" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-        ];
-        baseReqs.push({ title: "Petição", step: "Petição Conjunta", fields: [{ key: "peticaoInicialFile", label: "Petição Conjunta" }] });
-        baseReqs.push({ title: "Partilha", step: "Termo de Partilhas", fields: [{ key: "termoPartilhaFile", label: "Termo de Partilha" }] });
-        baseReqs.push({ title: "Procuração", step: "Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
+      baseReqs[0].fields = [
+        { key: "certidaoNascimento", label: "Certidão de Casamento" },
+        { key: "rnmMae", label: "RNM/RG Cônjuge 1" },
+        { key: "cpfMae", label: "CPF Cônjuge 1" },
+        { key: "rnmPai", label: "RNM/RG Cônjuge 2" },
+        { key: "cpfPai", label: "CPF Cônjuge 2" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+      ];
+      baseReqs.push({ title: "Petição", step: "Petição Conjunta", fields: [{ key: "peticaoInicialFile", label: "Petição Conjunta" }] });
+      baseReqs.push({ title: "Partilha", step: "Termo de Partilhas", fields: [{ key: "termoPartilhaFile", label: "Termo de Partilha" }] });
+      baseReqs.push({ title: "Procuração", step: "Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
     } else if (type === "Divórcio Litígio") {
-        baseReqs[0].fields = [
-            { key: "certidaoNascimento", label: "Certidão de Casamento" },
-            { key: "rnmMae", label: "RNM/RG Requerente" },
-            { key: "cpfMae", label: "CPF Requerente" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-        ];
-        baseReqs.push({ title: "Documentos Processuais", step: "Procuração, Petição e Guia Judicial", fields: [
-            { key: "procuracaoFile", label: "Procuração" },
-            { key: "peticaoInicialFile", label: "Petição Inicial" },
-            { key: "guiaJudicialFile", label: "Guia Judicial" }
-        ] });
+      baseReqs[0].fields = [
+        { key: "certidaoNascimento", label: "Certidão de Casamento" },
+        { key: "rnmMae", label: "RNM/RG Requerente" },
+        { key: "cpfMae", label: "CPF Requerente" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+      ];
+      baseReqs.push({
+        title: "Documentos Processuais", step: "Procuração, Petição e Guia Judicial", fields: [
+          { key: "procuracaoFile", label: "Procuração" },
+          { key: "peticaoInicialFile", label: "Petição Inicial" },
+          { key: "guiaJudicialFile", label: "Guia Judicial" }
+        ]
+      });
     } else if (type === "Pensão Alimentícia" || type === "Ação de Alimentos") {
-        baseReqs[0].fields = [
-            { key: "rnmMae", label: "RNM/RG Responsável" },
-            { key: "cpfMae", label: "CPF Responsável" },
-            { key: "certidaoNascimento", label: "Certidão Nascimento Criança" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-            { key: "comprovanteRendaFile", label: "Comprovante de Renda/Despesas" },
-        ];
-        baseReqs.push({ title: "Petição", step: "Petição Inicial", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
-        baseReqs.push({ title: "Procuração", step: "Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
+      baseReqs[0].fields = [
+        { key: "rnmMae", label: "RNM/RG Responsável" },
+        { key: "cpfMae", label: "CPF Responsável" },
+        { key: "certidaoNascimento", label: "Certidão Nascimento Criança" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+        { key: "comprovanteRendaFile", label: "Comprovante de Renda/Despesas" },
+      ];
+      baseReqs.push({ title: "Petição", step: "Petição Inicial", fields: [{ key: "peticaoInicialFile", label: "Petição Inicial" }] });
+      baseReqs.push({ title: "Procuração", step: "Procuração", fields: [{ key: "procuracaoFile", label: "Procuração" }] });
     } else {
-        // Generic fallback
-        baseReqs[0].fields = [
-            { key: "rnmMae", label: "RNM/RG" },
-            { key: "cpfMae", label: "CPF" },
-            { key: "certidaoNascimento", label: "Certidão Nascimento/Casamento" },
-            { key: "comprovanteEndereco", label: "Comprovante Endereço" },
-            { key: "procuracaoFile", label: "Procuração" },
-        ];
+      // Generic fallback
+      baseReqs[0].fields = [
+        { key: "rnmMae", label: "RNM/RG" },
+        { key: "cpfMae", label: "CPF" },
+        { key: "certidaoNascimento", label: "Certidão Nascimento/Casamento" },
+        { key: "comprovanteEndereco", label: "Comprovante Endereço" },
+        { key: "procuracaoFile", label: "Procuração" },
+      ];
     }
-    
+
     return baseReqs;
   };
 
@@ -1119,9 +1159,9 @@ export default function AcoesCiveisDetailsPage() {
         // Check if field exists in caseData (for text fields) or in documents (for files)
         const isTextField = !f.key.endsWith('File') && !f.key.includes('Doc');
         if (isTextField) {
-             return !caseData?.[f.key];
+          return !caseData?.[f.key];
         } else {
-             return !documents.some(d => (d.field_name || d.fieldName) === f.key);
+          return !documents.some(d => (d.field_name || d.fieldName) === f.key);
         }
       })
       .map(f => ({ ...f, group: group.step || group.title }))
@@ -1140,193 +1180,193 @@ export default function AcoesCiveisDetailsPage() {
 
     // Helper renderers
     const renderRow = (label: string, fieldKey?: string, docKey?: string, tooltip?: string) => (
-        <DocumentRow
-            label={label}
-            field={fieldKey}
-            docField={docKey || ''}
-            isEditing={isEditingDocuments}
-            vistoValue={fieldKey ? String(caseData[fieldKey] || '') : undefined}
-            onTextChange={(val) => fieldKey && patchCaseField({ [fieldKey]: val })}
-            documents={documents}
-            onUpload={(f) => docKey && handleFileUpload([f], stepIndex, docKey)}
-            onDeleteDoc={handleDeleteDocument}
-            isUploading={!!uploadingFiles[`${docKey}-${stepIndex}`]}
-            tooltip={tooltip}
-        />
+      <DocumentRow
+        label={label}
+        field={fieldKey}
+        docField={docKey || ''}
+        isEditing={isEditingDocuments}
+        vistoValue={fieldKey ? String(caseData[fieldKey] || '') : undefined}
+        onTextChange={(val) => fieldKey && patchCaseField({ [fieldKey]: val })}
+        documents={documents}
+        onUpload={(f) => docKey && handleFileUpload([f], stepIndex, docKey)}
+        onDeleteDoc={handleDeleteDocument}
+        isUploading={!!uploadingFiles[`${docKey}-${stepIndex}`]}
+        tooltip={tooltip}
+      />
     );
 
     const renderHeader = (title: string) => (
-        <SectionHeader
-            title={title}
-            isEditing={isEditingDocuments}
-            onEdit={() => setIsEditingDocuments(true)}
-            onCancel={() => setIsEditingDocuments(false)}
-            onSave={() => { setIsEditingDocuments(false); fetchCaseData(); }}
-        />
+      <SectionHeader
+        title={title}
+        isEditing={isEditingDocuments}
+        onEdit={() => setIsEditingDocuments(true)}
+        onCancel={() => setIsEditingDocuments(false)}
+        onSave={() => { setIsEditingDocuments(false); fetchCaseData(); }}
+      />
     );
 
     // Specific Content Logic
     if (stepIndex === 0) { // Cadastro Documentos
-        return (
-            <div className="space-y-6 md:space-y-8 pb-6 md:pb-8">
-                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    {renderHeader("Dados Iniciais")}
-                    <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                        {type === 'Exame DNA' && (
-                            <>
-                                {renderRow("Nome da Mãe", "nomeMae")}
-                                {renderRow("Nome Pai Registral", "nomePaiRegistral")}
-                                {renderRow("Nome Suposto Pai", "nomeSupostoPai")}
-                                {renderRow("RNM/RG Mãe", "rnmMae")}
-                                {renderRow("RNM/RG Pai", "rnmPai")}
-                                {renderRow("CPF Mãe", "cpfMae")}
-                                {renderRow("CPF Pai", "cpfPai")}
-                                {renderRow("Certidão Nascimento", "certidaoNascimento", "certidaoNascimentoFile")}
-                                {renderRow("Comprovante Endereço", "comprovanteEndereco", "comprovanteEnderecoFile")}
-                                {renderRow("Passaporte Mãe", undefined, "passaporteMaeFile")}
-                                {renderRow("Passaporte Pai", undefined, "passaportePaiRegistralFile")}
-                                {renderRow("Passaporte Suposto Pai", undefined, "passaporteSupostoPaiFile")}
-                            </>
-                        )}
-                         {type === 'Usucapião' && (
-                            <>
-                                {renderRow("Dono do Imóvel", "ownerName")}
-                                {renderRow("CPF Dono", "ownerCpf")}
-                                {renderRow("RNM Dono", "ownerRnm", "ownerRnmFile")}
-                                {renderRow("Endereço Imóvel", "endereco")}
-                                {renderRow("Comprovante Endereço", undefined, "comprovanteEnderecoFile")}
-                                {renderRow("Declaração Vizinhos", undefined, "declaracaoVizinhosFile")}
-                                {renderRow("Matrícula Imóvel", undefined, "matriculaImovelFile")}
-                                {renderRow("Conta Água", undefined, "contaAguaFile")}
-                                {renderRow("Conta Luz", undefined, "contaLuzFile")}
-                                {renderRow("IPTU", undefined, "iptuFile")}
-                            </>
-                        )}
-                        {/* Fallback for other types */}
-                        {!['Exame DNA', 'Usucapião'].includes(type) && (
-                            <>
-                                {renderRow("Nome Mãe", "nomeMae")}
-                                {renderRow("Nome Pai", "nomePaiRegistral")}
-                                {renderRow("RNM/RG Mãe", "rnmMae", "rnmMaeFile")}
-                                {renderRow("CPF Mãe", "cpfMae", "cpfMaeFile")}
-                                {renderRow("Comprovante Endereço", "comprovanteEndereco", "comprovanteEnderecoFile")}
-                                {renderRow("Certidão Nascimento", "certidaoNascimento", "certidaoNascimentoFile")}
-                            </>
-                        )}
-                    </div>
-                 </div>
+      return (
+        <div className="space-y-6 md:space-y-8 pb-6 md:pb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {renderHeader("Dados Iniciais")}
+            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {type === 'Exame DNA' && (
+                <>
+                  {renderRow("Nome da Mãe", "nomeMae")}
+                  {renderRow("Nome Pai Registral", "nomePaiRegistral")}
+                  {renderRow("Nome Suposto Pai", "nomeSupostoPai")}
+                  {renderRow("RNM/RG Mãe", "rnmMae")}
+                  {renderRow("RNM/RG Pai", "rnmPai")}
+                  {renderRow("CPF Mãe", "cpfMae")}
+                  {renderRow("CPF Pai", "cpfPai")}
+                  {renderRow("Certidão Nascimento", "certidaoNascimento", "certidaoNascimentoFile")}
+                  {renderRow("Comprovante Endereço", "comprovanteEndereco", "comprovanteEnderecoFile")}
+                  {renderRow("Passaporte Mãe", undefined, "passaporteMaeFile")}
+                  {renderRow("Passaporte Pai", undefined, "passaportePaiRegistralFile")}
+                  {renderRow("Passaporte Suposto Pai", undefined, "passaporteSupostoPaiFile")}
+                </>
+              )}
+              {type === 'Usucapião' && (
+                <>
+                  {renderRow("Dono do Imóvel", "ownerName")}
+                  {renderRow("CPF Dono", "ownerCpf")}
+                  {renderRow("RNM Dono", "ownerRnm", "ownerRnmFile")}
+                  {renderRow("Endereço Imóvel", "endereco")}
+                  {renderRow("Comprovante Endereço", undefined, "comprovanteEnderecoFile")}
+                  {renderRow("Declaração Vizinhos", undefined, "declaracaoVizinhosFile")}
+                  {renderRow("Matrícula Imóvel", undefined, "matriculaImovelFile")}
+                  {renderRow("Conta Água", undefined, "contaAguaFile")}
+                  {renderRow("Conta Luz", undefined, "contaLuzFile")}
+                  {renderRow("IPTU", undefined, "iptuFile")}
+                </>
+              )}
+              {/* Fallback for other types */}
+              {!['Exame DNA', 'Usucapião'].includes(type) && (
+                <>
+                  {renderRow("Nome Mãe", "nomeMae")}
+                  {renderRow("Nome Pai", "nomePaiRegistral")}
+                  {renderRow("RNM/RG Mãe", "rnmMae", "rnmMaeFile")}
+                  {renderRow("CPF Mãe", "cpfMae", "cpfMaeFile")}
+                  {renderRow("Comprovante Endereço", "comprovanteEndereco", "comprovanteEnderecoFile")}
+                  {renderRow("Certidão Nascimento", "certidaoNascimento", "certidaoNascimentoFile")}
+                </>
+              )}
             </div>
-        );
+          </div>
+        </div>
+      );
     }
 
     // Default Step Renderer
     return (
-        <div className="space-y-3">
-             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {renderHeader(step.title)}
-                <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
-                    {/* DNA Exam Scheduling */}
-                    {type === 'Exame DNA' && step.title.includes('Agendar') && (
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Data do Exame</Label>
-                                {isEditingDocuments ? (
-                                    <Input type="date" value={dnaExamDate} onChange={e => setDnaExamDate(e.target.value)} />
-                                ) : (
-                                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamDate ? formatDateBR(dnaExamDate) : '-'}</div>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Hora</Label>
-                                {isEditingDocuments ? (
-                                    <Input type="time" value={dnaExamTime} onChange={e => setDnaExamTime(e.target.value)} />
-                                ) : (
-                                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamTime || '-'}</div>
-                                )}
-                            </div>
-                            <div className="md:col-span-2 space-y-2">
-                                <Label>Local</Label>
-                                {isEditingDocuments ? (
-                                    <Input value={dnaExamLocation} onChange={e => setDnaExamLocation(e.target.value)} placeholder="Endereço/Laboratório" />
-                                ) : (
-                                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamLocation || '-'}</div>
-                                )}
-                            </div>
-                             {isEditingDocuments && (
-                                <div className="md:col-span-2 flex justify-end">
-                                    <Button size="sm" onClick={handleSaveDnaSchedule}><Save className="w-4 h-4 mr-2"/> Salvar Agendamento</Button>
-                                    {dnaSaveSuccess && <span className="ml-2 text-green-600 flex items-center"><CheckCircle2 className="w-4 h-4 mr-1"/> Salvo</span>}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Generic Notes Area */}
-                    <div className="space-y-3">
-                        <Label>Observações da Etapa</Label>
-                        
-                        {/* Note Input */}
-                        <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
-                            <Textarea 
-                                value={notes[stepIndex] || ""} 
-                                onChange={e => setNotes(prev => ({...prev, [stepIndex]: e.target.value}))}
-                                placeholder="Adicione uma nova nota..."
-                                className={`w-full border-0 focus-visible:ring-0 p-0 resize-none min-h-[80px] ${!isEditingDocuments ? "bg-slate-50 text-slate-500" : "bg-white"}`}
-                                readOnly={!isEditingDocuments}
-                                rows={3}
-                            />
-                            {isEditingDocuments && (
-                                <div className="flex justify-end items-center gap-2 mt-2 pt-2 border-t border-slate-100">
-                                    {saveMessages[stepIndex] && (
-                                        <span className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 animate-in fade-in slide-in-from-right-2">Salvo!</span>
-                                    )}
-                                    <Button 
-                                        size="sm" 
-                                        onClick={() => saveStepNotes(stepIndex)}
-                                        className="h-8 text-xs px-4"
-                                        disabled={!notes[stepIndex]}
-                                    >
-                                        Salvar Nota
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Notes List */}
-                        <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 min-h-[100px] max-h-[300px] overflow-y-auto space-y-3">
-                            {notesArray.filter((n: any) => n.stepId === stepIndex).length > 0 ? (
-                                notesArray.filter((n: any) => n.stepId === stepIndex).map((n: any) => (
-                                    <div key={n.id} className="bg-white p-3 rounded border border-slate-200 shadow-sm relative group">
-                                        <button 
-                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded" 
-                                            onClick={() => deleteNote(n.id)}
-                                            title="Excluir nota"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                                {(n.authorName || 'S').substring(0,2).toUpperCase()}
-                                            </div>
-                                            <div className="flex flex-col leading-none">
-                                                <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
-                                                <span className="text-[10px] text-slate-400">{new Date(n.timestamp).toLocaleString()}</span>
-                                            </div>
-                                        </div>
-                                        <p className="text-sm text-slate-700 whitespace-pre-wrap pl-7">{n.content}</p>
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma observação nesta etapa.</p>
-                            )}
-                        </div>
-                    </div>
-                    
-                    {/* Generic Upload Area */}
-                    {renderRow("Documentos da Etapa", undefined, `step-${stepIndex}-docs`)}
+      <div className="space-y-3">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {renderHeader(step.title)}
+          <div className="p-4 md:p-6 grid grid-cols-1 gap-4 md:gap-6">
+            {/* DNA Exam Scheduling */}
+            {type === 'Exame DNA' && step.title.includes('Agendar') && (
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data do Exame</Label>
+                  {isEditingDocuments ? (
+                    <Input type="date" value={dnaExamDate} onChange={e => setDnaExamDate(e.target.value)} />
+                  ) : (
+                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamDate ? formatDateBR(dnaExamDate) : '-'}</div>
+                  )}
                 </div>
-             </div>
+                <div className="space-y-2">
+                  <Label>Hora</Label>
+                  {isEditingDocuments ? (
+                    <Input type="time" value={dnaExamTime} onChange={e => setDnaExamTime(e.target.value)} />
+                  ) : (
+                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamTime || '-'}</div>
+                  )}
+                </div>
+                <div className="md:col-span-2 space-y-2">
+                  <Label>Local</Label>
+                  {isEditingDocuments ? (
+                    <Input value={dnaExamLocation} onChange={e => setDnaExamLocation(e.target.value)} placeholder="Endereço/Laboratório" />
+                  ) : (
+                    <div className="p-2.5 bg-slate-50 border border-dashed rounded-md">{dnaExamLocation || '-'}</div>
+                  )}
+                </div>
+                {isEditingDocuments && (
+                  <div className="md:col-span-2 flex justify-end">
+                    <Button size="sm" onClick={handleSaveDnaSchedule}><Save className="w-4 h-4 mr-2" /> Salvar Agendamento</Button>
+                    {dnaSaveSuccess && <span className="ml-2 text-green-600 flex items-center"><CheckCircle2 className="w-4 h-4 mr-1" /> Salvo</span>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Generic Notes Area */}
+            <div className="space-y-3">
+              <Label>Observações da Etapa</Label>
+
+              {/* Note Input */}
+              <div className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm">
+                <Textarea
+                  value={notes[stepIndex] || ""}
+                  onChange={e => setNotes(prev => ({ ...prev, [stepIndex]: e.target.value }))}
+                  placeholder="Adicione uma nova nota..."
+                  className={`w-full border-0 focus-visible:ring-0 p-0 resize-none min-h-[80px] ${!isEditingDocuments ? "bg-slate-50 text-slate-500" : "bg-white"}`}
+                  readOnly={!isEditingDocuments}
+                  rows={3}
+                />
+                {isEditingDocuments && (
+                  <div className="flex justify-end items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                    {saveMessages[stepIndex] && (
+                      <span className="text-emerald-600 text-xs font-medium bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 animate-in fade-in slide-in-from-right-2">Salvo!</span>
+                    )}
+                    <Button
+                      size="sm"
+                      onClick={() => saveStepNotes(stepIndex)}
+                      className="h-8 text-xs px-4"
+                      disabled={!notes[stepIndex]}
+                    >
+                      Salvar Nota
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes List */}
+              <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 min-h-[100px] max-h-[300px] overflow-y-auto space-y-3">
+                {notesArray.filter((n: any) => n.stepId === stepIndex).length > 0 ? (
+                  notesArray.filter((n: any) => n.stepId === stepIndex).map((n: any) => (
+                    <div key={n.id} className="bg-white p-3 rounded border border-slate-200 shadow-sm relative group">
+                      <button
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded"
+                        onClick={() => deleteNote(n.id)}
+                        title="Excluir nota"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                          {(n.authorName || 'S').substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col leading-none">
+                          <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
+                          <span className="text-[10px] text-slate-400">{new Date(n.timestamp).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap pl-7">{n.content}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma observação nesta etapa.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Generic Upload Area */}
+            {renderRow("Documentos da Etapa", undefined, `step-${stepIndex}-docs`)}
+          </div>
         </div>
+      </div>
     );
   };
 
@@ -1339,8 +1379,8 @@ export default function AcoesCiveisDetailsPage() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
-             <Skeleton className="h-32 w-full" />
-             <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-32 w-full" />
           </div>
           <div className="space-y-4">
             <Skeleton className="h-48 w-full" />
@@ -1408,118 +1448,118 @@ export default function AcoesCiveisDetailsPage() {
       <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-12">
         {/* LEFT COLUMN: WORKFLOW */}
         <div className="lg:col-span-8">
-            <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px] relative">
-              <CardHeader>
-                <CardTitle className="flex items-center w-full justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Fluxo do Processo
-                  </div>
-                  <button
-                    onClick={() => setShowInfoModal(true)}
-                    className="w-6 h-6 transition-transform hover:scale-110 active:scale-95 focus:outline-none"
-                    title="Informações do Processo"
-                  >
-                    <img src="https://cdn-icons-png.flaticon.com/512/9195/9195785.png" alt="Info" className="w-full h-full object-contain" />
-                  </button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {caseData.steps.map((step, index) => {
-                  const isCurrent = index === currentStepIndex;
-                  const isCompleted = step.completed;
-                  const showConnector = index < caseData.steps.length - 1;
-                  return (
-                    <div key={step.id} className="flex group relative pb-10">
-                      {showConnector ? (
-                        <div className={`absolute left-6 top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
-                      ) : null}
-                        <div className="flex-shrink-0 mr-4">
-                          {isCompleted ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            </div>
-                          ) : isCurrent ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <div className="h-4 w-4 rounded-full bg-blue-500" />
-                            </div>
-                          ) : (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                            >
-                              <Circle className="w-6 h-6 text-gray-400" />
+          <Card className="rounded-xl border-gray-200 shadow-sm min-h-[560px] relative">
+            <CardHeader>
+              <CardTitle className="flex items-center w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Fluxo do Processo
+                </div>
+                <button
+                  onClick={() => setShowInfoModal(true)}
+                  className="w-6 h-6 transition-transform hover:scale-110 active:scale-95 focus:outline-none"
+                  title="Informações do Processo"
+                >
+                  <img src="https://cdn-icons-png.flaticon.com/512/9195/9195785.png" alt="Info" className="w-full h-full object-contain" />
+                </button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {caseData.steps.map((step, index) => {
+                const isCurrent = index === currentStepIndex;
+                const isCompleted = step.completed;
+                const showConnector = index < caseData.steps.length - 1;
+                return (
+                  <div key={step.id} className="flex group relative pb-10">
+                    {showConnector ? (
+                      <div className={`absolute left-6 top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
+                    ) : null}
+                    <div className="flex-shrink-0 mr-4">
+                      {isCompleted ? (
+                        <div
+                          className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                          onClick={() => handleStepCompletion(step.id)}
+                        >
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        </div>
+                      ) : isCurrent ? (
+                        <div
+                          className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
+                          onClick={() => handleStepCompletion(step.id)}
+                        >
+                          <div className="h-4 w-4 rounded-full bg-blue-500" />
+                        </div>
+                      ) : (
+                        <div
+                          className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                          onClick={() => handleStepCompletion(step.id)}
+                        >
+                          <Circle className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    <div className={`flex-grow pt-2 ${isCurrent ? 'p-4 bg-blue-50 rounded-lg border border-blue-100' : isCompleted ? '' : 'opacity-60'}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className={`${isCurrent ? 'text-blue-600 font-bold' : 'font-semibold'} text-base`}>{step.title}</h3>
+                            {isCurrent && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Atual</span>}
+                            {isCompleted && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Concluído</span>}
+                          </div>
+                          {assignments[index]?.responsibleName && (
+                            <div className="mt-1 text-xs text-gray-600">
+                              <span className="font-medium">Responsável:</span> {assignments[index].responsibleName}
+                              {assignments[index].dueDate && <span> · Prazo: {formatDateBR(assignments[index].dueDate)}</span>}
                             </div>
                           )}
                         </div>
-                      <div className={`flex-grow pt-2 ${isCurrent ? 'p-4 bg-blue-50 rounded-lg border border-blue-100' : isCompleted ? '' : 'opacity-60'}`}>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className={`${isCurrent ? 'text-blue-600 font-bold' : 'font-semibold'} text-base`}>{step.title}</h3>
-                              {isCurrent && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Atual</span>}
-                              {isCompleted && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Concluído</span>}
-                            </div>
-                            {assignments[index]?.responsibleName && (
-                              <div className="mt-1 text-xs text-gray-600">
-                                <span className="font-medium">Responsável:</span> {assignments[index].responsibleName}
-                                {assignments[index].dueDate && <span> · Prazo: {formatDateBR(assignments[index].dueDate)}</span>}
+                        <div className="flex items-center gap-2">
+                          {/* Assignment Popover */}
+                          <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
+                            <PopoverTrigger asChild>
+                              <button className="text-xs text-gray-600 border border-gray-300 rounded px-3 py-1 bg-white">Definir Responsável</button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[420px] max-w-[95vw]">
+                              <div className="space-y-3">
+                                <div className="space-y-1">
+                                  <Label>Responsável</Label>
+                                  <Input value={assignResp} onChange={e => setAssignResp(e.target.value)} placeholder="Nome" />
+                                  <div className="rounded-md border mt-2 bg-white max-h-32 overflow-y-auto">
+                                    {RESPONSAVEIS.map(r => (
+                                      <button key={r} className="w-full text-left px-2 py-1 text-sm hover:bg-slate-100" onClick={() => setAssignResp(r)}>{r}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label>Prazo</Label>
+                                  <Input type="date" value={assignDue} onChange={e => setAssignDue(e.target.value)} />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button size="sm" onClick={() => handleSaveAssignment(index, assignResp, assignDue).then(() => setAssignOpenStep(null))}>Salvar</Button>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {/* Assignment Popover */}
-                            <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
-                                <PopoverTrigger asChild>
-                                    <button className="text-xs text-gray-600 border border-gray-300 rounded px-3 py-1 bg-white">Definir Responsável</button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[420px] max-w-[95vw]">
-                                    <div className="space-y-3">
-                                        <div className="space-y-1">
-                                            <Label>Responsável</Label>
-                                            <Input value={assignResp} onChange={e => setAssignResp(e.target.value)} placeholder="Nome" />
-                                            <div className="rounded-md border mt-2 bg-white max-h-32 overflow-y-auto">
-                                                {RESPONSAVEIS.map(r => (
-                                                    <button key={r} className="w-full text-left px-2 py-1 text-sm hover:bg-slate-100" onClick={() => setAssignResp(r)}>{r}</button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <Label>Prazo</Label>
-                                            <Input type="date" value={assignDue} onChange={e => setAssignDue(e.target.value)} />
-                                        </div>
-                                        <div className="flex justify-end gap-2">
-                                            <Button size="sm" onClick={() => handleSaveAssignment(index, assignResp, assignDue).then(() => setAssignOpenStep(null))}>Salvar</Button>
-                                        </div>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                            <button
-                              className="text-gray-500"
-                              onClick={() => toggleStepExpansion(step.id)}
-                            >
-                              {expandedSteps[step.id] ? <ChevronRight className="w-5 h-5 rotate-90" /> : <ChevronRight className="w-5 h-5" />}
-                            </button>
-                          </div>
+                            </PopoverContent>
+                          </Popover>
+                          <button
+                            className="text-gray-500"
+                            onClick={() => toggleStepExpansion(step.id)}
+                          >
+                            {expandedSteps[step.id] ? <ChevronRight className="w-5 h-5 rotate-90" /> : <ChevronRight className="w-5 h-5" />}
+                          </button>
                         </div>
-                        {expandedSteps[step.id] && (
-                          <div className="mt-3">
-                            {renderStepContent(step)}
-                          </div>
-                        )}
                       </div>
+                      {expandedSteps[step.id] && (
+                        <div className="mt-3">
+                          {renderStepContent(step)}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
           <Card className="rounded-xl border-gray-200 shadow-sm">
             <CardHeader className="px-2.5">
               <CardTitle className="flex items-center gap-2">
@@ -1616,18 +1656,18 @@ export default function AcoesCiveisDetailsPage() {
                   </div>
                   <p className="text-sm font-medium text-gray-700">Arraste e solte arquivos aqui para anexar</p>
                   <p className="text-xs text-gray-500 mt-1">Ou use os botões de envio nas etapas acima</p>
-                  <input 
-                      type="file" 
-                      id="general-upload" 
-                      className="hidden" 
-                      multiple 
-                      onChange={(e) => { 
-                        const files = e.target.files; 
-                        if (files && files.length > 0) {
-                          handleFileUpload(Array.from(files));
-                          e.target.value = '';
-                        }
-                      }} 
+                  <input
+                    type="file"
+                    id="general-upload"
+                    className="hidden"
+                    multiple
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        handleFileUpload(Array.from(files));
+                        e.target.value = '';
+                      }
+                    }}
                   />
                 </div>
 
@@ -1708,20 +1748,20 @@ export default function AcoesCiveisDetailsPage() {
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               <div className="relative mb-4">
-                <Textarea 
-                  rows={4} 
-                  placeholder="Adicione uma nova observação..." 
-                  value={notes[0] || ''} 
-                  onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
-                  className="w-full min-h-[100px] border-slate-200 focus:border-slate-400 bg-white shadow-sm resize-none" 
+                <Textarea
+                  rows={4}
+                  placeholder="Adicione uma nova observação..."
+                  value={notes[0] || ''}
+                  onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))}
+                  className="w-full min-h-[100px] border-slate-200 focus:border-slate-400 bg-white shadow-sm resize-none"
                 />
                 <div className="flex justify-end items-center gap-2 mt-2">
                   {saveMessages[0] && (
                     <span className="text-emerald-600 text-xs font-medium animate-fade-in bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">Salvo!</span>
                   )}
-                  <Button 
+                  <Button
                     size="sm"
-                    className="bg-slate-900 hover:bg-slate-800 text-white h-8 px-4 shadow-sm" 
+                    className="bg-slate-900 hover:bg-slate-800 text-white h-8 px-4 shadow-sm"
                     onClick={() => saveStepNotes(0)}
                     disabled={!notes[0]}
                   >
@@ -1734,8 +1774,8 @@ export default function AcoesCiveisDetailsPage() {
                 {notesArray.length > 0 ? (
                   notesArray.map((n) => (
                     <div key={n.id} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative group transition-all hover:shadow-md">
-                      <button 
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded" 
+                      <button
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded"
                         onClick={() => deleteNote(n.id)}
                         title="Excluir nota"
                       >
@@ -1743,7 +1783,7 @@ export default function AcoesCiveisDetailsPage() {
                       </button>
                       <div className="flex items-center gap-2 mb-2">
                         <div className="h-6 w-6 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600 shadow-inner">
-                            {(n.authorName || 'S').substring(0,2).toUpperCase()}
+                          {(n.authorName || 'S').substring(0, 2).toUpperCase()}
                         </div>
                         <div className="flex flex-col leading-none">
                           <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
@@ -1762,7 +1802,7 @@ export default function AcoesCiveisDetailsPage() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="rounded-xl border-gray-200 shadow-sm h-full">
             <CardHeader>
               <CardTitle>Responsáveis</CardTitle>
@@ -1772,7 +1812,7 @@ export default function AcoesCiveisDetailsPage() {
                 {(() => {
                   const items = Object.entries(assignments)
                     .filter(([_, v]) => v?.responsibleName)
-                    .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase() }));
+                    .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() }));
                   return items.map((m) => (
                     <div key={m.key} className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1797,16 +1837,16 @@ export default function AcoesCiveisDetailsPage() {
           </Card>
         </div>
       </div>
-      
+
       {/* Modals */}
-      
+
       {/* Delete Document Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"? 
+              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

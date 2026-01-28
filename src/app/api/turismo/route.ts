@@ -3,9 +3,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/notification';
 import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
+// Helper function to parse notes envelope containing stepData
+function parseNotesEnvelope(notes: any): { entries: any[]; stepData: Record<string, any>; text: string } {
+  if (notes === null || notes === undefined) return { entries: [], stepData: {}, text: '' };
+
+  if (typeof notes === 'string') {
+    const trimmed = notes.trim();
+    if (!trimmed) return { entries: [], stepData: {}, text: '' };
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return { entries: parsed, stepData: {}, text: '' };
+      if (parsed && typeof parsed === 'object') {
+        const entries = Array.isArray((parsed as any).entries) ? (parsed as any).entries : (Array.isArray((parsed as any).notes) ? (parsed as any).notes : []);
+        const stepData = (parsed as any).stepData && typeof (parsed as any).stepData === 'object' ? (parsed as any).stepData : {};
+        const text = typeof (parsed as any).text === 'string' ? (parsed as any).text : '';
+        return { entries, stepData, text };
+      }
+      return { entries: [], stepData: {}, text: trimmed };
+    } catch {
+      return { entries: [], stepData: {}, text: trimmed };
+    }
+  }
+
+  if (Array.isArray(notes)) return { entries: notes, stepData: {}, text: '' };
+  if (notes && typeof notes === 'object') {
+    const entries = Array.isArray((notes as any).entries) ? (notes as any).entries : (Array.isArray((notes as any).notes) ? (notes as any).notes : []);
+    const stepData = (notes as any).stepData && typeof (notes as any).stepData === 'object' ? (notes as any).stepData : {};
+    const text = typeof (notes as any).text === 'string' ? (notes as any).text : '';
+    return { entries, stepData, text };
+  }
+
+  return { entries: [], stepData: {}, text: String(notes) };
+}
+
 // Helper function to convert DB fields to frontend format
 function mapVistosDbFieldsToFrontend(record: any) {
   if (!record) return record;
+
+  const parsedNotes = parseNotesEnvelope(record.notes);
 
   return {
     id: record.id,
@@ -63,6 +98,8 @@ function mapVistosDbFieldsToFrontend(record: any) {
     procurador: record.procurador,
     procuradorDoc: record.procurador_doc,
 
+    // Step data for scheduling etc.
+    stepData: parsedNotes.stepData,
 
     status: record.status,
     notes: record.notes,
@@ -293,10 +330,10 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if record exists
+    // Check if record exists and get existing notes for stepData merge
     const { data: existing, error: existError } = await supabase
       .from('vistos')
-      .select('id')
+      .select('id, notes')
       .eq('id', parseInt(id))
       .single();
 
@@ -381,8 +418,34 @@ export async function PUT(request: NextRequest) {
       updateData.status = body.status.trim();
     }
 
-    if (body.notes !== undefined) {
-      updateData.notes = body.notes?.trim() || null;
+    // Handle stepData and notes merge
+    const shouldMergeNotes = body.stepData !== undefined || body.notes !== undefined;
+    if (shouldMergeNotes) {
+      const envelope = parseNotesEnvelope(existing?.notes);
+
+      if (body.stepData !== undefined && body.stepData && typeof body.stepData === 'object') {
+        envelope.stepData = body.stepData;
+      }
+
+      if (body.notes !== undefined) {
+        if (body.notes === null) {
+          envelope.entries = [];
+          envelope.text = '';
+        } else if (typeof body.notes === 'string') {
+          const parsed = parseNotesEnvelope(body.notes);
+          if (parsed.entries.length) envelope.entries = parsed.entries;
+          if (parsed.text) envelope.text = parsed.text;
+        } else if (Array.isArray(body.notes)) {
+          envelope.entries = body.notes;
+        } else if (body.notes && typeof body.notes === 'object') {
+          const parsed = parseNotesEnvelope(body.notes);
+          envelope.entries = parsed.entries;
+          envelope.text = parsed.text;
+          envelope.stepData = parsed.stepData || envelope.stepData;
+        }
+      }
+
+      updateData.notes = JSON.stringify({ entries: envelope.entries, stepData: envelope.stepData, text: envelope.text });
     }
 
     // New fields
@@ -410,7 +473,7 @@ export async function PUT(request: NextRequest) {
       throw error;
     }
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(mapVistosDbFieldsToFrontend(updated), { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);

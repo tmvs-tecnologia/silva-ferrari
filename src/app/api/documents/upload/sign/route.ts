@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 // Map field names to organized folder structure (copied from upload/route.ts)
 const FIELD_TO_STEP_MAP: Record<string, string> = {
+  // Documentos Iniciais
   rnmMaeFile: 'documentos-iniciais',
   rnmPaiFile: 'documentos-iniciais',
   rnmSupostoPaiFile: 'documentos-iniciais',
@@ -11,14 +12,28 @@ const FIELD_TO_STEP_MAP: Record<string, string> = {
   comprovanteEnderecoFile: 'documentos-iniciais',
   passaporteFile: 'documentos-iniciais',
   guiaPagaFile: 'guia-judicial',
+
+  // Exame DNA
   resultadoExameDnaFile: 'exame-dna',
+
+  // Procuração
   procuracaoAnexadaFile: 'procuracao',
   procuracaoClienteFile: 'procuracao',
+
+  // Petição
   peticaoAnexadaFile: 'peticao',
   peticaoClienteFile: 'peticao',
+
+  // Processo
   processoAnexadoFile: 'processo',
+
+  // Exigências
   documentosFinaisAnexadosFile: 'exigencias',
+
+  // Finalização
   documentosProcessoFinalizadoFile: 'finalizacao',
+
+  // Usucapião & Ações Cíveis
   ownerRnmFile: 'usucapiao-dono',
   ownerCpfFile: 'usucapiao-dono',
   declaracaoVizinhosFile: 'usucapiao-vizinhos',
@@ -27,12 +42,79 @@ const FIELD_TO_STEP_MAP: Record<string, string> = {
   contaLuzFile: 'usucapiao-luz',
   iptuFile: 'usucapiao-iptu',
   contratoEngenheiroFile: 'usucapiao-engenheiro',
+  peticaoInicialFile: 'peticao-inicial',
+  custasFile: 'custas',
+  termoPartilhasFile: 'divorcio',
+  guardaFile: 'divorcio',
+  peticaoConjuntaFile: 'divorcio',
+  passaporteMaeFile: 'passaportes',
+  passaportePaiRegistralFile: 'passaportes',
+  passaporteSupostoPaiFile: 'passaportes',
+  passaportePaiFile: 'passaportes',
+  passaporteCriancaFile: 'passaportes',
+  aguaLuzIptuFile: 'imovel',
+  camposExigenciasFile: 'exigencias',
+
+  // Perda de Nacionalidade
   protocoloDoc: 'protocolo',
   extratoSeiDoc: 'protocolo',
   douDoc: 'deferimento',
   douRatificacaoDoc: 'ratificacao',
   protocoloManifestoDoc: 'protocolo',
   documentoFinalizacaoDoc: 'finalizacao',
+  rnmMaeDoc: 'documentos-pais',
+  cpfMaeDoc: 'documentos-pais',
+  rnmPaiDoc: 'documentos-pais',
+  cpfPaiDoc: 'documentos-pais',
+  passaporteMaeDoc: 'passaportes',
+  passaportePaiDoc: 'passaportes',
+  passaporteCriancaDoc: 'passaportes',
+  rgCriancaDoc: 'documentos-crianca',
+  certidaoNascimentoDoc: 'documentos-crianca',
+  documentoChinesDoc: 'documentos-adicionais',
+  traducaoJuramentadaDoc: 'documentos-adicionais',
+
+  // Vistos (Generic & Specific)
+  passaporteDoc: 'documentos-pessoais',
+  diplomaDoc: 'documentos-educacionais',
+  certidaoCasamentoDoc: 'documentos-pessoais',
+  certidaoNascimentoFilhosDoc: 'documentos-pessoais',
+  extratosBancariosDoc: 'financeiro',
+  impostoRendaDoc: 'financeiro',
+  holeritesDoc: 'financeiro',
+  cartaEmpregadorDoc: 'profissional',
+  contratoSocialDoc: 'profissional',
+  prolaboreDoc: 'profissional',
+  formularioVistoDoc: 'formularios',
+  ds160Doc: 'formularios',
+  fotoVistoDoc: 'documentos-pessoais',
+
+  // Turismo
+  cpfDoc: 'documentos-pessoais',
+  rnmDoc: 'documentos-pessoais',
+  comprovanteEnderecoDoc: 'documentos-pessoais',
+  declaracaoResidenciaDoc: 'documentos-pessoais',
+  foto3x4Doc: 'documentos-pessoais',
+  antecedentesCriminaisDoc: 'documentos-pessoais',
+  cartaoCnpjDoc: 'documentos-especificos',
+  contratoEmpresaDoc: 'documentos-especificos',
+  escrituraImoveisDoc: 'documentos-especificos',
+  procuradorDoc: 'documentos-especificos',
+  reservasPassagensDoc: 'viagem',
+  reservasHotelDoc: 'viagem',
+  seguroViagemDoc: 'viagem',
+  roteiroViagemDoc: 'viagem',
+  taxaDoc: 'viagem',
+  formularioConsuladoDoc: 'viagem',
+  documentosAdicionaisDoc: 'outros',
+
+  // Compra e Venda
+  comprovanteEnderecoImovelDoc: 'imovel',
+  numeroMatriculaDoc: 'imovel',
+  cadastroContribuinteDoc: 'imovel',
+
+  // Ações Trabalhistas e Criminais
+  fotoNotificacaoDoc: 'documentos-acao',
 };
 
 const sanitizeClientName = (name: string): string => {
@@ -54,7 +136,10 @@ export async function POST(request: NextRequest) {
     // Use either caseId or entityId
     const recordId = caseId || entityId;
 
-    if (!fileName || !recordId || !fieldName) {
+    // Check if it is a temporary upload
+    const isTemporaryUpload = !recordId && !fieldName;
+
+    if (!isTemporaryUpload && (!fileName || !recordId || !fieldName)) {
       return NextResponse.json(
         { error: 'Dados incompletos (fileName, recordId, fieldName são obrigatórios)' },
         { status: 400 }
@@ -63,7 +148,7 @@ export async function POST(request: NextRequest) {
 
     // Determine Client Name
     let finalClientName = clientName;
-    if (!finalClientName && moduleType === 'acoes_civeis') {
+    if (!finalClientName && moduleType === 'acoes_civeis' && recordId) {
       const { data: caseData } = await supabaseAdmin
         .from("acoes_civeis")
         .select("client_name")
@@ -71,7 +156,7 @@ export async function POST(request: NextRequest) {
         .single();
       if (caseData) finalClientName = caseData.client_name;
     }
-    
+
     // Path Construction
     const timestamp = Date.now();
     const uniqueFolderId = `${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
@@ -82,24 +167,26 @@ export async function POST(request: NextRequest) {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9.-]/g, '_')
       .toLowerCase();
-    
+
     const safeFileName = `${sanitizedOriginalBase}.${extension}`;
     const stepFolder = FIELD_TO_STEP_MAP[fieldName] || 'outros';
     const clientNameForPath = finalClientName || 'cliente_desconhecido';
 
     let filePath = '';
-    if (moduleType === 'compra_venda_imoveis') {
-        filePath = `compra-venda/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
+    if (isTemporaryUpload) {
+      filePath = `temp/${uniqueFolderId}/${safeFileName}`;
+    } else if (moduleType === 'compra_venda_imoveis') {
+      filePath = `compra-venda/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
     } else if (moduleType === 'perda_nacionalidade') {
-        filePath = `perda-nacionalidade/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
+      filePath = `perda-nacionalidade/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
     } else if (moduleType === 'vistos') {
-        filePath = `vistos/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
+      filePath = `vistos/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
     } else if (moduleType === 'acoes_trabalhistas') {
-        filePath = `acoes-trabalhistas/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
+      filePath = `acoes-trabalhistas/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
     } else if (moduleType === 'acoes_criminais') {
-        filePath = `acoes-criminais/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
+      filePath = `acoes-criminais/${sanitizeClientName(clientNameForPath)}_${recordId}/${uniqueFolderId}/${safeFileName}`;
     } else {
-        filePath = `acoes-civeis/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
+      filePath = `acoes-civeis/${sanitizeClientName(clientNameForPath)}_${recordId}/${stepFolder}/${uniqueFolderId}/${safeFileName}`;
     }
 
     console.log('📝 Gerando URL assinada para:', filePath);
@@ -115,9 +202,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Also get the public URL for future reference (although it won't be accessible until upload is done if bucket is public, or we need another signed URL for download)
-    // Assuming the bucket is public-read or we store the path to generate signed download URLs later.
-    // The previous implementation stored publicUrl.
+    // Also get the public URL for future reference
     const { data: urlData } = supabaseAdmin.storage
       .from(BUCKET_NAME)
       .getPublicUrl(filePath);

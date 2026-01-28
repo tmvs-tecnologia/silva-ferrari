@@ -42,16 +42,16 @@ export default function NovaAcaoTrabalhistaPage() {
     inputs.forEach((el) => {
       try {
         el.setAttribute('multiple', '');
-      } catch {}
+      } catch { }
     });
   }, []);
 
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -73,7 +73,7 @@ export default function NovaAcaoTrabalhistaPage() {
       toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -92,24 +92,94 @@ export default function NovaAcaoTrabalhistaPage() {
 
     try {
       const uploadedUrls: string[] = [];
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+
       for (const file of files) {
         if (!validateFile(file)) continue;
 
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
+        let fileUrl = "";
 
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        // Standardize file name: Remove accents and special chars
+        const sanitizedFileName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const finalFile = new File([file], sanitizedFileName, { type: file.type });
 
-        if (response.ok) {
-          const data = await response.json();
-          uploadedUrls.push(data.fileUrl);
+        if (file.size > MAX_DIRECT_SIZE) {
+          // Signed Upload (Temporary)
+          try {
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: sanitizedFileName,
+                fileType: file.type,
+                clientName: formData.clientName || "Novo Cliente",
+                moduleType: "acoes_trabalhistas"
+              })
+            });
+
+            if (!signRes.ok) {
+              const err = await signRes.json();
+              throw new Error(err.error || "Falha ao gerar URL assinada");
+            }
+
+            const { signedUrl, publicUrl } = await signRes.json();
+
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+            fileUrl = publicUrl;
+
+            // Register metadata (Register Only)
+            await fetch("/api/documents/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                isRegisterOnly: true,
+                fileUrl,
+                fileName: sanitizedFileName,
+                fileType: file.type,
+                fileSize: file.size,
+                fieldName: field,
+                moduleType: "acoes_trabalhistas",
+                clientName: formData.clientName
+              })
+            });
+          } catch (err: any) {
+            console.error("Upload assinado falhou:", err);
+            toast.error(`Erro ao enviar ${file.name}: ${err.message}`);
+            continue;
+          }
         } else {
-          const errorData = await response.json();
-          console.error("Upload error:", errorData);
-          toast.error(errorData.error || "Erro ao enviar documento");
+          // Direct Upload
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", finalFile);
+          formDataUpload.append("moduleType", "acoes_trabalhistas");
+          if (formData.clientName) formDataUpload.append("clientName", formData.clientName);
+
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.fileUrl;
+          } else {
+            const errorData = await response.json();
+            console.error("Upload error:", errorData);
+            toast.error(errorData.error || "Erro ao enviar documento");
+            continue;
+          }
+        }
+
+        if (fileUrl) {
+          uploadedUrls.push(fileUrl);
+          toast.success(`${file.name} enviado com sucesso!`);
         }
       }
 
@@ -288,6 +358,7 @@ export default function NovaAcaoTrabalhistaPage() {
               id={`upload-${docField}`}
               className="hidden"
               onChange={(e) => handleDocumentUpload(e, docField)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
             />
             <Button
               type="button"

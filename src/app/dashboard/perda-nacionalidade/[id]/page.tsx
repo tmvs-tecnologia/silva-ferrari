@@ -118,7 +118,7 @@ export default function PerdaNacionalidadeDetailPage() {
   const [notes, setNotes] = useState<{ [key: number]: string }>({});
   const [status, setStatus] = useState("");
   const [perdaData, setPerdaData] = useState<any>(null);
-  
+
   const showWorkflow = true;
   const [expandedSteps, setExpandedSteps] = useState<{ [key: number]: boolean }>({});
   const [uploadingFiles, setUploadingFiles] = useState<{ [key: string]: boolean }>({});
@@ -128,7 +128,7 @@ export default function PerdaNacionalidadeDetailPage() {
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isEditingDocuments, setIsEditingDocuments] = useState(false);
-  
+
   // Estados para dados específicos de cada etapa
   const [stepData, setStepData] = useState<{ [key: number]: any }>({});
 
@@ -144,57 +144,57 @@ export default function PerdaNacionalidadeDetailPage() {
   // Helper for requirements
   const getDocRequirements = (): PendingDocument[] => {
     return [
-       // Etapa 0
-       { key: "rnmMaeDoc", label: "RNM da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "cpfMaeDoc", label: "CPF da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "rnmPaiDoc", label: "RNM do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "cpfPaiDoc", label: "CPF do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "passaporteDoc", label: "Passaportes", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
-       { key: "documentoChinesDoc", label: "Documento Chinês", group: WORKFLOW_STEPS[0], stepId: 0 },
-       { key: "traducaoJuramentadaDoc", label: "Tradução Juramentada", group: WORKFLOW_STEPS[0], stepId: 0 },
-       
-       // Etapa 1
-       { key: "procuracaoDoc", label: "Procuração", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
-       { key: "pedidoPerdaDoc", label: "Pedido de Perda", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
+      // Etapa 0
+      { key: "rnmMaeDoc", label: "RNM da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "cpfMaeDoc", label: "CPF da Mãe", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "rnmPaiDoc", label: "RNM do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "cpfPaiDoc", label: "CPF do Pai", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "passaporteDoc", label: "Passaportes", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço", group: WORKFLOW_STEPS[0], stepId: 0, required: true },
+      { key: "documentoChinesDoc", label: "Documento Chinês", group: WORKFLOW_STEPS[0], stepId: 0 },
+      { key: "traducaoJuramentadaDoc", label: "Tradução Juramentada", group: WORKFLOW_STEPS[0], stepId: 0 },
 
-       // Etapa 2
-       { key: "procuracaoAssinadaDoc", label: "Procuração Assinada", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
-       { key: "pedidoAssinadoDoc", label: "Pedido Assinado", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
+      // Etapa 1
+      { key: "procuracaoDoc", label: "Procuração", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
+      { key: "pedidoPerdaDoc", label: "Pedido de Perda", group: WORKFLOW_STEPS[1], stepId: 1, required: true },
 
-       // Etapa 3
-       { key: "protocoloSeiDoc", label: "Protocolo no SEI", group: WORKFLOW_STEPS[3], stepId: 3, required: true },
+      // Etapa 2
+      { key: "procuracaoAssinadaDoc", label: "Procuração Assinada", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
+      { key: "pedidoAssinadoDoc", label: "Pedido Assinado", group: WORKFLOW_STEPS[2], stepId: 2, required: true },
 
-       // Etapa 4
-       { key: "comprovanteProtocoladoDoc", label: "Comprovante de Protocolo", group: WORKFLOW_STEPS[4], stepId: 4 },
+      // Etapa 3
+      { key: "protocoloSeiDoc", label: "Protocolo no SEI", group: WORKFLOW_STEPS[3], stepId: 3, required: true },
 
-       // Etapa 5
-       { key: "douDoc", label: "DOU (Deferimento)", group: WORKFLOW_STEPS[5], stepId: 5, required: true },
+      // Etapa 4
+      { key: "comprovanteProtocoladoDoc", label: "Comprovante de Protocolo", group: WORKFLOW_STEPS[4], stepId: 4 },
 
-       // Etapa 6
-       { key: "passaporteChinesDoc", label: "Passaporte Chinês", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
-       { key: "portariaDoc", label: "Portaria", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
+      // Etapa 5
+      { key: "douDoc", label: "DOU (Deferimento)", group: WORKFLOW_STEPS[5], stepId: 5, required: true },
 
-       // Etapa 7
-       { key: "manifestoDoc", label: "Manifesto", group: WORKFLOW_STEPS[7], stepId: 7, required: true },
+      // Etapa 6
+      { key: "passaporteChinesDoc", label: "Passaporte Chinês", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
+      { key: "portariaDoc", label: "Portaria", group: WORKFLOW_STEPS[6], stepId: 6, required: true },
 
-       // Etapa 8
-       { key: "protocoloManifestoDoc", label: "Protocolo do Manifesto", group: WORKFLOW_STEPS[8], stepId: 8, required: true },
+      // Etapa 7
+      { key: "manifestoDoc", label: "Manifesto", group: WORKFLOW_STEPS[7], stepId: 7, required: true },
 
-       // Etapa 9
-       { key: "douRatificacaoDoc", label: "DOU (Ratificação)", group: WORKFLOW_STEPS[9], stepId: 9, required: true },
+      // Etapa 8
+      { key: "protocoloManifestoDoc", label: "Protocolo do Manifesto", group: WORKFLOW_STEPS[8], stepId: 8, required: true },
+
+      // Etapa 9
+      { key: "douRatificacaoDoc", label: "DOU (Ratificação)", group: WORKFLOW_STEPS[9], stepId: 9, required: true },
     ];
   };
 
-  const pendingDocs = getDocRequirements().filter(req => 
+  const pendingDocs = getDocRequirements().filter(req =>
     !documents.some(doc => (doc.fieldName === req.key || (doc as any).field_name === req.key))
   ).map(doc => ({
-      ...doc,
-      priority: doc.required ? "high" : "medium" as any,
-      status: "pending" as any
+    ...doc,
+    priority: doc.required ? "high" : "medium" as any,
+    status: "pending" as any
   }));
-  
+
   const totalDocs = getDocRequirements().length;
   const completedDocs = totalDocs - pendingDocs.length;
 
@@ -207,9 +207,9 @@ export default function PerdaNacionalidadeDetailPage() {
       return [] as any;
     } catch { return [] as any; }
   };
-  
+
   const notesArray = parseNotesArray(perdaData?.notes);
-  
+
   const deleteNote = async (noteId: string) => {
     const next = (notesArray || []).filter((n) => n.id !== noteId);
     try {
@@ -266,7 +266,7 @@ export default function PerdaNacionalidadeDetailPage() {
           }
         }
       });
-      
+
       const chDocsInsert = subscribeTable({
         channelName: `rt-docs-insert-perda-${idNum}`,
         table: 'documents',
@@ -274,7 +274,7 @@ export default function PerdaNacionalidadeDetailPage() {
         filter: `record_id=eq.${idNum}`,
         onChange: () => { fetchDocuments(); }
       });
-      
+
       const chDocsDelete = subscribeTable({
         channelName: `rt-docs-delete-perda-${idNum}`,
         table: 'documents',
@@ -298,7 +298,7 @@ export default function PerdaNacionalidadeDetailPage() {
         const record = await res.json();
         setPerdaData(record);
         setStepData(record.stepData || {});
-        
+
         const steps: StepData[] = WORKFLOW_STEPS.map((title: string, index: number) => ({
           id: index,
           title,
@@ -309,7 +309,7 @@ export default function PerdaNacionalidadeDetailPage() {
 
         const recordCurrentStep = Number(record.currentStep ?? 0);
         const initialCurrentStep = recordCurrentStep < 0 ? 0 : recordCurrentStep;
-        
+
         const completedFromServer = (() => {
           const v = (record.completedSteps ?? []) as any;
           if (Array.isArray(v)) return v as number[];
@@ -408,33 +408,133 @@ export default function PerdaNacionalidadeDetailPage() {
     }
   };
 
+  const validateFile = (file: File) => {
+    // Valid types
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'text/plain', // .txt
+      'application/rtf' // .rtf
+    ];
+    const maxSize = 50 * 1024 * 1024; // 50MB
+
+    if (file.size === 0) {
+      toast.error(`Arquivo vazio: ${file.name}.`);
+      return false;
+    }
+
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|txt|rtf)$/i)) {
+      toast.error(`Formato inválido: ${file.name}.`);
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
+      return false;
+    }
+    return true;
+  };
+
+  const processUpload = async (file: File, fieldName: string, stepId?: number) => {
+    const getErrorMessage = async (res: Response, fallback: string) => {
+      try {
+        const data = await res.json().catch(() => ({} as any));
+        return String(data?.error || data?.message || fallback);
+      } catch {
+        return fallback;
+      }
+    };
+
+    const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+
+    if (file.size > MAX_DIRECT_SIZE) {
+      // Signed Upload (Permanent Flow since we have ID)
+      const signRes = await fetch("/api/documents/upload/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          caseId: String(params.id),
+          moduleType: 'perda_nacionalidade',
+          fieldName: fieldName,
+          clientName: caseData?.clientName || 'Cliente'
+        })
+      });
+
+      if (!signRes.ok) throw new Error(await getErrorMessage(signRes, "Falha ao gerar URL assinada"));
+
+      const { signedUrl, publicUrl } = await signRes.json();
+
+      const uploadRes = await fetch(signedUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type }
+      });
+
+      if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+      // Register
+      const regRes = await fetch("/api/documents/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isRegisterOnly: true,
+          fileUrl: publicUrl,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fieldName: fieldName,
+          moduleType: "perda_nacionalidade",
+          caseId: String(params.id),
+          clientName: caseData?.clientName || 'Cliente'
+        })
+      });
+
+      if (!regRes.ok) throw new Error(await getErrorMessage(regRes, "Erro ao registrar documento"));
+
+      const payload = await regRes.json();
+      const newDoc = payload?.document;
+      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+
+    } else {
+      // Direct Upload
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caseId', String(params.id));
+      fd.append('moduleType', 'perda_nacionalidade');
+      fd.append('fieldName', fieldName);
+      fd.append('clientName', caseData?.clientName || 'Cliente');
+
+      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+
+      const payload = await res.json();
+      const newDoc = payload?.document;
+      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+    }
+
+    toast.success(`Upload concluído: ${file.name}`);
+  };
+
   const handleFileUpload = async (files: FileList | File[] | null, stepId?: number) => {
     const arr = !files ? [] : Array.isArray(files) ? files : Array.from(files);
     if (!arr.length) return;
+
+    const validFiles = arr.filter(validateFile);
+    if (!validFiles.length) return;
+
     const uploadKey = stepId !== undefined ? `step-${stepId}` : 'general';
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
-      const getErrorMessage = async (res: Response, fallback: string) => {
-        try {
-          const data = await res.json().catch(() => ({} as any));
-          return String(data?.error || data?.message || fallback);
-        } catch {
-          return fallback;
-        }
-      };
-      for (const file of arr) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('caseId', String(params.id));
-        fd.append('moduleType', 'perda_nacionalidade');
-        fd.append('fieldName', 'documentoAnexado');
-        fd.append('clientName', caseData?.clientName || 'Cliente');
-        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
-        toast.success(`Upload concluído: ${file.name}`);
+      for (const file of validFiles) {
+        await processUpload(file, 'documentoAnexado', stepId);
       }
       await fetchDocuments();
     } catch (error) {
@@ -446,31 +546,13 @@ export default function PerdaNacionalidadeDetailPage() {
   };
 
   const handleSpecificFileUpload = async (file: File, fieldKey: string, stepId: number) => {
+    if (!validateFile(file)) return;
     const uploadKey = `${fieldKey}-${stepId}`;
     setUploadingFiles(prev => ({ ...prev, [uploadKey]: true }));
     try {
-      const getErrorMessage = async (res: Response, fallback: string) => {
-        try {
-          const data = await res.json().catch(() => ({} as any));
-          return String(data?.error || data?.message || fallback);
-        } catch {
-          return fallback;
-        }
-      };
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('caseId', String(params.id));
-      fd.append('moduleType', 'perda_nacionalidade');
-      fd.append('fieldName', fieldKey);
-      fd.append('clientName', caseData?.clientName || 'Cliente');
-      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
-      const payload = await res.json();
-      const newDoc = payload?.document;
-      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+      await processUpload(file, fieldKey, stepId);
       await fetchDocuments();
       setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
-      toast.success(`Upload concluído: ${file.name}`);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
@@ -506,6 +588,7 @@ export default function PerdaNacionalidadeDetailPage() {
           id={inputId}
           className="hidden"
           multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
           onChange={(e) => {
             const list = Array.from(e.target.files || []);
             list.forEach((f) => onSelect(f));
@@ -554,10 +637,10 @@ export default function PerdaNacionalidadeDetailPage() {
         }
       });
       const completedStepsArr = updatedSteps.filter(s => s.completed).map(s => s.id);
-      const newCurrent = isCurrentlyCompleted 
+      const newCurrent = isCurrentlyCompleted
         ? Math.min(stepId, updatedSteps.length - 1)
         : Math.min(stepId + 1, updatedSteps.length - 1);
-      
+
       (async () => {
         try {
           await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
@@ -572,7 +655,7 @@ export default function PerdaNacionalidadeDetailPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ moduleType: 'perda_nacionalidade', recordId: params.id as string, currentIndex: newCurrent })
             });
-          } catch {}
+          } catch { }
         } catch (e) {
           console.error('Erro ao persistir currentStep:', e);
         }
@@ -584,7 +667,7 @@ export default function PerdaNacionalidadeDetailPage() {
   const saveStepData = async (stepId: number, data: any) => {
     const next = { ...stepData, [stepId]: { ...(stepData[stepId] || {}), ...data } };
     setStepData(next);
-    
+
     try {
       const res = await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
         method: 'PUT',
@@ -611,7 +694,7 @@ export default function PerdaNacionalidadeDetailPage() {
     const suggestion = RESPONSAVEIS.find((r) => r.includes(assignedName || '')) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
     const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: assignedName || 'Equipe', authorRole: role }];
-    
+
     try {
       const res = await fetch(`/api/perda-nacionalidade?id=${params.id}`, {
         method: 'PUT',
@@ -679,7 +762,7 @@ export default function PerdaNacionalidadeDetailPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ moduleType: "PerdaNacionalidade", recordId: params.id as string, alertFor: "admin", message, isRead: false })
           });
-        } catch {}
+        } catch { }
         return true;
       }
       return false;
@@ -751,7 +834,7 @@ export default function PerdaNacionalidadeDetailPage() {
               </div>
             ) : null}
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <h4 className="font-semibold text-base">Informações do Cliente</h4>
@@ -811,21 +894,21 @@ export default function PerdaNacionalidadeDetailPage() {
     if (stepId === 1) {
       return (
         <div className="space-y-4">
-           {[
-             { key: 'procuracaoDoc', label: 'Procuração' },
-             { key: 'pedidoPerdaDoc', label: 'Pedido de Perda de Nacionalidade' }
-           ].map(({ key, label }) => (
-             <div key={key} className="space-y-2">
-               <Label>{label}</Label>
-               <UploadDocBlock
-                 inputId={`${key}-${stepId}`}
-                 disabledKey={`${key}-${stepId}`}
-                 onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
-               />
-               {renderDocLinks(key)}
-             </div>
-           ))}
-           <div>
+          {[
+            { key: 'procuracaoDoc', label: 'Procuração' },
+            { key: 'pedidoPerdaDoc', label: 'Pedido de Perda de Nacionalidade' }
+          ].map(({ key, label }) => (
+            <div key={key} className="space-y-2">
+              <Label>{label}</Label>
+              <UploadDocBlock
+                inputId={`${key}-${stepId}`}
+                disabledKey={`${key}-${stepId}`}
+                onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
+              />
+              {renderDocLinks(key)}
+            </div>
+          ))}
+          <div>
             <Label htmlFor={`observacoes-${stepId}`}>Observações</Label>
             <Textarea
               id={`observacoes-${stepId}`}
@@ -847,29 +930,29 @@ export default function PerdaNacionalidadeDetailPage() {
     if (stepId === 2) {
       return (
         <div className="space-y-4">
-           <div className="space-y-2">
-              <Label>Data da Coleta de Assinaturas</Label>
-              <Input
-                type="date"
-                value={currentStepData.dataColetaAssinaturas || ""}
-                onChange={(e) => saveStepData(stepId, { dataColetaAssinaturas: e.target.value })}
+          <div className="space-y-2">
+            <Label>Data da Coleta de Assinaturas</Label>
+            <Input
+              type="date"
+              value={currentStepData.dataColetaAssinaturas || ""}
+              onChange={(e) => saveStepData(stepId, { dataColetaAssinaturas: e.target.value })}
+            />
+          </div>
+          {[
+            { key: 'procuracaoAssinadaDoc', label: 'Procuração Assinada' },
+            { key: 'pedidoAssinadoDoc', label: 'Pedido Assinado' }
+          ].map(({ key, label }) => (
+            <div key={key} className="space-y-2">
+              <Label>{label}</Label>
+              <UploadDocBlock
+                inputId={`${key}-${stepId}`}
+                disabledKey={`${key}-${stepId}`}
+                onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
               />
-           </div>
-           {[
-             { key: 'procuracaoAssinadaDoc', label: 'Procuração Assinada' },
-             { key: 'pedidoAssinadoDoc', label: 'Pedido Assinado' }
-           ].map(({ key, label }) => (
-             <div key={key} className="space-y-2">
-               <Label>{label}</Label>
-               <UploadDocBlock
-                 inputId={`${key}-${stepId}`}
-                 disabledKey={`${key}-${stepId}`}
-                 onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
-               />
-               {renderDocLinks(key)}
-             </div>
-           ))}
-           <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+              {renderDocLinks(key)}
+            </div>
+          ))}
+          <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
             <Save className="w-4 h-4 mr-2" />
             Salvar
           </Button>
@@ -884,63 +967,63 @@ export default function PerdaNacionalidadeDetailPage() {
       // Step 4: Processo Protocolado (Waiting?)
       // Step 7: Manifesto (step index 7)
       // Step 8: Protocolar no SEI (step index 8)
-      
+
       const docKey = stepId === 7 ? 'manifestoDoc' : (stepId === 8 ? 'protocoloManifestoDoc' : (stepId === 3 ? 'protocoloSeiDoc' : 'comprovanteProtocoladoDoc'));
       const label = stepId === 7 ? 'Manifesto' : (stepId === 8 ? 'Protocolo do Manifesto' : (stepId === 3 ? 'Protocolo no SEI' : 'Comprovante de Protocolo'));
 
       // If Step 7 (Manifesto)
       if (stepId === 7) {
-          return (
-            <div className="space-y-4">
-               <div className="space-y-2">
-                 <Label>Manifesto</Label>
-                 <UploadDocBlock
-                   inputId={`manifestoDoc-${stepId}`}
-                   disabledKey={`manifestoDoc-${stepId}`}
-                   onSelect={(f) => handleSpecificFileUpload(f, 'manifestoDoc', stepId)}
-                 />
-                 {renderDocLinks('manifestoDoc')}
-               </div>
-               <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
-                <Save className="w-4 h-4 mr-2" />
-                Salvar
-              </Button>
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Manifesto</Label>
+              <UploadDocBlock
+                inputId={`manifestoDoc-${stepId}`}
+                disabledKey={`manifestoDoc-${stepId}`}
+                onSelect={(f) => handleSpecificFileUpload(f, 'manifestoDoc', stepId)}
+              />
+              {renderDocLinks('manifestoDoc')}
             </div>
-          );
+            <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              Salvar
+            </Button>
+          </div>
+        );
       }
 
       return (
         <div className="space-y-4">
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="space-y-2">
-                <Label>Número do Protocolo</Label>
-                <Input
-                  value={currentStepData.numeroProtocolo || ""}
-                  onChange={(e) => saveStepData(stepId, { numeroProtocolo: e.target.value })}
-                  placeholder="Número do protocolo"
-                />
-             </div>
-             <div className="space-y-2">
-                <Label>Data</Label>
-                <Input
-                  type="date"
-                  value={currentStepData.dataProtocolo || ""}
-                  onChange={(e) => saveStepData(stepId, { dataProtocolo: e.target.value })}
-                />
-             </div>
-           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Número do Protocolo</Label>
+              <Input
+                value={currentStepData.numeroProtocolo || ""}
+                onChange={(e) => saveStepData(stepId, { numeroProtocolo: e.target.value })}
+                placeholder="Número do protocolo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Data</Label>
+              <Input
+                type="date"
+                value={currentStepData.dataProtocolo || ""}
+                onChange={(e) => saveStepData(stepId, { dataProtocolo: e.target.value })}
+              />
+            </div>
+          </div>
 
-           <div className="space-y-2">
-             <Label>{label}</Label>
-             <UploadDocBlock
-               inputId={`${docKey}-${stepId}`}
-               disabledKey={`${docKey}-${stepId}`}
-               onSelect={(f) => handleSpecificFileUpload(f, docKey, stepId)}
-             />
-             {renderDocLinks(docKey)}
-           </div>
-           
-           <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+          <div className="space-y-2">
+            <Label>{label}</Label>
+            <UploadDocBlock
+              inputId={`${docKey}-${stepId}`}
+              disabledKey={`${docKey}-${stepId}`}
+              onSelect={(f) => handleSpecificFileUpload(f, docKey, stepId)}
+            />
+            {renderDocLinks(docKey)}
+          </div>
+
+          <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
             <Save className="w-4 h-4 mr-2" />
             Salvar
           </Button>
@@ -949,115 +1032,115 @@ export default function PerdaNacionalidadeDetailPage() {
     }
 
     // Etapa 5 (Deferido), 6 (Passaporte Chinês), 9 (Ratificado)
-    if ([5, 6, 9, 10].includes(stepId)) { 
-       // 5: Processo Deferido
-       // 6: Passaporte Chinês
-       // 9: Processo Ratificado
-       // 10: Processo Finalizado
+    if ([5, 6, 9, 10].includes(stepId)) {
+      // 5: Processo Deferido
+      // 6: Passaporte Chinês
+      // 9: Processo Ratificado
+      // 10: Processo Finalizado
 
-       if (stepId === 6) { // Passaporte Chinês
-          return (
-             <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Número da Portaria</Label>
-                  <Input
-                    value={currentStepData.numeroPortaria || ""}
-                    onChange={(e) => saveStepData(stepId, { numeroPortaria: e.target.value })}
-                    placeholder="Número da portaria"
-                  />
-                </div>
-                {[
-                  { key: 'passaporteChinesDoc', label: 'Passaporte Chinês' },
-                  { key: 'portariaDoc', label: 'Portaria' }
-                ].map(({ key, label }) => (
-                  <div key={key} className="space-y-2">
-                    <Label>{label}</Label>
-                    <UploadDocBlock
-                      inputId={`${key}-${stepId}`}
-                      disabledKey={`${key}-${stepId}`}
-                      onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
-                    />
-                    {renderDocLinks(key)}
-                  </div>
-                ))}
-                <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-             </div>
-          );
-       }
-
-       if (stepId === 10) { // Finalizado
-          return (
-             <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Data de Finalização</Label>
-                    <Input
-                      type="date"
-                      value={currentStepData.dataFinalizacao || ""}
-                      onChange={(e) => saveStepData(stepId, { dataFinalizacao: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status Final</Label>
-                    <Select
-                      value={currentStepData.statusFinal || ""}
-                      onValueChange={(val) => saveStepData(stepId, { statusFinal: val })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Concluído">Concluído</SelectItem>
-                        <SelectItem value="Arquivado">Arquivado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                   <Label>Observações Finais</Label>
-                   <Textarea
-                     value={currentStepData.observacoesFinais || ""}
-                     onChange={(e) => saveStepData(stepId, { observacoesFinais: e.target.value })}
-                     rows={4}
-                   />
-                </div>
-                <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar Finalização
-                </Button>
-             </div>
-          );
-       }
-
-       // 5 (Deferido) e 9 (Ratificado)
-       return (
-        <div className="space-y-4">
-           <div className="space-y-2">
-              <Label>Data</Label>
+      if (stepId === 6) { // Passaporte Chinês
+        return (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Número da Portaria</Label>
               <Input
-                type="date"
-                value={currentStepData.dataRegistro || ""}
-                onChange={(e) => saveStepData(stepId, { dataRegistro: e.target.value })}
+                value={currentStepData.numeroPortaria || ""}
+                onChange={(e) => saveStepData(stepId, { numeroPortaria: e.target.value })}
+                placeholder="Número da portaria"
               />
-           </div>
-           <div className="space-y-2">
-             <Label>Documento (DOU/Decisão)</Label>
-             <UploadDocBlock
-               inputId={`doc-${stepId}`}
-               disabledKey={`doc-${stepId}`}
-               onSelect={(f) => handleSpecificFileUpload(f, stepId === 5 ? 'douDoc' : 'douRatificacaoDoc', stepId)}
-             />
-             {renderDocLinks(stepId === 5 ? 'douDoc' : 'douRatificacaoDoc')}
-           </div>
-           <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+            </div>
+            {[
+              { key: 'passaporteChinesDoc', label: 'Passaporte Chinês' },
+              { key: 'portariaDoc', label: 'Portaria' }
+            ].map(({ key, label }) => (
+              <div key={key} className="space-y-2">
+                <Label>{label}</Label>
+                <UploadDocBlock
+                  inputId={`${key}-${stepId}`}
+                  disabledKey={`${key}-${stepId}`}
+                  onSelect={(f) => handleSpecificFileUpload(f, key, stepId)}
+                />
+                {renderDocLinks(key)}
+              </div>
+            ))}
+            <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              Salvar
+            </Button>
+          </div>
+        );
+      }
+
+      if (stepId === 10) { // Finalizado
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Data de Finalização</Label>
+                <Input
+                  type="date"
+                  value={currentStepData.dataFinalizacao || ""}
+                  onChange={(e) => saveStepData(stepId, { dataFinalizacao: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status Final</Label>
+                <Select
+                  value={currentStepData.statusFinal || ""}
+                  onValueChange={(val) => saveStepData(stepId, { statusFinal: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Concluído">Concluído</SelectItem>
+                    <SelectItem value="Arquivado">Arquivado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações Finais</Label>
+              <Textarea
+                value={currentStepData.observacoesFinais || ""}
+                onChange={(e) => saveStepData(stepId, { observacoesFinais: e.target.value })}
+                rows={4}
+              />
+            </div>
+            <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
+              <Save className="w-4 h-4 mr-2" />
+              Salvar Finalização
+            </Button>
+          </div>
+        );
+      }
+
+      // 5 (Deferido) e 9 (Ratificado)
+      return (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Data</Label>
+            <Input
+              type="date"
+              value={currentStepData.dataRegistro || ""}
+              onChange={(e) => saveStepData(stepId, { dataRegistro: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Documento (DOU/Decisão)</Label>
+            <UploadDocBlock
+              inputId={`doc-${stepId}`}
+              disabledKey={`doc-${stepId}`}
+              onSelect={(f) => handleSpecificFileUpload(f, stepId === 5 ? 'douDoc' : 'douRatificacaoDoc', stepId)}
+            />
+            {renderDocLinks(stepId === 5 ? 'douDoc' : 'douRatificacaoDoc')}
+          </div>
+          <Button onClick={() => saveStepData(stepId, currentStepData)} className="w-full">
             <Save className="w-4 h-4 mr-2" />
             Salvar
           </Button>
         </div>
-       );
+      );
     }
 
     // Default Upload Block
@@ -1089,7 +1172,7 @@ export default function PerdaNacionalidadeDetailPage() {
           </div>
           {renderDocLinks('documentoAnexado')}
         </div>
-        
+
         <div>
           <Label htmlFor={`observacoes-${stepId}`}>Observações</Label>
           <Textarea
@@ -1217,39 +1300,39 @@ export default function PerdaNacionalidadeDetailPage() {
                       {showConnector ? (
                         <div className={`absolute left-6 top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
                       ) : null}
-                        <div className="flex-shrink-0 mr-4">
-                          {isCompleted ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Desfazer conclusão"
-                              title="Desfazer conclusão"
-                            >
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            </div>
-                          ) : isCurrent ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Marcar como concluído"
-                              title="Marcar como concluído"
-                            >
-                              <div className="h-4 w-4 rounded-full bg-blue-500" />
-                            </div>
-                          ) : (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Marcar como concluído"
-                              title="Marcar como concluído"
-                            >
-                              <Circle className="w-6 h-6 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex-shrink-0 mr-4">
+                        {isCompleted ? (
+                          <div
+                            className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Desfazer conclusão"
+                            title="Desfazer conclusão"
+                          >
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          </div>
+                        ) : isCurrent ? (
+                          <div
+                            className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Marcar como concluído"
+                            title="Marcar como concluído"
+                          >
+                            <div className="h-4 w-4 rounded-full bg-blue-500" />
+                          </div>
+                        ) : (
+                          <div
+                            className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Marcar como concluído"
+                            title="Marcar como concluído"
+                          >
+                            <Circle className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
                       <div className={`flex-grow pt-2 ${isCurrent ? 'p-4 bg-blue-50 rounded-lg border border-blue-100' : isCompleted ? '' : 'opacity-60'}`}>
                         <div className="flex justify-between items-start">
                           <div>
@@ -1271,7 +1354,7 @@ export default function PerdaNacionalidadeDetailPage() {
                             ) : null}
                           </div>
                           <div className="flex items-center gap-2">
-                          <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
+                            <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
                               <PopoverTrigger asChild>
                                 <button className="text-xs text-gray-600 border border-gray-300 rounded px-3 py-1 bg-white">Definir Responsável</button>
                               </PopoverTrigger>
@@ -1302,7 +1385,7 @@ export default function PerdaNacionalidadeDetailPage() {
                                     <div className="rounded-md border p-2 overflow-hidden">
                                       <CalendarPicker
                                         mode="single"
-                                        selected={assignDue ? (() => { const p = assignDue.split('-').map((v)=>parseInt(v,10)); return new Date(p[0], (p[1]||1)-1, p[2]||1); })() : undefined}
+                                        selected={assignDue ? (() => { const p = assignDue.split('-').map((v) => parseInt(v, 10)); return new Date(p[0], (p[1] || 1) - 1, p[2] || 1); })() : undefined}
                                         onSelect={(date) => {
                                           if (!date) { setAssignDue(''); return; }
                                           const y = date.getFullYear();
@@ -1362,8 +1445,8 @@ export default function PerdaNacionalidadeDetailPage() {
             <CardContent className="px-2.5">
               <div className="grid grid-cols-1 gap-4">
                 <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
-                     onDragOver={(e) => { e.preventDefault(); }}
-                     onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
                   <div className="p-3 bg-blue-50 rounded-full mb-3">
                     <Upload className="h-6 w-6 text-blue-500" />
                   </div>
@@ -1450,7 +1533,7 @@ export default function PerdaNacionalidadeDetailPage() {
             <CardContent className="flex-1 flex flex-col">
               <Textarea rows={6} placeholder="Adicione observações..." value={notes[0] || ''} onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} className="flex-1 border-none bg-slate-50 resize-none mb-2" />
               <div className="flex justify-end">
-                  <Button size="sm" className="bg-slate-900" onClick={() => saveStepNotes(0)}>Salvar Nota</Button>
+                <Button size="sm" className="bg-slate-900" onClick={() => saveStepNotes(0)}>Salvar Nota</Button>
               </div>
             </CardContent>
           </Card>

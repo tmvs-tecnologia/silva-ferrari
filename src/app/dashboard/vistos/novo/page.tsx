@@ -73,6 +73,7 @@ const DocumentRow = ({ label, field, docField, placeholder = "Status ou informa�
             id={`upload-${docField}`}
             className="hidden"
             onChange={(e) => handleDocumentUpload(e, docField)}
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
           />
           <Button
             type="button"
@@ -246,9 +247,9 @@ export default function NovoVistoPage() {
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -271,7 +272,7 @@ export default function NovoVistoPage() {
       alert(`Formato inválido: ${file.name}. Formatos aceitos: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, TXT.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       alert(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -327,7 +328,7 @@ export default function NovoVistoPage() {
           if (missingDocs.length > 0) {
             try {
               // Criar alertas sequencialmente ou em paralelo
-              await Promise.all(missingDocs.map(doc => 
+              await Promise.all(missingDocs.map(doc =>
                 fetch("/api/alerts", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -389,24 +390,93 @@ export default function NovoVistoPage() {
 
     try {
       const uploadedUrls: string[] = [];
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB threshold
+
       for (const file of files) {
         if (!validateFile(file)) continue;
 
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
+        let fileUrl = "";
 
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        if (file.size > MAX_DIRECT_SIZE) {
+          // Signed Upload (Temporary Flow for Novo Page)
+          try {
+            // 1. Get Signed URL (No recordId/fieldName = Temporary)
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: file.name,
+                fileType: file.type,
+                clientName: formData.clientName || "Novo Cliente",
+                moduleType: "vistos"
+              })
+            });
 
-        if (response.ok) {
-          const data = await response.json();
-          uploadedUrls.push(data.fileUrl);
+            if (!signRes.ok) {
+              const errorData = await signRes.json();
+              throw new Error(errorData.error || "Falha ao iniciar upload");
+            }
+
+            const { signedUrl, publicUrl } = await signRes.json();
+
+            // 2. Upload to Supabase Storage
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("Falha no envio do arquivo");
+
+            fileUrl = publicUrl;
+
+            // 3. Register Metadata (Register Only)
+            await fetch("/api/documents/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                isRegisterOnly: true,
+                fileUrl,
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                fieldName: field,
+                moduleType: "vistos",
+                clientName: formData.clientName
+              })
+            });
+
+          } catch (err: any) {
+            console.error("Upload assinado falhou:", err);
+            alert(`Erro ao enviar ${file.name}: ${err.message}`);
+            continue;
+          }
         } else {
-          const errorData = await response.json();
-          console.error("Upload error:", errorData);
-          alert(errorData.error || "Erro ao enviar documento");
+          // Standard Direct Upload (< 4MB)
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", file);
+          // Append context data if needed by backend regular upload
+          formDataUpload.append("moduleType", "vistos");
+          if (formData.clientName) formDataUpload.append("clientName", formData.clientName);
+
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            fileUrl = data.fileUrl;
+          } else {
+            const errorData = await response.json();
+            console.error("Upload error:", errorData);
+            alert(errorData.error || "Erro ao enviar documento");
+            continue;
+          }
+        }
+
+        if (fileUrl) {
+          uploadedUrls.push(fileUrl);
         }
       }
 
@@ -433,6 +503,8 @@ export default function NovoVistoPage() {
       alert("Erro ao enviar documento");
     } finally {
       setUploadingDocs((prev) => ({ ...prev, [field]: false }));
+      // Clear input value to allow re-uploading same file
+      e.target.value = "";
     }
   };
 

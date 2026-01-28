@@ -105,7 +105,7 @@ export default function NovaAcaoCivelPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  
+
   const getStepTitle = (type: string, index: number) => {
     const standard = [
       "Cadastro de Informações",
@@ -205,9 +205,9 @@ export default function NovaAcaoCivelPage() {
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -229,7 +229,7 @@ export default function NovaAcaoCivelPage() {
       toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -242,7 +242,6 @@ export default function NovaAcaoCivelPage() {
     if (!file) return;
 
     if (!validateFile(file)) {
-      // Limpar o input para permitir selecionar o mesmo arquivo novamente se corrigido
       e.target.value = "";
       return;
     }
@@ -250,23 +249,89 @@ export default function NovaAcaoCivelPage() {
     setUploadingDocs((prev) => ({ ...prev, [field]: true }));
 
     try {
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+      let fileUrl = "";
 
-      const response = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formDataUpload
-      });
+      if (file.size > MAX_DIRECT_SIZE) {
+        // Signed Upload (Temporary)
+        try {
+          const signRes = await fetch("/api/documents/upload/sign", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              clientName: formData.clientName || "Novo Cliente",
+              moduleType: "acoes_civeis"
+            })
+          });
 
-      if (response.ok) {
-        const data = await response.json();
-        handleChange(`${field}File`, data.fileUrl);
-        toast.success("Documento enviado com sucesso!");
+          if (!signRes.ok) {
+            const err = await signRes.json();
+            throw new Error(err.error || "Falha ao gerar URL assinada");
+          }
+
+          const { signedUrl, publicUrl } = await signRes.json();
+
+          const uploadRes = await fetch(signedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type }
+          });
+
+          if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+          fileUrl = publicUrl;
+
+          // Register metadata (Register Only)
+          await fetch("/api/documents/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              isRegisterOnly: true,
+              fileUrl,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              fieldName: field,
+              moduleType: "acoes_civeis",
+              clientName: formData.clientName
+            })
+          });
+
+        } catch (err: any) {
+          console.error("Upload assinado falhou:", err);
+          toast.error(`Erro ao enviar ${file.name}: ${err.message}`);
+          return;
+        }
       } else {
-        const errorData = await response.json();
-        console.error("Upload error:", errorData);
-        toast.error(errorData.error || "Erro ao enviar documento");
+        // Direct Upload
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        formDataUpload.append("moduleType", "acoes_civeis");
+        if (formData.clientName) formDataUpload.append("clientName", formData.clientName);
+
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          body: formDataUpload
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          fileUrl = data.fileUrl;
+        } else {
+          const errorData = await response.json();
+          console.error("Upload error:", errorData);
+          toast.error(errorData.error || "Erro ao enviar documento");
+          return;
+        }
       }
+
+      if (fileUrl) {
+        handleChange(`${field}File`, fileUrl);
+        toast.success("Documento enviado com sucesso!");
+      }
+
     } catch (error) {
       console.error("Error uploading file:", error);
       toast.error("Erro ao enviar documento");
@@ -295,7 +360,7 @@ export default function NovaAcaoCivelPage() {
     ];
 
     const documentsToConvert = [];
-    
+
     for (const field of documentFields) {
       const fileUrl = formData[field];
       if (fileUrl) {
@@ -335,7 +400,7 @@ export default function NovaAcaoCivelPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         if (data.id) {
           await convertTemporaryUploads(data.id);
           try {
@@ -350,9 +415,9 @@ export default function NovaAcaoCivelPage() {
                 isRead: false
               })
             });
-          } catch {}
+          } catch { }
         }
-        
+
         toast.success("Ação criada com sucesso!");
         router.push("/dashboard/acoes-civeis");
       } else {
@@ -450,7 +515,7 @@ export default function NovaAcaoCivelPage() {
   const DocumentRow = ({ label, field, docField, placeholder = "Status ou informações do documento" }: { label: string; field?: string; docField: string; placeholder?: string }) => {
     // Check if file is uploaded
     const fileUrl = formData[`${docField}File`];
-    
+
     return (
       <div className="space-y-2">
         <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
@@ -471,12 +536,13 @@ export default function NovaAcaoCivelPage() {
             </div>
           )}
           <div className="relative">
-             <input
-                type="file"
-                id={`upload-${docField}`}
-                className="hidden"
-                onChange={(e) => handleDocumentUpload(e, docField)}
-              />
+            <input
+              type="file"
+              id={`upload-${docField}`}
+              className="hidden"
+              onChange={(e) => handleDocumentUpload(e, docField)}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
+            />
             <Button
               type="button"
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm"
@@ -488,7 +554,7 @@ export default function NovaAcaoCivelPage() {
             </Button>
           </div>
         </div>
-        
+
         {/* File Preview List - Vistos Style */}
         {fileUrl && (
           <div className="flex flex-wrap gap-2 mt-2">
@@ -510,9 +576,9 @@ export default function NovaAcaoCivelPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard/acoes-civeis">
-                <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+              <button className="text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
                 <ArrowLeft className="h-6 w-6" />
-                </button>
+              </button>
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Nova Ação Cível</h1>
@@ -524,7 +590,7 @@ export default function NovaAcaoCivelPage() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex-grow w-full">
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* Informações da Ação */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
@@ -536,319 +602,319 @@ export default function NovaAcaoCivelPage() {
             <div className="p-8 grid grid-cols-1 md:grid-cols-12 gap-6">
               <div className="md:col-span-6">
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Nome do Cliente *</Label>
-                <Input 
-                    value={formData.clientName}
-                    onChange={(e) => handleChange("clientName", e.target.value)}
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
-                    placeholder="Digite o nome completo do cliente"
-                    required 
+                <Input
+                  value={formData.clientName}
+                  onChange={(e) => handleChange("clientName", e.target.value)}
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 focus:ring-sky-500 focus:border-sky-500 text-sm py-2.5"
+                  placeholder="Digite o nome completo do cliente"
+                  required
                 />
               </div>
               <div className="md:col-span-6">
                 <Label className="block text-sm font-medium mb-2 text-slate-700 dark:text-slate-200">Tipo de Ação *</Label>
-                 <Select
-                    value={formData.type}
-                    onValueChange={(value) => handleChange("type", value)}
-                  >
+                <Select
+                  value={formData.type}
+                  onValueChange={(value) => handleChange("type", value)}
+                >
                   <SelectTrigger className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 py-2.5 h-auto">
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel className="font-bold text-slate-900 dark:text-slate-100">Tipos de Ação</SelectLabel>
-                        {CASE_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>
-                                {type}
-                            </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel className="font-bold text-slate-900 dark:text-slate-100">Tipos de Ação</SelectLabel>
+                      {CASE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
 
           {/* Conditional Content */}
           {formData.type && (
-              <div className="space-y-8">
-                
-                {/* Cadastro / Dados de Nomes */}
-                {(formData.type === "Exame DNA" || formData.type === "Alteração de Nome" || formData.type === "Guarda" || formData.type === "Acordos de Guarda" || formData.type === "Divórcio Consensual" || formData.type === "Divórcio Litígio") && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">1</span>
-                            Cadastro de Nomes
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                        {showFieldForType("nomeMae") && (
-                            <div className="space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome da Mãe / Parte 1</Label>
-                                <Input
-                                    value={formData.nomeMae}
-                                    onChange={(e) => handleChange("nomeMae", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                    placeholder="Nome completo"
-                                />
-                            </div>
-                        )}
-                        {showFieldForType("nomePaiRegistral") && (
-                            <div className="space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome do Pai / Parte 2</Label>
-                                <Input
-                                    value={formData.nomePaiRegistral}
-                                    onChange={(e) => handleChange("nomePaiRegistral", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                    placeholder="Nome completo"
-                                />
-                            </div>
-                        )}
-                        {showFieldForType("nomeSupostoPai") && (
-                             <div className="space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome do Suposto Pai</Label>
-                                <Input
-                                    value={formData.nomeSupostoPai}
-                                    onChange={(e) => handleChange("nomeSupostoPai", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                    placeholder="Nome completo"
-                                />
-                            </div>
-                        )}
-                        {showFieldForType("nomeCrianca") && (
-                             <div className="space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome da Criança</Label>
-                                <Input
-                                    value={formData.nomeCrianca}
-                                    onChange={(e) => handleChange("nomeCrianca", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                    placeholder="Nome completo"
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-                )}
+            <div className="space-y-8">
 
-                 {/* Usucapião - Dono do Imóvel */}
-                 {formData.type === "Usucapião" && (
-                    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                            <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">1</span>
-                                Dono do Imóvel
-                            </h2>
-                        </div>
-                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                             {showFieldForType("ownerName") && (
-                                <div className="space-y-2">
-                                    <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome Completo</Label>
-                                    <Input
-                                        value={formData.ownerName}
-                                        onChange={(e) => handleChange("ownerName", e.target.value)}
-                                        className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                        placeholder="Nome completo"
-                                    />
-                                </div>
-                             )}
-                             {showFieldForType("ownerCpf") && (
-                                <DocumentRow label="CPF do Dono" field="ownerCpf" docField="ownerCpf" placeholder="000.000.000-00" />
-                             )}
-                             {showFieldForType("ownerRnm") && (
-                                <DocumentRow label="RNM do Dono" field="ownerRnm" docField="ownerRnm" placeholder="RNM / RNE / RG" />
-                             )}
-                        </div>
-                    </div>
-                 )}
-
-                {/* Documentos de Identificação */}
-                {(showFieldForType("rnmMae") || showFieldForType("rnmPai") || showFieldForType("rnmSupostoPai") || showFieldForType("cpfMae") || showFieldForType("cpfPai") || showFieldForType("cpfSupostoPai")) && (
+              {/* Cadastro / Dados de Nomes */}
+              {(formData.type === "Exame DNA" || formData.type === "Alteração de Nome" || formData.type === "Guarda" || formData.type === "Acordos de Guarda" || formData.type === "Divórcio Consensual" || formData.type === "Divórcio Litígio") && (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">2</span>
-                            Documentos de Identificação
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                        {showFieldForType("rnmMae") && (
-                            <DocumentRow label="RNM / RG (Mãe/Parte 1)" field="rnmMae" docField="rnmMae" />
-                        )}
-                        {showFieldForType("rnmPai") && (
-                            <DocumentRow label="RNM / RG (Pai/Parte 2)" field="rnmPai" docField="rnmPai" />
-                        )}
-                        {showFieldForType("rnmSupostoPai") && (
-                            <DocumentRow label="RNM / RG (Suposto Pai)" field="rnmSupostoPai" docField="rnmSupostoPai" />
-                        )}
-                        {showFieldForType("cpfMae") && (
-                            <DocumentRow label="CPF (Mãe/Parte 1)" field="cpfMae" docField="cpfMae" />
-                        )}
-                        {showFieldForType("cpfPai") && (
-                            <DocumentRow label="CPF (Pai/Parte 2)" field="cpfPai" docField="cpfPai" />
-                        )}
-                        {showFieldForType("cpfSupostoPai") && (
-                            <div className="space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">CPF (Suposto Pai)</Label>
-                                <Input
-                                    value={formData.cpfSupostoPai}
-                                    onChange={(e) => handleChange("cpfSupostoPai", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-                )}
-
-                {/* Documentos da Criança */}
-                {showFieldForType("certidaoNascimento") && (
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">3</span>
-                            Documentos da Criança
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 gap-6">
-                        <DocumentRow 
-                            label={formData.type.includes("Divórcio") ? "Certidão de Nascimento da Criança (se houver)" : "Certidão de Nascimento da Criança"} 
-                            field="certidaoNascimento" 
-                            docField="certidaoNascimento" 
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">1</span>
+                      Cadastro de Nomes
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("nomeMae") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome da Mãe / Parte 1</Label>
+                        <Input
+                          value={formData.nomeMae}
+                          onChange={(e) => handleChange("nomeMae", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Nome completo"
                         />
-                    </div>
+                      </div>
+                    )}
+                    {showFieldForType("nomePaiRegistral") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome do Pai / Parte 2</Label>
+                        <Input
+                          value={formData.nomePaiRegistral}
+                          onChange={(e) => handleChange("nomePaiRegistral", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                    )}
+                    {showFieldForType("nomeSupostoPai") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome do Suposto Pai</Label>
+                        <Input
+                          value={formData.nomeSupostoPai}
+                          onChange={(e) => handleChange("nomeSupostoPai", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                    )}
+                    {showFieldForType("nomeCrianca") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome da Criança</Label>
+                        <Input
+                          value={formData.nomeCrianca}
+                          onChange={(e) => handleChange("nomeCrianca", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                )}
+              )}
 
-                {/* Endereço */}
-                {(showFieldForType("endereco") || showFieldForType("comprovanteEndereco") || showFieldForType("declaracaoVizinhos")) && (
-                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">4</span>
-                            Endereço e Residência
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                         {showFieldForType("endereco") && (
-                            <div className="col-span-2 space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Endereço Completo</Label>
-                                <Input
-                                    value={formData.endereco}
-                                    onChange={(e) => handleChange("endereco", e.target.value)}
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                                    placeholder="Rua, número, bairro, cidade"
-                                />
-                            </div>
-                         )}
-                         {showFieldForType("comprovanteEndereco") && (
-                            <DocumentRow label="Comprovante de Endereço" field="comprovanteEndereco" docField="comprovanteEndereco" />
-                         )}
-                         {showFieldForType("declaracaoVizinhos") && (
-                            <DocumentRow label="Declaração dos Vizinhos" docField="declaracaoVizinhos" />
-                         )}
-                    </div>
-                </div>
-                )}
-
-                {/* Passaportes */}
-                {(showFieldForType("passaporteMae") || showFieldForType("passaportePaiRegistral") || showFieldForType("passaporteSupostoPai") || showFieldForType("passaportePai") || showFieldForType("passaporteCrianca")) && (
+              {/* Usucapião - Dono do Imóvel */}
+              {formData.type === "Usucapião" && (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">5</span>
-                            Passaportes
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                         {showFieldForType("passaporteMae") && (
-                            <DocumentRow label="Passaporte Mãe" docField="passaporteMae" />
-                         )}
-                         {showFieldForType("passaportePaiRegistral") && (
-                            <DocumentRow label="Passaporte Pai Registral" docField="passaportePaiRegistral" />
-                         )}
-                         {showFieldForType("passaporteSupostoPai") && (
-                            <DocumentRow label="Passaporte Suposto Pai" docField="passaporteSupostoPai" />
-                         )}
-                         {showFieldForType("passaportePai") && (
-                            <DocumentRow label="Passaporte Pai" docField="passaportePai" />
-                         )}
-                         {showFieldForType("passaporteCrianca") && (
-                            <DocumentRow label="Passaporte Criança" docField="passaporteCrianca" />
-                         )}
-                    </div>
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">1</span>
+                      Dono do Imóvel
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("ownerName") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Nome Completo</Label>
+                        <Input
+                          value={formData.ownerName}
+                          onChange={(e) => handleChange("ownerName", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                    )}
+                    {showFieldForType("ownerCpf") && (
+                      <DocumentRow label="CPF do Dono" field="ownerCpf" docField="ownerCpf" placeholder="000.000.000-00" />
+                    )}
+                    {showFieldForType("ownerRnm") && (
+                      <DocumentRow label="RNM do Dono" field="ownerRnm" docField="ownerRnm" placeholder="RNM / RNE / RG" />
+                    )}
+                  </div>
                 </div>
-                )}
+              )}
 
-                {/* Documentos Jurídicos e Processuais */}
-                {(showFieldForType("peticaoConjunta") || showFieldForType("termoPartilhas") || showFieldForType("guarda") || showFieldForType("procuracao") || showFieldForType("peticaoCliente") || showFieldForType("procuracaoCliente") || showFieldForType("custas") || showFieldForType("peticaoInicial") || showFieldForType("matriculaImovel") || showFieldForType("aguaLuzIptu") || showFieldForType("guiaPaga") || showFieldForType("camposExigencias")) && (
+              {/* Documentos de Identificação */}
+              {(showFieldForType("rnmMae") || showFieldForType("rnmPai") || showFieldForType("rnmSupostoPai") || showFieldForType("cpfMae") || showFieldForType("cpfPai") || showFieldForType("cpfSupostoPai")) && (
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                        <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">6</span>
-                            Documentos do Processo
-                        </h2>
-                    </div>
-                    <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                         {showFieldForType("peticaoConjunta") && (
-                            <DocumentRow label="Petição Conjunta" field="peticaoConjunta" docField="peticaoConjunta" />
-                         )}
-                         {showFieldForType("termoPartilhas") && (
-                            <DocumentRow label="Termo de Partilhas" field="termoPartilhas" docField="termoPartilhas" />
-                         )}
-                         {showFieldForType("guarda") && (
-                            <DocumentRow label="Guarda" field="guarda" docField="guarda" />
-                         )}
-                         {showFieldForType("procuracao") && (
-                            <DocumentRow label="Procuração" field="procuracao" docField="procuracao" />
-                         )}
-                         {showFieldForType("peticaoCliente") && (
-                            <DocumentRow label="Petição Cliente" field="peticaoCliente" docField="peticaoCliente" />
-                         )}
-                         {showFieldForType("procuracaoCliente") && (
-                            <DocumentRow label="Procuração Cliente" field="procuracaoCliente" docField="procuracaoCliente" />
-                         )}
-                         {showFieldForType("custas") && (
-                            <DocumentRow label="Custas" field="custas" docField="custas" />
-                         )}
-                         {showFieldForType("peticaoInicial") && (
-                            <DocumentRow label="Petição Inicial" field="peticaoInicial" docField="peticaoInicial" />
-                         )}
-                         {showFieldForType("matriculaImovel") && (
-                            <DocumentRow label="Matrícula do Imóvel" field="matriculaImovel" docField="matriculaImovel" />
-                         )}
-                         {showFieldForType("aguaLuzIptu") && (
-                            <DocumentRow label="Água / Luz / IPTU" field="aguaLuzIptu" docField="aguaLuzIptu" />
-                         )}
-                         {showFieldForType("iptu") && (
-                            <DocumentRow label="IPTU" field="iptu" docField="iptu" />
-                         )}
-                         {showFieldForType("contaAgua") && (
-                            <DocumentRow label="Conta de Água" field="contaAgua" docField="contaAgua" />
-                         )}
-                         {showFieldForType("contaLuz") && (
-                            <DocumentRow label="Conta de Luz" field="contaLuz" docField="contaLuz" />
-                         )}
-                         {showFieldForType("guiaPaga") && (
-                            <DocumentRow label="Guia Paga" field="guiaPaga" docField="guiaPaga" />
-                         )}
-                         {showFieldForType("camposExigencias") && (
-                             <div className="col-span-2 space-y-2">
-                                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Exigências</Label>
-                                <Textarea
-                                    value={formData.camposExigencias}
-                                    onChange={(e) => handleChange("camposExigencias", e.target.value)}
-                                    placeholder="Descreva as exigências"
-                                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm"
-                                    rows={3}
-                                />
-                                <DocumentRow label="Upload Exigências" docField="camposExigencias" />
-                            </div>
-                         )}
-                    </div>
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">2</span>
+                      Documentos de Identificação
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("rnmMae") && (
+                      <DocumentRow label="RNM / RG (Mãe/Parte 1)" field="rnmMae" docField="rnmMae" />
+                    )}
+                    {showFieldForType("rnmPai") && (
+                      <DocumentRow label="RNM / RG (Pai/Parte 2)" field="rnmPai" docField="rnmPai" />
+                    )}
+                    {showFieldForType("rnmSupostoPai") && (
+                      <DocumentRow label="RNM / RG (Suposto Pai)" field="rnmSupostoPai" docField="rnmSupostoPai" />
+                    )}
+                    {showFieldForType("cpfMae") && (
+                      <DocumentRow label="CPF (Mãe/Parte 1)" field="cpfMae" docField="cpfMae" />
+                    )}
+                    {showFieldForType("cpfPai") && (
+                      <DocumentRow label="CPF (Pai/Parte 2)" field="cpfPai" docField="cpfPai" />
+                    )}
+                    {showFieldForType("cpfSupostoPai") && (
+                      <div className="space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">CPF (Suposto Pai)</Label>
+                        <Input
+                          value={formData.cpfSupostoPai}
+                          onChange={(e) => handleChange("cpfSupostoPai", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                )}
+              )}
 
-              </div>
+              {/* Documentos da Criança */}
+              {showFieldForType("certidaoNascimento") && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">3</span>
+                      Documentos da Criança
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 gap-6">
+                    <DocumentRow
+                      label={formData.type.includes("Divórcio") ? "Certidão de Nascimento da Criança (se houver)" : "Certidão de Nascimento da Criança"}
+                      field="certidaoNascimento"
+                      docField="certidaoNascimento"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Endereço */}
+              {(showFieldForType("endereco") || showFieldForType("comprovanteEndereco") || showFieldForType("declaracaoVizinhos")) && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">4</span>
+                      Endereço e Residência
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("endereco") && (
+                      <div className="col-span-2 space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Endereço Completo</Label>
+                        <Input
+                          value={formData.endereco}
+                          onChange={(e) => handleChange("endereco", e.target.value)}
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
+                          placeholder="Rua, número, bairro, cidade"
+                        />
+                      </div>
+                    )}
+                    {showFieldForType("comprovanteEndereco") && (
+                      <DocumentRow label="Comprovante de Endereço" field="comprovanteEndereco" docField="comprovanteEndereco" />
+                    )}
+                    {showFieldForType("declaracaoVizinhos") && (
+                      <DocumentRow label="Declaração dos Vizinhos" docField="declaracaoVizinhos" />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Passaportes */}
+              {(showFieldForType("passaporteMae") || showFieldForType("passaportePaiRegistral") || showFieldForType("passaporteSupostoPai") || showFieldForType("passaportePai") || showFieldForType("passaporteCrianca")) && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">5</span>
+                      Passaportes
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("passaporteMae") && (
+                      <DocumentRow label="Passaporte Mãe" docField="passaporteMae" />
+                    )}
+                    {showFieldForType("passaportePaiRegistral") && (
+                      <DocumentRow label="Passaporte Pai Registral" docField="passaportePaiRegistral" />
+                    )}
+                    {showFieldForType("passaporteSupostoPai") && (
+                      <DocumentRow label="Passaporte Suposto Pai" docField="passaporteSupostoPai" />
+                    )}
+                    {showFieldForType("passaportePai") && (
+                      <DocumentRow label="Passaporte Pai" docField="passaportePai" />
+                    )}
+                    {showFieldForType("passaporteCrianca") && (
+                      <DocumentRow label="Passaporte Criança" docField="passaporteCrianca" />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Documentos Jurídicos e Processuais */}
+              {(showFieldForType("peticaoConjunta") || showFieldForType("termoPartilhas") || showFieldForType("guarda") || showFieldForType("procuracao") || showFieldForType("peticaoCliente") || showFieldForType("procuracaoCliente") || showFieldForType("custas") || showFieldForType("peticaoInicial") || showFieldForType("matriculaImovel") || showFieldForType("aguaLuzIptu") || showFieldForType("guiaPaga") || showFieldForType("camposExigencias")) && (
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">6</span>
+                      Documentos do Processo
+                    </h2>
+                  </div>
+                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                    {showFieldForType("peticaoConjunta") && (
+                      <DocumentRow label="Petição Conjunta" field="peticaoConjunta" docField="peticaoConjunta" />
+                    )}
+                    {showFieldForType("termoPartilhas") && (
+                      <DocumentRow label="Termo de Partilhas" field="termoPartilhas" docField="termoPartilhas" />
+                    )}
+                    {showFieldForType("guarda") && (
+                      <DocumentRow label="Guarda" field="guarda" docField="guarda" />
+                    )}
+                    {showFieldForType("procuracao") && (
+                      <DocumentRow label="Procuração" field="procuracao" docField="procuracao" />
+                    )}
+                    {showFieldForType("peticaoCliente") && (
+                      <DocumentRow label="Petição Cliente" field="peticaoCliente" docField="peticaoCliente" />
+                    )}
+                    {showFieldForType("procuracaoCliente") && (
+                      <DocumentRow label="Procuração Cliente" field="procuracaoCliente" docField="procuracaoCliente" />
+                    )}
+                    {showFieldForType("custas") && (
+                      <DocumentRow label="Custas" field="custas" docField="custas" />
+                    )}
+                    {showFieldForType("peticaoInicial") && (
+                      <DocumentRow label="Petição Inicial" field="peticaoInicial" docField="peticaoInicial" />
+                    )}
+                    {showFieldForType("matriculaImovel") && (
+                      <DocumentRow label="Matrícula do Imóvel" field="matriculaImovel" docField="matriculaImovel" />
+                    )}
+                    {showFieldForType("aguaLuzIptu") && (
+                      <DocumentRow label="Água / Luz / IPTU" field="aguaLuzIptu" docField="aguaLuzIptu" />
+                    )}
+                    {showFieldForType("iptu") && (
+                      <DocumentRow label="IPTU" field="iptu" docField="iptu" />
+                    )}
+                    {showFieldForType("contaAgua") && (
+                      <DocumentRow label="Conta de Água" field="contaAgua" docField="contaAgua" />
+                    )}
+                    {showFieldForType("contaLuz") && (
+                      <DocumentRow label="Conta de Luz" field="contaLuz" docField="contaLuz" />
+                    )}
+                    {showFieldForType("guiaPaga") && (
+                      <DocumentRow label="Guia Paga" field="guiaPaga" docField="guiaPaga" />
+                    )}
+                    {showFieldForType("camposExigencias") && (
+                      <div className="col-span-2 space-y-2">
+                        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Exigências</Label>
+                        <Textarea
+                          value={formData.camposExigencias}
+                          onChange={(e) => handleChange("camposExigencias", e.target.value)}
+                          placeholder="Descreva as exigências"
+                          className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm"
+                          rows={3}
+                        />
+                        <DocumentRow label="Upload Exigências" docField="camposExigencias" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
           )}
 
           {/* Observações */}
@@ -860,52 +926,52 @@ export default function NovaAcaoCivelPage() {
               </h2>
             </div>
             <div className="p-8 grid grid-cols-1 gap-6">
-               <div className="space-y-2">
-                  <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Observações</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => handleChange("notes", e.target.value)}
-                    rows={4}
-                    placeholder="Adicione observações sobre o caso..."
-                    className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Observações</Label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => handleChange("notes", e.target.value)}
+                  rows={4}
+                  placeholder="Adicione observações sobre o caso..."
+                  className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm"
+                />
+              </div>
             </div>
           </div>
 
           {/* Footer Buttons */}
           <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-200 dark:border-slate-700 mt-8">
             <Link href="/dashboard/acoes-civeis">
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
-                >
-                    Cancelar
-                </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="px-6 py-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors h-auto"
+              >
+                Cancelar
+              </Button>
             </Link>
             <Button
-                type="submit"
-                className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
-                disabled={loading}
+              type="submit"
+              className="px-8 py-3 rounded-md bg-slate-800 text-white font-semibold hover:bg-slate-900 shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 h-auto"
+              disabled={loading}
             >
-                <Save className="h-4 w-4" />
-                {loading ? "Salvando..." : "Criar Ação"}
+              <Save className="h-4 w-4" />
+              {loading ? "Salvando..." : "Criar Ação"}
             </Button>
           </div>
 
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <AlertDialogContent>
-                <AlertDialogHeader>
+              <AlertDialogHeader>
                 <AlertDialogTitle>Confirmar criação da ação</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Criar ação para <span className="font-semibold">{formData.clientName}</span> do tipo <span className="font-semibold">{formData.type || '—'}</span>?
+                  Criar ação para <span className="font-semibold">{formData.clientName}</span> do tipo <span className="font-semibold">{formData.type || '—'}</span>?
                 </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setConfirmOpen(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={() => { setConfirmOpen(false); doCreate(); }}>Confirmar</AlertDialogAction>
-                </AlertDialogFooter>
+              </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </form>

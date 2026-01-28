@@ -294,6 +294,25 @@ CREATE INDEX idx_documents_module_type ON documents(module_type);
 CREATE INDEX idx_documents_record_id ON documents(record_id);
 CREATE INDEX idx_documents_uploaded_at ON documents(uploaded_at DESC);
 
+CREATE TABLE pending_documents (
+  id BIGSERIAL PRIMARY KEY,
+  module_type VARCHAR(100) NOT NULL, -- 'vistos', 'turismo'
+  record_id BIGINT NOT NULL,
+  client_name VARCHAR(500) NOT NULL,
+  pending JSONB NOT NULL DEFAULT '[]'::jsonb,
+  missing_count INTEGER NOT NULL DEFAULT 0,
+  total_count INTEGER NOT NULL DEFAULT 0,
+  computed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (module_type, record_id)
+);
+
+CREATE INDEX idx_pending_documents_module_type ON pending_documents(module_type);
+CREATE INDEX idx_pending_documents_record_id ON pending_documents(record_id);
+CREATE INDEX idx_pending_documents_client_name ON pending_documents(client_name);
+CREATE INDEX idx_pending_documents_updated_at ON pending_documents(updated_at DESC);
+
 -- ========================================
 -- 9. TABELA DE ALERTAS E NOTIFICAÇÕES
 -- ========================================
@@ -345,6 +364,9 @@ CREATE TRIGGER update_perda_nacionalidade_updated_at BEFORE UPDATE ON perda_naci
 CREATE TRIGGER update_vistos_updated_at BEFORE UPDATE ON vistos
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_pending_documents_updated_at BEFORE UPDATE ON pending_documents
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ========================================
 -- 11. DADOS INICIAIS (SEED)
 -- ========================================
@@ -366,4 +388,5 @@ COMMENT ON TABLE compra_venda_imoveis IS 'Compra e Venda de Imóveis';
 COMMENT ON TABLE perda_nacionalidade IS 'Pedido de Perda de Nacionalidade Brasileira';
 COMMENT ON TABLE vistos IS 'Vistos - Turismo, Trabalho, Investidor';
 COMMENT ON TABLE documents IS 'Registro de arquivos anexados a processos';
+COMMENT ON TABLE pending_documents IS 'Documentos pendentes por processo, agrupados por fluxo/etapa';
 COMMENT ON TABLE alerts IS 'Sistema de alertas e notificações para equipe';

@@ -107,6 +107,7 @@ const DocumentRow = ({
             id={`upload-${docField}`}
             className="hidden"
             onChange={onUpload}
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
           />
           <Button
             type="button"
@@ -194,6 +195,8 @@ export default function NovoTurismoPage() {
     formularioConsuladoDoc: "",
     procurador: "",
     procuradorDoc: "",
+    documentosAdicionais: "",
+    documentosAdicionaisDoc: "",
   });
 
   const [travelRangeOpen, setTravelRangeOpen] = useState(false);
@@ -216,11 +219,7 @@ export default function NovoTurismoPage() {
     setLoading(true);
 
     try {
-      if (formData.procurador && !formData.procuradorDoc && !extraUploads.procuradorDoc?.length) {
-        alert("Por favor, anexe o documento do Procurador.");
-        setLoading(false);
-        return;
-      }
+
 
       // Use dedicated Turismo API
       const response = await fetch("/api/turismo", {
@@ -275,21 +274,70 @@ export default function NovoTurismoPage() {
     try {
       const uploadedUrls: string[] = [];
       for (const file of files) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
 
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formDataUpload,
-        });
+        // 4MB limit for direct server proxy
+        const isLargeFile = file.size > 4 * 1024 * 1024;
 
-        if (response.ok) {
-          const data = await response.json();
-          uploadedUrls.push(data.fileUrl);
+        if (isLargeFile) {
+          try {
+            console.log("Arquivo grande detectado, iniciando upload via URL assinada:", file.name);
+
+            // 1. Get Signed URL
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: file.name,
+                fileType: file.type,
+                moduleType: "vistos",
+                fieldName: field
+              })
+            });
+
+            if (!signRes.ok) {
+              const err = await signRes.json();
+              throw new Error(err.error || "Erro ao gerar assinatura de upload");
+            }
+
+            const signData = await signRes.json();
+
+            // 2. Upload directly to Supabase Storage
+            const uploadRes = await fetch(signData.signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: {
+                "Content-Type": file.type || "application/octet-stream"
+              }
+            });
+
+            if (!uploadRes.ok) {
+              throw new Error("Erro ao enviar arquivo para o armazenamento");
+            }
+
+            uploadedUrls.push(signData.publicUrl);
+
+          } catch (err) {
+            console.error("Large file upload error:", err);
+            alert("Erro ao enviar arquivo grande: " + (err as Error).message);
+          }
         } else {
-          const errorData = await response.json();
-          console.error("Upload error:", errorData);
-          alert(errorData.error || "Erro ao enviar documento");
+          // Standard Upload
+          const formDataUpload = new FormData();
+          formDataUpload.append("file", file);
+
+          const response = await fetch("/api/documents/upload", {
+            method: "POST",
+            body: formDataUpload,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            uploadedUrls.push(data.fileUrl);
+          } else {
+            const errorData = await response.json();
+            console.error("Upload error:", errorData);
+            alert(errorData.error || "Erro ao enviar documento");
+          }
         }
       }
 
@@ -353,7 +401,8 @@ export default function NovoTurismoPage() {
       "roteiroViagemDoc",
       "taxaDoc",
       "formularioConsuladoDoc",
-      "procuradorDoc"
+      "procuradorDoc",
+      "documentosAdicionaisDoc"
     ];
 
     const documentsToConvert: { fieldName: string; fileUrl: string }[] = [];
@@ -793,7 +842,6 @@ export default function NovoTurismoPage() {
                   isUploading={uploadingDocs.procuradorDoc}
                   onRemoveFile={(url) => handleRemoveFile("procuradorDoc", url)}
                   placeholder="Nome do Procurador"
-                  required={!!formData.procurador}
                 />
               </div>
             </div>
@@ -872,6 +920,18 @@ export default function NovoTurismoPage() {
                   onUpload={(e) => handleDocumentUpload(e, "formularioConsuladoDoc")}
                   isUploading={uploadingDocs.formularioConsuladoDoc}
                   onRemoveFile={(url) => handleRemoveFile("formularioConsuladoDoc", url)}
+                />
+                <DocumentRow
+                  label="Documentos Adicionais"
+                  value={formData.documentosAdicionais}
+                  onChange={(v) => handleChange("documentosAdicionais", v)}
+                  docField="documentosAdicionaisDoc"
+                  mainFile={formData.documentosAdicionaisDoc}
+                  extraFiles={extraUploads.documentosAdicionaisDoc}
+                  onUpload={(e) => handleDocumentUpload(e, "documentosAdicionaisDoc")}
+                  isUploading={uploadingDocs.documentosAdicionaisDoc}
+                  onRemoveFile={(url) => handleRemoveFile("documentosAdicionaisDoc", url)}
+                  placeholder="Selecione documentos adicionais"
                 />
               </div>
             </div>

@@ -36,15 +36,15 @@ export default function NovaAcaoCriminalPage() {
 
   useEffect(() => {
     const inputs = document.querySelectorAll('input[type="file"]');
-    inputs.forEach((el) => { try { el.setAttribute('multiple', ''); } catch {} });
+    inputs.forEach((el) => { try { el.setAttribute('multiple', ''); } catch { } });
   }, []);
 
   const validateFile = (file: File) => {
     // Lista expandida de tipos permitidos
     const validTypes = [
-      'application/pdf', 
-      'image/jpeg', 
-      'image/png', 
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
       'image/jpg',
       'application/msword', // .doc
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -66,7 +66,7 @@ export default function NovaAcaoCriminalPage() {
       toast.error(`Formato inválido: ${file.name}. Aceitos: PDF, Imagens, Office e Texto.`);
       return false;
     }
-    
+
     if (file.size > maxSize) {
       toast.error(`Arquivo muito grande: ${file.name}. Máximo 50MB.`);
       return false;
@@ -78,22 +78,92 @@ export default function NovaAcaoCriminalPage() {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length === 0) return;
     setUploadingDocs((prev) => ({ ...prev, [field]: true }));
+
     try {
       const uploadedUrls: string[] = [];
+      const MAX_DIRECT_SIZE = 4 * 1024 * 1024; // 4MB
+
       for (const file of files) {
         if (!validateFile(file)) continue;
 
-        const fd = new FormData();
-        fd.append("file", file);
-        const resp = await fetch("/api/documents/upload", { method: "POST", body: fd });
-        if (resp.ok) {
-          const data = await resp.json();
-          uploadedUrls.push(data.fileUrl);
+        let fileUrl = "";
+
+        // Standardize file name
+        const sanitizedFileName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const finalFile = new File([file], sanitizedFileName, { type: file.type });
+
+        if (file.size > MAX_DIRECT_SIZE) {
+          // Signed Upload (Temporary)
+          try {
+            const signRes = await fetch("/api/documents/upload/sign", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: sanitizedFileName,
+                fileType: file.type,
+                clientName: formData.clientName || "Novo Cliente",
+                moduleType: "acoes_criminais"
+              })
+            });
+
+            if (!signRes.ok) throw new Error("Falha ao gerar URL assinada");
+
+            const { signedUrl, publicUrl } = await signRes.json();
+
+            const uploadRes = await fetch(signedUrl, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type }
+            });
+
+            if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+            fileUrl = publicUrl;
+
+            // Register metadata (Register Only)
+            await fetch("/api/documents/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                isRegisterOnly: true,
+                fileUrl,
+                fileName: sanitizedFileName,
+                fileType: file.type,
+                fileSize: file.size,
+                fieldName: field,
+                moduleType: "acoes_criminais",
+                clientName: formData.clientName
+              })
+            });
+          } catch (err: any) {
+            console.error("Upload assinado falhou:", err);
+            toast.error(`Erro ao enviar ${file.name}: ${err.message}`);
+            continue;
+          }
         } else {
-          const err = await resp.json();
-          toast.error(err.error || "Erro ao enviar documento");
+          // Direct Upload
+          const fd = new FormData();
+          fd.append("file", finalFile);
+          fd.append("moduleType", "acoes_criminais");
+          if (formData.clientName) fd.append("clientName", formData.clientName);
+
+          const resp = await fetch("/api/documents/upload", { method: "POST", body: fd });
+          if (resp.ok) {
+            const data = await resp.json();
+            fileUrl = data.fileUrl;
+          } else {
+            const err = await resp.json();
+            toast.error(err.error || "Erro ao enviar documento");
+            continue;
+          }
+        }
+
+        if (fileUrl) {
+          uploadedUrls.push(fileUrl);
+          toast.success(`${file.name} enviado com sucesso!`);
         }
       }
+
       if (uploadedUrls.length) {
         const currentPrimary = (formData as any)[field] as string | undefined;
         if (!currentPrimary) {
@@ -107,7 +177,7 @@ export default function NovaAcaoCriminalPage() {
     } catch {
       toast.error("Erro ao enviar documento");
     }
-    finally { 
+    finally {
       setUploadingDocs((prev) => ({ ...prev, [field]: false }));
       // Limpar o input
       e.target.value = "";
@@ -137,7 +207,7 @@ export default function NovaAcaoCriminalPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ caseId, moduleType: "acoes_criminais", clientName: formData.clientName, documents: documentsToConvert }),
         });
-      } catch {}
+      } catch { }
     }
   };
 
@@ -146,7 +216,7 @@ export default function NovaAcaoCriminalPage() {
       toast.error("O nome do cliente é obrigatório");
       return;
     }
-    
+
     setSaving(true);
     const notesBlock = `\n[Dados Iniciais]\n- Réu: ${formData.reuName}\n- Número do processo: ${formData.numeroProcesso}\n- Responsável: ${formData.responsavelName}\n- Data: ${formData.responsavelDate}\n- Contratado: ${formData.contratado}\n- Resumo: ${formData.resumo}\n- Acompanhamento: ${formData.acompanhamento}\n`;
     const status = formData.finalizado ? "Finalizado" : "Em andamento";
@@ -186,9 +256,9 @@ export default function NovaAcaoCriminalPage() {
     } catch (error) {
       console.error("Erro ao salvar:", error);
       if (error instanceof Error && error.name === 'AbortError') {
-         toast.error("A conexão foi interrompida. Verifique sua internet.");
+        toast.error("A conexão foi interrompida. Verifique sua internet.");
       } else {
-         toast.error("Erro ao conectar com o servidor");
+        toast.error("Erro ao conectar com o servidor");
       }
     } finally {
       setSaving(false);
@@ -214,7 +284,7 @@ export default function NovaAcaoCriminalPage() {
             <Input value={field ? (formData[field as keyof typeof formData] as string) : ""} onChange={(e) => field && handleChange(field as any, e.target.value)} className="flex-1 rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5" placeholder={placeholder} />
           )}
           <div className="relative">
-            <input type="file" id={`upload-${docField}`} className="hidden" onChange={(e) => handleDocumentUpload(e, docField)} />
+            <input type="file" id={`upload-${docField}`} className="hidden" onChange={(e) => handleDocumentUpload(e, docField)} accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf" />
             <Button type="button" className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-medium text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors whitespace-nowrap shadow-sm" onClick={() => document.getElementById(`upload-${docField}`)?.click()} disabled={uploadingDocs[docField]}>
               <Upload className="h-5 w-5 text-slate-500" />
               {uploadingDocs[docField] ? "Enviando..." : "Upload"}

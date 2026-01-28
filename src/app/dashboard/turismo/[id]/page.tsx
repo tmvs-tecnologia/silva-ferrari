@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { documentDeleteButtonClassName, documentGridClassName, documentIconClassName, documentLinkClassName, documentNameClassName, documentTileClassName } from "@/components/ui/document-style";
 import {
-  ArrowLeft, 
-  Save, 
-  Trash2, 
-  FileText, 
+  ArrowLeft,
+  Save,
+  Trash2,
+  FileText,
   Upload,
   Calendar,
   User,
@@ -138,17 +138,17 @@ const SectionHeader = ({
         </Button>
       ) : (
         <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            onClick={onCancel} 
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCancel}
             className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 min-h-[44px] md:min-h-9"
           >
             Cancelar
           </Button>
-          <Button 
-            size="sm" 
-            onClick={onSave} 
+          <Button
+            size="sm"
+            onClick={onSave}
             className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] md:min-h-9"
           >
             Concluir
@@ -239,6 +239,7 @@ const DocumentRow = ({
               id={`upload-${docField}`}
               className="hidden"
               multiple
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
               onChange={(e) => {
                 const files = e.target.files;
                 if (files && files.length > 0) {
@@ -301,7 +302,7 @@ export default function TurismoDetailsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [isEditingDocuments, setIsEditingDocuments] = useState(false);
   const [isPendingDocsOpen, setIsPendingDocsOpen] = useState(false);
-  
+
   // Estados para dados específicos de cada etapa
   const [stepData, setStepData] = useState<{ [key: number]: any }>({});
 
@@ -314,7 +315,7 @@ export default function TurismoDetailsPage() {
   const [assignDue, setAssignDue] = useState<string>("");
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
-  
+
   // Estados adicionados para correção de erro ReferenceError
   const [showResponsibleModal, setShowResponsibleModal] = useState(false);
   const [pendingNote, setPendingNote] = useState<{ stepId: number; text: string } | null>(null);
@@ -340,7 +341,7 @@ export default function TurismoDetailsPage() {
     } catch { return [] as any; }
   };
   const notesArray = parseNotesArray(visto?.notes);
-  
+
   const deleteNote = async (noteId: string) => {
     const next = (notesArray || []).filter((n) => n.id !== noteId);
     try {
@@ -425,7 +426,7 @@ export default function TurismoDetailsPage() {
       if (res.ok) {
         const record = await res.json();
         setVisto(record);
-        
+
         const steps: StepData[] = TURISMO_WORKFLOW.map((title: string, index: number) => ({
           id: index,
           title,
@@ -433,10 +434,10 @@ export default function TurismoDetailsPage() {
           completed: false,
           notes: "",
         }));
-        
+
         const recordCurrentStep = Number(record.currentStep ?? 0);
         const initialCurrentStep = recordCurrentStep < 1 ? 1 : recordCurrentStep;
-        
+
         const completedFromServer = (() => {
           const v = (record.completedSteps ?? []) as any;
           if (Array.isArray(v)) return v as number[];
@@ -456,7 +457,7 @@ export default function TurismoDetailsPage() {
 
         let contiguousIndex = 0;
         while (contiguousIndex < steps.length && steps[contiguousIndex].completed) contiguousIndex++;
-        
+
         const data: CaseData = {
           id: String(record.id),
           title: `Visto ${record.id}`,
@@ -471,7 +472,7 @@ export default function TurismoDetailsPage() {
         };
         setCaseData(data);
         setStatus(data.status);
-        
+
         if (recordCurrentStep < 1) {
           try {
             await fetch(`/api/turismo?id=${params.id}`, {
@@ -479,7 +480,7 @@ export default function TurismoDetailsPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ currentStep: 1 })
             });
-          } catch {}
+          } catch { }
         }
 
         const initialNotes: { [key: number]: string } = {};
@@ -496,6 +497,11 @@ export default function TurismoDetailsPage() {
           });
         }
         setNotes(initialNotes);
+
+        // Initialize stepData from server (dataAgendamento, horarioAgendamento, etc.)
+        if (record.stepData && typeof record.stepData === 'object') {
+          setStepData(record.stepData);
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar dados do caso:", error);
@@ -575,18 +581,69 @@ export default function TurismoDetailsPage() {
         }
       };
       for (const file of arr) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('caseId', String(params.id));
-        fd.append('moduleType', 'vistos');
-        fd.append('fieldName', 'documentoAnexado');
-        fd.append('clientName', caseData?.clientName || 'Cliente');
-        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
-        const payload = await res.json();
-        const newDoc = payload?.document;
-        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
-        toast.success(`Upload concluído: ${file.name}`);
+        const isLargeFile = file.size > 4 * 1024 * 1024;
+
+        if (isLargeFile) {
+          console.log("Arquivo grande detectado (Generic), iniciando upload via URL assinada:", file.name);
+
+          // 1. Get Signed URL
+          const signRes = await fetch('/api/documents/upload/sign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              caseId: params.id,
+              moduleType: 'vistos',
+              fieldName: 'documentoAnexado',
+              clientName: caseData?.clientName
+            })
+          });
+          if (!signRes.ok) throw new Error(await getErrorMessage(signRes, 'Erro ao assinar upload'));
+          const signData = await signRes.json();
+
+          // 2. Upload
+          const upRes = await fetch(signData.signedUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type || 'application/octet-stream' }
+          });
+          if (!upRes.ok) throw new Error('Erro no upload para storage');
+
+          // 3. Register
+          const regRes = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              caseId: params.id,
+              moduleType: 'vistos',
+              fieldName: 'documentoAnexado',
+              clientName: caseData?.clientName,
+              fileUrl: signData.publicUrl,
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size
+            })
+          });
+          if (!regRes.ok) throw new Error(await getErrorMessage(regRes, 'Erro ao registrar documento'));
+          const payload = await regRes.json();
+          const newDoc = payload?.document;
+          if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+          toast.success(`Upload concluído: ${file.name}`);
+        } else {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('caseId', String(params.id));
+          fd.append('moduleType', 'vistos');
+          fd.append('fieldName', 'documentoAnexado');
+          fd.append('clientName', caseData?.clientName || 'Cliente');
+          const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+          if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+          const payload = await res.json();
+          const newDoc = payload?.document;
+          if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+          toast.success(`Upload concluído: ${file.name}`);
+        }
       }
       await fetchDocuments();
     } catch (error) {
@@ -609,20 +666,73 @@ export default function TurismoDetailsPage() {
           return fallback;
         }
       };
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('caseId', String(params.id));
-      fd.append('moduleType', 'vistos');
-      fd.append('fieldName', fieldKey);
-      fd.append('clientName', caseData?.clientName || 'Cliente');
-      const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
-      const payload = await res.json();
-      const newDoc = payload?.document;
-      if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+
+      const isLargeFile = file.size > 4 * 1024 * 1024;
+
+      if (isLargeFile) {
+        console.log("Arquivo grande detectado (Specific), iniciando upload via URL assinada:", file.name);
+
+        // 1. Get Signed URL
+        const signRes = await fetch('/api/documents/upload/sign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            caseId: params.id,
+            moduleType: 'vistos',
+            fieldName: fieldKey,
+            clientName: caseData?.clientName
+          })
+        });
+        if (!signRes.ok) throw new Error(await getErrorMessage(signRes, 'Erro ao assinar upload'));
+        const signData = await signRes.json();
+
+        // 2. Upload
+        const upRes = await fetch(signData.signedUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' }
+        });
+        if (!upRes.ok) throw new Error('Erro no upload para storage');
+
+        // 3. Register
+        const regRes = await fetch('/api/documents/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            caseId: params.id,
+            moduleType: 'vistos',
+            fieldName: fieldKey,
+            clientName: caseData?.clientName,
+            fileUrl: signData.publicUrl,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size
+          })
+        });
+        if (!regRes.ok) throw new Error(await getErrorMessage(regRes, 'Erro ao registrar documento'));
+        const payload = await regRes.json();
+        const newDoc = payload?.document;
+        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+        toast.success(`Upload concluído: ${file.name}`);
+      } else {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('caseId', String(params.id));
+        fd.append('moduleType', 'vistos');
+        fd.append('fieldName', fieldKey);
+        fd.append('clientName', caseData?.clientName || 'Cliente');
+        const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(await getErrorMessage(res, 'Erro ao fazer upload do documento'));
+        const payload = await res.json();
+        const newDoc = payload?.document;
+        if (newDoc) setDocuments(prev => [newDoc, ...prev]);
+        toast.success(`Upload concluído: ${file.name}`);
+      }
+
       await fetchDocuments();
       setFileUploads(prev => ({ ...prev, [uploadKey]: null }));
-      toast.success(`Upload concluído: ${file.name}`);
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
       toast.error(error instanceof Error ? error.message : "Erro ao realizar upload.");
@@ -658,6 +768,7 @@ export default function TurismoDetailsPage() {
           id={inputId}
           className="hidden"
           multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt,.rtf"
           onChange={(e) => {
             const list = Array.from(e.target.files || []);
             list.forEach((f) => onSelect(f));
@@ -706,7 +817,7 @@ export default function TurismoDetailsPage() {
         }
       });
       const completedStepsArr = updatedSteps.filter(s => s.completed).map(s => s.id);
-      const newCurrent = isCurrentlyCompleted 
+      const newCurrent = isCurrentlyCompleted
         ? Math.min(stepId, updatedSteps.length - 1)
         : Math.min(stepId + 1, updatedSteps.length - 1);
       (async () => {
@@ -723,7 +834,7 @@ export default function TurismoDetailsPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ moduleType: 'vistos', recordId: params.id as string, currentIndex: newCurrent })
             });
-          } catch {}
+          } catch { }
         } catch (e) {
           console.error('Erro ao persistir currentStep:', e);
         }
@@ -796,10 +907,10 @@ export default function TurismoDetailsPage() {
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
-    
+
     const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
-    
+
     const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/turismo?id=${params.id}`, {
@@ -871,7 +982,7 @@ export default function TurismoDetailsPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ moduleType: "Vistos", recordId: params.id as string, alertFor: "admin", message, isRead: false })
           });
-        } catch {}
+        } catch { }
         return true;
       } else {
         return false;
@@ -1056,6 +1167,7 @@ export default function TurismoDetailsPage() {
               {renderRow(stepId, "Roteiro de Viagem", "roteiroViagem", "roteiroViagemDoc")}
               {renderRow(stepId, "Taxa Consular", "taxa", "taxaDoc")}
               {renderRow(stepId, "Formulário do Consulado", "formularioConsulado", "formularioConsuladoDoc")}
+              {renderRow(stepId, "Documentos Adicionais", "documentosAdicionais", "documentosAdicionaisDoc", "Adicione quantos documentos quiser", false)}
             </div>
           </div>
         </div>
@@ -1468,7 +1580,7 @@ export default function TurismoDetailsPage() {
           <Skeleton className="h-10 w-10" />
           <Skeleton className="h-8 w-64" />
         </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 space-y-4">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-32 w-full" />
@@ -1545,6 +1657,7 @@ export default function TurismoDetailsPage() {
         { key: "roteiroViagemDoc", label: "Roteiro de Viagem" },
         { key: "taxaDoc", label: "Taxa Consular" },
         { key: "formularioConsuladoDoc", label: "Formulário do Consulado" },
+        { key: "documentosAdicionaisDoc", label: "Documentos Adicionais" },
       ]
     },
     {
@@ -1675,39 +1788,39 @@ export default function TurismoDetailsPage() {
                       {showConnector ? (
                         <div className={`absolute left-6 top-8 bottom-0 w-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
                       ) : null}
-                        <div className="flex-shrink-0 mr-4">
-                          {isCompleted ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Desfazer conclusão"
-                              title="Desfazer conclusão"
-                            >
-                              <CheckCircle className="w-6 h-6 text-green-600" />
-                            </div>
-                          ) : isCurrent ? (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Marcar como concluído"
-                              title="Marcar como concluído"
-                            >
-                              <div className="h-4 w-4 rounded-full bg-blue-500" />
-                            </div>
-                          ) : (
-                            <div
-                              className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
-                              onClick={() => handleStepCompletion(step.id)}
-                              role="button"
-                              aria-label="Marcar como concluído"
-                              title="Marcar como concluído"
-                            >
-                              <Circle className="w-6 h-6 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex-shrink-0 mr-4">
+                        {isCompleted ? (
+                          <div
+                            className="h-12 w-12 rounded-full bg-green-100 border-2 border-green-500 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Desfazer conclusão"
+                            title="Desfazer conclusão"
+                          >
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          </div>
+                        ) : isCurrent ? (
+                          <div
+                            className="h-12 w-12 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center z-10 shadow-md cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Marcar como concluído"
+                            title="Marcar como concluído"
+                          >
+                            <div className="h-4 w-4 rounded-full bg-blue-500" />
+                          </div>
+                        ) : (
+                          <div
+                            className="h-12 w-12 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center z-10 cursor-pointer hover:scale-105 transition"
+                            onClick={() => handleStepCompletion(step.id)}
+                            role="button"
+                            aria-label="Marcar como concluído"
+                            title="Marcar como concluído"
+                          >
+                            <Circle className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
                       <div className={`flex-grow pt-2 ${isCurrent ? 'p-4 bg-blue-50 rounded-lg border border-blue-100' : isCompleted ? '' : 'opacity-60'}`}>
                         <div className="flex justify-between items-start">
                           <div>
@@ -1729,7 +1842,7 @@ export default function TurismoDetailsPage() {
                             ) : null}
                           </div>
                           <div className="flex items-center gap-2">
-                          <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
+                            <Popover open={assignOpenStep === step.id} onOpenChange={(open) => setAssignOpenStep(open ? step.id : null)}>
                               <PopoverTrigger asChild>
                                 <button className="text-xs text-gray-600 border border-gray-300 rounded px-3 py-1 bg-white">Definir Responsável</button>
                               </PopoverTrigger>
@@ -1760,7 +1873,7 @@ export default function TurismoDetailsPage() {
                                     <div className="rounded-md border p-2 overflow-hidden">
                                       <CalendarPicker
                                         mode="single"
-                                        selected={assignDue ? (() => { const p = assignDue.split('-').map((v)=>parseInt(v,10)); return new Date(p[0], (p[1]||1)-1, p[2]||1); })() : undefined}
+                                        selected={assignDue ? (() => { const p = assignDue.split('-').map((v) => parseInt(v, 10)); return new Date(p[0], (p[1] || 1) - 1, p[2] || 1); })() : undefined}
                                         onSelect={(date) => {
                                           if (!date) { setAssignDue(''); return; }
                                           const y = date.getFullYear();
@@ -1897,8 +2010,8 @@ export default function TurismoDetailsPage() {
 
               <div className="grid grid-cols-1 gap-4">
                 <div className={`border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center ${uploadingFiles['general'] ? 'opacity-50 pointer-events-none' : ''} hover:bg-gray-50`}
-                     onDragOver={(e) => { e.preventDefault(); }}
-                     onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDrop={(e) => { e.preventDefault(); const files = Array.from(e.dataTransfer.files); handleFileUpload(files as any); }}>
                   <div className="p-3 bg-blue-50 rounded-full mb-3">
                     <Upload className="h-6 w-6 text-blue-500" />
                   </div>
@@ -1957,141 +2070,134 @@ export default function TurismoDetailsPage() {
 
         <div className="flex flex-col gap-6 lg:gap-8 lg:flex-[1] min-w-0">
           <div className="flex flex-col min-h-[560px] space-y-4">
-          <StatusPanel
-            status={status}
-            onStatusChange={handleStatusChange}
-            currentStep={currentStepIndex + 1}
-            totalSteps={caseData.steps.length}
-            currentStepTitle={caseData.steps[currentStepIndex]?.title}
-            createdAt={caseData.createdAt}
-            updatedAt={caseData.updatedAt}
-          />
+            <StatusPanel
+              status={status}
+              onStatusChange={handleStatusChange}
+              currentStep={currentStepIndex + 1}
+              totalSteps={caseData.steps.length}
+              currentStepTitle={caseData.steps[currentStepIndex]?.title}
+              createdAt={caseData.createdAt}
+              updatedAt={caseData.updatedAt}
+            />
 
-          <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="flex items-center w-full justify-between">
-                <span className="flex items-center">
-                  Observações
-                </span>
-                <button
-                  type="button"
-                  className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
-                  onClick={() => setShowNotesModal(true)}
-                  title="Ver todas as notas"
-                >
-                  <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
-                </button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-[400px]">
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-h-[400px] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-                {notesArray.length > 0 ? (
-                  [...notesArray].reverse().map((n) => {
-                    const d = new Date(n.timestamp);
-                    const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    const name = String(n.authorName || '').trim();
-                    const showName = !!name && name.toLowerCase() !== 'equipe';
-                    
-                    return (
-                      <div key={n.id} className="group relative bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
-                            {formatted}
-                            {showName && (
-                              <>
-                                <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                <span className="text-slate-600 dark:text-slate-400">{name}</span>
-                              </>
-                            )}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.preventDefault(); deleteNote(n.id); }}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all text-slate-400"
-                            title="Excluir nota"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+            <Card className="rounded-xl border-gray-200 shadow-sm flex-1 flex flex-col">
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center w-full justify-between">
+                  <span className="flex items-center">
+                    Observações
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-md border px-2 py-1 text-xs bg-white hover:bg-slate-100"
+                    onClick={() => setShowNotesModal(true)}
+                    title="Ver todas as notas"
+                  >
+                    <img src="https://cdn-icons-png.flaticon.com/512/889/889648.png" alt="Notas" className="h-4 w-4" />
+                  </button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col min-h-[400px]">
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 max-h-[400px] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
+                  {notesArray.length > 0 ? (
+                    [...notesArray].reverse().map((n) => {
+                      const d = new Date(n.timestamp);
+                      const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                      const name = String(n.authorName || '').trim();
+                      const showName = !!name && name.toLowerCase() !== 'equipe';
+
+                      return (
+                        <div key={n.id} className="group relative bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                              {formatted}
+                              {showName && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span className="text-slate-600 dark:text-slate-400">{name}</span>
+                                </>
+                              )}
+                            </span>
+
+                          </div>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>
-                        <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full py-8 text-center space-y-2">
+                      <div className="p-3 bg-slate-50 rounded-full">
+                        <FileText className="h-6 w-6 text-slate-300" />
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full py-8 text-center space-y-2">
-                    <div className="p-3 bg-slate-50 rounded-full">
-                      <FileText className="h-6 w-6 text-slate-300" />
+                      <p className="text-sm text-slate-500">Nenhuma observação registrada.</p>
+                      <p className="text-xs text-slate-400">Utilize o campo abaixo para adicionar.</p>
                     </div>
-                    <p className="text-sm text-slate-500">Nenhuma observação registrada.</p>
-                    <p className="text-xs text-slate-400">Utilize o campo abaixo para adicionar.</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
-                <div className="relative">
-                  <Textarea 
-                    rows={3} 
-                    placeholder="Adicione uma nova observação..." 
-                    value={notes[0] || ''} 
-                    onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))} 
-                    className="w-full resize-none pr-12 min-h-[80px]" 
-                  />
-                  <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                    {saveMessages[0] && (
-                      <span className="text-green-600 text-xs font-medium animate-in fade-in slide-in-from-right-2 bg-white/80 px-2 py-1 rounded">
-                        Salvo!
-                      </span>
-                    )}
-                    <Button 
-                      size="sm"
-                      className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm" 
-                      onClick={() => saveStepNotes(0)}
-                      disabled={!notes[0]?.trim()}
-                      title="Salvar observação"
-                    >
-                      <Save className="h-4 w-4" />
-                    </Button>
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+                  <div className="relative">
+                    <Textarea
+                      rows={3}
+                      placeholder="Adicione uma nova observação..."
+                      value={notes[0] || ''}
+                      onChange={(e) => setNotes(prev => ({ ...prev, 0: e.target.value }))}
+                      className="w-full resize-none pr-12 min-h-[80px]"
+                    />
+                    <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                      {saveMessages[0] && (
+                        <span className="text-green-600 text-xs font-medium animate-in fade-in slide-in-from-right-2 bg-white/80 px-2 py-1 rounded">
+                          Salvo!
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full bg-slate-900 text-white hover:bg-slate-800 shadow-sm"
+                        onClick={() => saveStepNotes(0)}
+                        disabled={!notes[0]?.trim()}
+                        title="Salvar observação"
+                      >
+                        <Save className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           </div>
 
           <div>
-          <Card className="rounded-xl border-gray-200 shadow-sm h-full">
-            <CardHeader>
-              <CardTitle>Responsáveis</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col justify-between h-full">
-              <div className="space-y-4">
-                {(() => {
-                  const items = Object.entries(assignments)
-                    .filter(([_, v]) => v?.responsibleName)
-                    .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase() }));
-                  return items.map((m) => (
-                    <div key={m.key} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
-                          alt={m.name}
-                          className="h-8 w-8 rounded-full border border-gray-200 object-cover"
-                        />
-                        <div>
-                          <p className="font-medium text-sm">{m.name}</p>
-                          <p className="text-xs text-gray-500">{m.role || ''}</p>
+            <Card className="rounded-xl border-gray-200 shadow-sm h-full">
+              <CardHeader>
+                <CardTitle>Responsáveis</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col justify-between h-full">
+                <div className="space-y-4">
+                  {(() => {
+                    const items = Object.entries(assignments)
+                      .filter(([_, v]) => v?.responsibleName)
+                      .map(([k, v]) => ({ key: k, name: v?.responsibleName as string, role: '', initials: String(v?.responsibleName || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() }));
+                    return items.map((m) => (
+                      <div key={m.key} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
+                            alt={m.name}
+                            className="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                          />
+                          <div>
+                            <p className="font-medium text-sm">{m.name}</p>
+                            <p className="text-xs text-gray-500">{m.role || ''}</p>
+                          </div>
                         </div>
+                        <Button variant="ghost" size="icon">
+                          <Mail className="w-5 h-5 text-gray-500" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon">
-                        <Mail className="w-5 h-5 text-gray-500" />
-                      </Button>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </CardContent>
-          </Card>
+                    ));
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -2102,7 +2208,7 @@ export default function TurismoDetailsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"? 
+              Tem certeza que deseja excluir o documento "{documentToDelete?.name}"?
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -2236,15 +2342,7 @@ export default function TurismoDetailsPage() {
                 const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 return (
                   <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
-                    <button
-                      type="button"
-                      aria-label="Excluir"
-                      title="Excluir"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
-                    >
-                      <X className="h-3 w-3 text-gray-600" />
-                    </button>
+
                     <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
                       {(() => {
                         const name = String(n.authorName || '').trim();
@@ -2315,8 +2413,8 @@ export default function TurismoDetailsPage() {
                       onClick={() => setNoteResponsible(name)}
                       className={`
                         group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
-                        ${isSelected 
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 scale-[1.02]' 
+                        ${isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 scale-[1.02]'
                           : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}
                       `}
                     >
@@ -2330,16 +2428,16 @@ export default function TurismoDetailsPage() {
           </div>
 
           <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => setShowResponsibleModal(false)}
               className="h-10 px-4 text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-lg"
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              onClick={confirmSaveNote} 
+            <Button
+              type="submit"
+              onClick={confirmSaveNote}
               disabled={!noteResponsible.trim()}
               className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-lg shadow-lg shadow-slate-900/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >

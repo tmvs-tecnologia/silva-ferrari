@@ -56,7 +56,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function TurismoPage() {
   const normalizeStatus = (status: string) => (status || "").toLowerCase();
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
 
@@ -110,7 +110,7 @@ export default function TurismoPage() {
         setDatePopoverFor(null);
         setDateRangeEdit({});
       }
-    } catch {}
+    } catch { }
   };
 
   const filteredVistos = vistos.filter((v) => {
@@ -131,11 +131,8 @@ export default function TurismoPage() {
   const { data: foldersData } = useDataCache(
     "folders_turismo",
     async () => {
-      // Reuse existing folders API but filter by moduleType if possible, 
-      // or we just use 'vistos' type since underlying data is the same.
-      // Ideally we would want separate folders for Turismo, but if we reuse 'vistos' type in DB, 
-      // we might see all folders. For now let's reuse 'vistos' type query.
-      const res = await fetch("/api/folders?moduleType=vistos");
+      // Fetch folders specific to the turismo module
+      const res = await fetch("/api/folders?moduleType=turismo");
       return res.json();
     }
   );
@@ -177,7 +174,7 @@ export default function TurismoPage() {
                 const serverCurrent = Number(caseJson.currentStep ?? caseJson.current_step ?? currentIdx ?? 0);
                 if (!Number.isNaN(serverCurrent)) currentIdx = serverCurrent;
               }
-            } catch {}
+            } catch { }
             const currentAssignment = arr.find((a: any) => a.stepIndex === currentIdx) || null;
             return [id, { responsibleName: currentAssignment?.responsibleName, dueDate: currentAssignment?.dueDate, currentIndex: currentIdx }] as const;
           } catch {
@@ -194,14 +191,14 @@ export default function TurismoPage() {
         const prevKeys = Object.keys(prev).sort().join(",");
         const nextKeys = Object.keys(map).sort().join(",");
         if (prevKeys === nextKeys) {
-            // Deep check values if keys match
-            let changed = false;
-            for(const k of Object.keys(map)) {
-                if(JSON.stringify(prev[k]) !== JSON.stringify(map[k])) {
-                    changed = true; break;
-                }
+          // Deep check values if keys match
+          let changed = false;
+          for (const k of Object.keys(map)) {
+            if (JSON.stringify(prev[k]) !== JSON.stringify(map[k])) {
+              changed = true; break;
             }
-            if(!changed) return prev;
+          }
+          if (!changed) return prev;
         }
         return map;
       });
@@ -351,7 +348,7 @@ export default function TurismoPage() {
                 className="pl-9 border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500"
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
                 <SelectValue placeholder="Status" />
@@ -363,7 +360,7 @@ export default function TurismoPage() {
               </SelectContent>
             </Select>
             <div className="flex items-center gap-2">
-              <Link href="/dashboard/vistos/pastas" className="w-fit">
+              <Link href="/dashboard/turismo/pastas" className="w-fit">
                 <Button variant="outline" className="border-slate-300 dark:border-slate-600 w-fit px-3 focus:border-amber-500 focus:ring-amber-500">
                   Pastas
                 </Button>
@@ -445,17 +442,17 @@ export default function TurismoPage() {
           </Card>
         ) : (
           filteredVistos.map((visto) => (
-            <Card 
-              key={visto.id} 
+            <Card
+              key={visto.id}
               className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
             >
               <CardContent className="pt-6">
                 <div className="absolute top-2 right-2 flex items-center gap-2">
-                  <OptimizedLink 
+                  <OptimizedLink
                     href={`/dashboard/turismo/${visto.id}`}
                     prefetchData={() => prefetchVistoById(visto.id)}
                   >
-                    <Button 
+                    <Button
                       size="sm"
                       className="h-8 w-8 p-0 bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md"
                     >
@@ -499,10 +496,10 @@ export default function TurismoPage() {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                           {visto.clientName}
                         </h3>
-                          <Badge className={`${getStatusColor(visto.status)} flex items-center gap-1.5 px-3 py-1 shadow-md`}>
+                        <Badge className={`${getStatusColor(visto.status)} flex items-center gap-1.5 px-3 py-1 shadow-md`}>
                           {getStatusIcon(visto.status)}
                           {normalizeStatus(visto.status) === "em andamento" ? "Em andamento" : "Finalizado"}
-                          </Badge>
+                        </Badge>
                       </div>
 
                       <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">

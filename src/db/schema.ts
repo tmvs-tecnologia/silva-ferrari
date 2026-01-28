@@ -292,6 +292,19 @@ export const documents = pgTable('documents', {
   uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
 });
 
+export const pendingDocuments = pgTable('pending_documents', {
+  id: serial('id').primaryKey(),
+  moduleType: text('module_type').notNull(),
+  recordId: integer('record_id').notNull(),
+  clientName: text('client_name').notNull(),
+  pending: text('pending', { mode: 'json' }).notNull(),
+  missingCount: integer('missing_count').notNull().default(0),
+  totalCount: integer('total_count').notNull().default(0),
+  computedAt: timestamp('computed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Alerts table
 export const alerts = pgTable('alerts', {
   id: serial('id').primaryKey(),
