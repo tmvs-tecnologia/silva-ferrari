@@ -60,7 +60,10 @@ export default function VistosPage() {
   const { data: vistosData, isLoading, error, refetch } = useDataCache(
     "vistos",
     async () => {
-      const response = await fetch("/api/vistos?limit=100");
+      async () => {
+        const response = await fetch("/api/vistos?limit=100&select=id,client_name,type,status,created_at,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data");
+        return response.json();
+      }
       return response.json();
     }
   );
@@ -101,7 +104,7 @@ export default function VistosPage() {
         setDatePopoverFor(null);
         setDateRangeEdit({});
       }
-    } catch {}
+    } catch { }
   };
   useEffect(() => {
     // Prefetch disponível para navegação futura
@@ -144,59 +147,26 @@ export default function VistosPage() {
   useEffect(() => {
     if (!vistosIdsKey) { setVistosAssignments({}); return; }
     const loadAssignments = async () => {
-      const entries = await Promise.all(
-        vistos.map(async (v: any) => {
-          const id = String(v.id);
-          try {
-            const res = await fetch(`/api/step-assignments?moduleType=vistos&recordId=${id}`);
-            if (!res.ok) return [id, null] as const;
-            const data = await res.json();
-            const arr = Array.isArray(data) ? data : [data];
-            let currentIdx = 0;
-            if (arr.length) {
-              const pending = arr.filter((a: any) => !a.isDone);
-              if (pending.length) {
-                currentIdx = Math.min(...pending.map((a: any) => (a.stepIndex ?? 0)));
-              } else {
-                currentIdx = Math.max(...arr.map((a: any) => (a.stepIndex ?? 0)));
-              }
-            }
-            // Buscar currentStep real do registro para sincronizar com o fluxo
-            try {
-              const caseRes = await fetch(`/api/vistos?id=${id}`);
-              if (caseRes.ok) {
-                const caseJson = await caseRes.json();
-                const serverCurrent = Number(caseJson.currentStep ?? caseJson.current_step ?? currentIdx ?? 0);
-                if (!Number.isNaN(serverCurrent)) currentIdx = serverCurrent;
-              }
-            } catch {}
-            const currentAssignment = arr.find((a: any) => a.stepIndex === currentIdx) || null;
-            return [id, { responsibleName: currentAssignment?.responsibleName, dueDate: currentAssignment?.dueDate, currentIndex: currentIdx }] as const;
-          } catch {
-            return [id, null] as const;
-          }
-        })
-      );
-      const map: Record<string, { responsibleName?: string; dueDate?: string; currentIndex?: number }> = {};
-      for (const [id, value] of entries) {
-        if (value) map[id] = value;
+      try {
+        const recordIds = vistos.map((v: any) => v.id).join(',');
+        const res = await fetch(`/api/step-assignments?moduleType=vistos&recordIds=${recordIds}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const map: Record<string, { responsibleName?: string; dueDate?: string; currentIndex?: number }> = {};
+        vistos.forEach((v: any) => {
+          const currentStep = Number(v.currentStep ?? v.current_step ?? 0);
+          const assignment = data.find((a: any) => String(a.recordId) === String(v.id) && a.stepIndex === currentStep);
+          map[String(v.id)] = {
+            responsibleName: assignment?.responsibleName,
+            dueDate: assignment?.dueDate,
+            currentIndex: currentStep
+          };
+        });
+        setVistosAssignments(map);
+      } catch (error) {
+        console.error("Error loading assignments:", error);
       }
-      setVistosAssignments((prev) => {
-        const prevKeys = Object.keys(prev).sort().join(",");
-        const nextKeys = Object.keys(map).sort().join(",");
-        if (prevKeys === nextKeys) {
-          let changed = false;
-          for (const k of Object.keys(map)) {
-            const a = prev[k];
-            const b = map[k];
-            if (!a || !b || a.responsibleName !== b.responsibleName || a.dueDate !== b.dueDate || a.currentIndex !== b.currentIndex) {
-              changed = true; break;
-            }
-          }
-          if (!changed) return prev;
-        }
-        return map;
-      });
     };
     loadAssignments();
   }, [vistosIdsKey]);
@@ -272,11 +242,11 @@ export default function VistosPage() {
     if (t.includes("estudante")) return WORKFLOWS_LIST["Visto de Estudante"];
     if (t.includes("reunião") || t.includes("reuniao")) return WORKFLOWS_LIST["Visto de Reunião Familiar"];
     if (t.includes("trabalho") && t.includes("brasil")) return [
-        "Cadastro de Documentos",
-        "Documentos para Protocolo",
-        "Protocolo",
-        "Exigências",
-        "Processo Finalizado"
+      "Cadastro de Documentos",
+      "Documentos para Protocolo",
+      "Protocolo",
+      "Exigências",
+      "Processo Finalizado"
     ];
     return WORKFLOWS_LIST["Visto de Trabalho"];
   };
@@ -360,7 +330,7 @@ export default function VistosPage() {
             </div>
           </div>
 
-          
+
 
           <div className="bg-emerald-900 rounded-lg p-4 border border-emerald-700 h-full min-h-[140px]">
             <div className="flex items-center justify-between">
@@ -502,17 +472,17 @@ export default function VistosPage() {
           </Card>
         ) : (
           filteredVistos.map((visto) => (
-            <Card 
-              key={visto.id} 
+            <Card
+              key={visto.id}
               className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
             >
               <CardContent className="pt-6">
                 <div className="absolute top-2 right-2 flex items-center gap-2">
-                  <OptimizedLink 
+                  <OptimizedLink
                     href={`/dashboard/vistos/${visto.id}`}
                     prefetchData={() => prefetchVistoById(visto.id)}
                   >
-                    <Button 
+                    <Button
                       size="sm"
                       className="h-8 w-8 p-0 bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md"
                     >
@@ -556,10 +526,10 @@ export default function VistosPage() {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                           {visto.clientName}
                         </h3>
-                          <Badge className={`${getStatusColor(visto.status)} flex items-center gap-1.5 px-3 py-1 shadow-md`}>
+                        <Badge className={`${getStatusColor(visto.status)} flex items-center gap-1.5 px-3 py-1 shadow-md`}>
                           {getStatusIcon(visto.status)}
                           {normalizeStatus(visto.status) === "em andamento" ? "Em andamento" : "Finalizado"}
-                          </Badge>
+                        </Badge>
                       </div>
 
                       <div className="grid gap-2 text-sm text-slate-700 dark:text-slate-300">
@@ -688,14 +658,14 @@ export default function VistosPage() {
                           <span>{(() => {
                             // Check for Prazo de Cumprimento in stepData
                             if (visto.stepData) {
-                                for (const key in visto.stepData) {
-                                    if (visto.stepData[key]?.prazoCumprimento) {
-                                        const p = visto.stepData[key].prazoCumprimento;
-                                        const m = String(p).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-                                        if (m) return `${m[3]}/${m[2]}/${m[1]}`;
-                                        try { const d = new Date(p); return isNaN(d.getTime()) ? p : d.toLocaleDateString("pt-BR"); } catch { return p; }
-                                    }
+                              for (const key in visto.stepData) {
+                                if (visto.stepData[key]?.prazoCumprimento) {
+                                  const p = visto.stepData[key].prazoCumprimento;
+                                  const m = String(p).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+                                  try { const d = new Date(p); return isNaN(d.getTime()) ? p : d.toLocaleDateString("pt-BR"); } catch { return p; }
                                 }
+                              }
                             }
 
                             const iso = vistosAssignments[String(visto.id)]?.dueDate;
@@ -707,13 +677,13 @@ export default function VistosPage() {
                         </div>
                       </div>
 
-                      
 
-                      
+
+
                     </div>
                   </div>
 
-                  
+
                 </div>
               </CardContent>
             </Card>

@@ -30,31 +30,40 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const moduleType = searchParams.get('moduleType')
     const recordId = searchParams.get('recordId')
+    const recordIds = searchParams.get('recordIds') // New: supports comma-separated IDs
     const stepIndex = searchParams.get('stepIndex')
     const limit = Math.min(parseInt(searchParams.get('limit') ?? '100'), 200)
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
-    if (!moduleType || !recordId) {
-      return NextResponse.json({ error: 'moduleType e recordId são obrigatórios' }, { status: 400 })
+    if (!moduleType || (!recordId && !recordIds)) {
+      return NextResponse.json({ error: 'moduleType e (recordId ou recordIds) são obrigatórios' }, { status: 400 })
     }
 
     let query = supabase
       .from('step_assignments')
       .select('*')
       .eq('module_type', moduleType)
-      .eq('record_id', parseInt(recordId))
 
-    if (stepIndex !== null && stepIndex !== undefined) {
+    if (recordId) {
+      query = query.eq('record_id', parseInt(recordId))
+    } else if (recordIds) {
+      const ids = recordIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+      if (ids.length > 0) {
+        query = query.in('record_id', ids)
+      }
+    }
+
+    if (stepIndex !== null && stepIndex !== undefined && stepIndex !== '') {
       query = query.eq('step_index', parseInt(stepIndex))
-    } else {
+    } else if (!recordId && !recordIds) {
       query = query.range(offset, offset + limit - 1)
     }
 
     const { data, error } = await query
     if (error) throw error
 
-    const results = Array.isArray(data) ? data.map(mapDbToFrontend) : mapDbToFrontend(data)
-    return NextResponse.json(results || [], { status: 200 })
+    const results = Array.isArray(data) ? data.map(mapDbToFrontend) : (data ? [mapDbToFrontend(data)] : [])
+    return NextResponse.json(results, { status: 200 })
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal server error: ' + (error?.message || 'unknown') }, { status: 500 })
   }
@@ -113,7 +122,7 @@ export async function POST(request: NextRequest) {
             .select('client_name')
             .eq('id', parseInt(recordId))
             .single();
-            
+
           const clientName = recordData?.client_name || 'Cliente Desconhecido';
           const stepName = workflowName || `Etapa ${stepIndex}`;
 
@@ -167,7 +176,7 @@ export async function POST(request: NextRequest) {
             .select('client_name')
             .eq('id', parseInt(recordId))
             .single();
-            
+
           const clientName = recordData?.client_name || 'Cliente Desconhecido';
           const stepName = workflowName || `Etapa ${stepIndex}`;
 

@@ -9,7 +9,7 @@ const toNullIfEmpty = (v: any) => (v === '' || v === undefined ? null : v);
 // Helper function to map database fields to frontend format
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
-  
+
   return {
     id: record.id,
     tipoTransacao: record.tipo_transacao,
@@ -86,10 +86,11 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('compra_venda_imoveis')
-      .select('*');
+      .select(select);
 
     // Apply filters
     if (search) {

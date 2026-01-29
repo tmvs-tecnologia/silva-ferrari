@@ -1,6 +1,6 @@
 "use client";
 
- import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -38,7 +38,7 @@ export default function CompraVendaPage() {
   const { data: propertiesData, isLoading, error, refetch } = useDataCache(
     "compra-venda",
     async () => {
-      const response = await fetch("/api/compra-venda-imoveis?limit=100");
+      const response = await fetch("/api/compra-venda-imoveis?limit=100&select=id,client_name,status,current_step,endereco_imovel,prazo_sinal,prazo_escritura,contract_notes,rg_vendedores,rg_vendedores_doc,cpf_comprador,rnm_comprador");
       return response.json();
     }
   );
@@ -114,7 +114,7 @@ export default function CompraVendaPage() {
               }));
               localStorage.removeItem('step-assignments-update');
             }
-          } catch {}
+          } catch { }
         }
       };
 
@@ -145,27 +145,27 @@ export default function CompraVendaPage() {
     lastAssignmentIdsRef.current = ids;
 
     const loadAssignments = async () => {
-      const entries = await Promise.all(
-        properties.map(async (p: any) => {
-          try {
-            const res = await fetch(`/api/step-assignments?moduleType=compra_venda_imoveis&recordId=${p.id}&stepIndex=${p.currentStep}`);
-            if (!res.ok) return [p.id, null] as const;
-            const data = await res.json();
-            const item = Array.isArray(data) ? (data[0] || null) : data;
-            return [p.id, item ? { responsibleName: item.responsibleName, dueDate: item.dueDate } : null] as const;
-          } catch {
-            return [p.id, null] as const;
+      try {
+        const recordIds = properties.map((p: any) => p.id).join(',');
+        const res = await fetch(`/api/step-assignments?moduleType=compra_venda_imoveis&recordIds=${recordIds}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+        properties.forEach((p: any) => {
+          const assignment = data.find((a: any) => a.recordId === p.id && a.stepIndex === p.currentStep);
+          if (assignment) {
+            map[p.id] = { responsibleName: assignment.responsibleName, dueDate: assignment.dueDate };
           }
-        })
-      );
-      const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
-      for (const [id, a] of entries) {
-        if (a) map[id] = a;
-      }
-      const nextStr = JSON.stringify(map);
-      const prevStr = JSON.stringify(caseAssignments);
-      if (nextStr !== prevStr) {
-        setCaseAssignments(map);
+        });
+
+        const nextStr = JSON.stringify(map);
+        const prevStr = JSON.stringify(caseAssignments);
+        if (nextStr !== prevStr) {
+          setCaseAssignments(map);
+        }
+      } catch (error) {
+        console.error("Error loading assignments:", error);
       }
     };
 
@@ -192,7 +192,7 @@ export default function CompraVendaPage() {
     return "text-emerald-600 dark:text-emerald-400";
   };
 
-  
+
 
   const handleDelete = async (id: number) => {
     try {
@@ -202,7 +202,7 @@ export default function CompraVendaPage() {
       if (response.ok) {
         refetch();
       }
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -280,11 +280,11 @@ export default function CompraVendaPage() {
               <SelectTrigger className="border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="Em andamento">Em andamento</SelectItem>
-              <SelectItem value="Finalizado">Finalizado</SelectItem>
-            </SelectContent>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="Em andamento">Em andamento</SelectItem>
+                <SelectItem value="Finalizado">Finalizado</SelectItem>
+              </SelectContent>
             </Select>
           </div>
         </CardContent>

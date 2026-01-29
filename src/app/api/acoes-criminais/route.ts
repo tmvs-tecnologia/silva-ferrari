@@ -5,7 +5,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
-  
+
   return {
     id: record.id,
     clientName: record.client_name,
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
     // Single record by ID
     if (id) {
       if (!id || isNaN(parseInt(id))) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: "Valid ID is required",
-          code: "INVALID_ID" 
+          code: "INVALID_ID"
         }, { status: 400 });
       }
 
@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (error || !record) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Record not found',
-          code: 'NOT_FOUND' 
+          code: 'NOT_FOUND'
         }, { status: 404 });
       }
 
@@ -65,10 +65,11 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('acoes_criminais')
-      .select('*');
+      .select(select);
 
     // Apply filters
     if (search) {
@@ -94,8 +95,8 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
@@ -106,8 +107,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('GET error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -118,10 +119,10 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdminClient();
 
     const body = await request.json();
-    const { 
-      clientName, 
-      status, 
-      notes, 
+    const {
+      clientName,
+      status,
+      notes,
       currentStep,
       reuName,
       autorName,
@@ -135,9 +136,9 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!clientName || clientName.trim() === '') {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Client name is required and cannot be empty",
-        code: "MISSING_REQUIRED_FIELD" 
+        code: "MISSING_REQUIRED_FIELD"
       }, { status: 400 });
     }
 
@@ -165,8 +166,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
@@ -192,8 +193,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('POST error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -208,17 +209,17 @@ export async function PUT(request: NextRequest) {
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
     const body = await request.json();
-    const { 
-      clientName, 
-      status, 
-      notes, 
+    const {
+      clientName,
+      status,
+      notes,
       currentStep,
       reuName,
       autorName,
@@ -238,9 +239,9 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (existingError || !existing) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Record not found',
-        code: 'NOT_FOUND' 
+        code: 'NOT_FOUND'
       }, { status: 404 });
     }
 
@@ -249,9 +250,9 @@ export async function PUT(request: NextRequest) {
 
     if (clientName !== undefined) {
       if (clientName.trim() === '') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: "Client name cannot be empty",
-          code: "INVALID_CLIENT_NAME" 
+          code: "INVALID_CLIENT_NAME"
         }, { status: 400 });
       }
       updateData.client_name = clientName.trim();
@@ -279,8 +280,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
@@ -290,7 +291,7 @@ export async function PUT(request: NextRequest) {
         await NotificationService.createNotification(
           'new_responsible',
           {
-            responsibleName,
+            responsavelName,
             clientName: existing.client_name,
             workflowName: 'Ação Criminal',
             dueDate: responsavelDate || null,
@@ -318,15 +319,15 @@ export async function PUT(request: NextRequest) {
             is_read: false,
             created_at: new Date().toISOString()
           });
-      } catch {}
+      } catch { }
     }
 
     return NextResponse.json(mapDbFieldsToFrontend(updated), { status: 200 });
 
   } catch (error) {
     console.error('PUT error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -341,9 +342,9 @@ export async function DELETE(request: NextRequest) {
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
@@ -357,26 +358,26 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Record not found',
           code: 'NOT_FOUND'
         }, { status: 404 });
       }
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Record deleted successfully',
       record: deleted
     }, { status: 200 });
 
   } catch (error) {
     console.error('DELETE error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }

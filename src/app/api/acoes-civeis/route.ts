@@ -5,7 +5,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
-  
+
   return {
     id: record.id,
     clientName: record.client_name,
@@ -100,10 +100,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const type = searchParams.get('type');
     const status = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('acoes_civeis')
-      .select('*')
+      .select(select)
       .order('created_at', { ascending: false });
 
     // Apply filters
@@ -154,15 +155,15 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
     // Map database fields to frontend format
     const mappedResults = (results || []).map(mapDbFieldsToFrontend);
 
-    return NextResponse.json(mappedResults, { 
+    return NextResponse.json(mappedResults, {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
@@ -170,8 +171,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('GET error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -181,84 +182,84 @@ export async function POST(request: NextRequest) {
     // Initialize Supabase client
     const supabase = getSupabaseAdminClient();
 
-  const body = await request.json();
-  const { 
-    clientName, 
-    type, 
-    currentStep,
-    status,
-    ownerName,
-    ownerCpf,
-    ownerRnm,
-    endereco,
-    nomeMae,
-    nomePaiRegistral,
-    nomeSupostoPai,
-    nomeCrianca,
-    rnmMae,
-    rnmPai,
-    rnmSupostoPai,
-    cpfMae,
-    cpfPai,
-    cpfSupostoPai,
-    certidaoNascimento,
-    comprovanteEndereco,
-    passaporte,
-    guiaPaga,
-    notes,
-    dataExameDna,
-    procuracaoAnexada,
-    peticaoAnexada,
-    processoAnexado,
-    numeroProtocolo,
-    documentosFinaisAnexados,
-    peticaoConjunta,
-    termoPartilhas,
-    guarda,
-    procuracao,
-    peticaoCliente,
-    procuracaoCliente,
-    custas,
-    peticaoInicial,
-    matriculaImovel,
-    aguaLuzIptu,
-    camposExigencias,
-    // Document URL fields
-    ownerRnmFile,
-    ownerCpfFile,
-    rnmMaeFile,
-    rnmPaiFile,
-    rnmSupostoPaiFile,
-    cpfMaeFile,
-    cpfPaiFile,
-    certidaoNascimentoFile,
-    comprovanteEnderecoFile,
-    passaporteFile,
-    guiaPagaFile,
-    passaporteMaeFile,
-    passaportePaiRegistralFile,
-    passaporteSupostoPaiFile,
-    resultadoExameDnaFile,
-    procuracaoAnexadaFile,
-    peticaoAnexadaFile,
-    processoAnexadoFile,
-    documentosFinaisAnexadosFile,
-    documentosProcessoFinalizadoFile,
-    peticaoConjuntaFile,
-    termoPartilhasFile,
-    guardaFile,
-    procuracaoFile,
-    peticaoClienteFile,
-    procuracaoClienteFile,
-    custasFile,
-    peticaoInicialFile,
-    matriculaImovelFile,
-    contaAguaFile,
-    contaLuzFile,
-    iptuFile,
-    aguaLuzIptuFile,
-    camposExigenciasFile
-  } = body;
+    const body = await request.json();
+    const {
+      clientName,
+      type,
+      currentStep,
+      status,
+      ownerName,
+      ownerCpf,
+      ownerRnm,
+      endereco,
+      nomeMae,
+      nomePaiRegistral,
+      nomeSupostoPai,
+      nomeCrianca,
+      rnmMae,
+      rnmPai,
+      rnmSupostoPai,
+      cpfMae,
+      cpfPai,
+      cpfSupostoPai,
+      certidaoNascimento,
+      comprovanteEndereco,
+      passaporte,
+      guiaPaga,
+      notes,
+      dataExameDna,
+      procuracaoAnexada,
+      peticaoAnexada,
+      processoAnexado,
+      numeroProtocolo,
+      documentosFinaisAnexados,
+      peticaoConjunta,
+      termoPartilhas,
+      guarda,
+      procuracao,
+      peticaoCliente,
+      procuracaoCliente,
+      custas,
+      peticaoInicial,
+      matriculaImovel,
+      aguaLuzIptu,
+      camposExigencias,
+      // Document URL fields
+      ownerRnmFile,
+      ownerCpfFile,
+      rnmMaeFile,
+      rnmPaiFile,
+      rnmSupostoPaiFile,
+      cpfMaeFile,
+      cpfPaiFile,
+      certidaoNascimentoFile,
+      comprovanteEnderecoFile,
+      passaporteFile,
+      guiaPagaFile,
+      passaporteMaeFile,
+      passaportePaiRegistralFile,
+      passaporteSupostoPaiFile,
+      resultadoExameDnaFile,
+      procuracaoAnexadaFile,
+      peticaoAnexadaFile,
+      processoAnexadoFile,
+      documentosFinaisAnexadosFile,
+      documentosProcessoFinalizadoFile,
+      peticaoConjuntaFile,
+      termoPartilhasFile,
+      guardaFile,
+      procuracaoFile,
+      peticaoClienteFile,
+      procuracaoClienteFile,
+      custasFile,
+      peticaoInicialFile,
+      matriculaImovelFile,
+      contaAguaFile,
+      contaLuzFile,
+      iptuFile,
+      aguaLuzIptuFile,
+      camposExigenciasFile
+    } = body;
 
     // Prepare insert data with defaults
     const insertData: any = {
@@ -304,7 +305,7 @@ export async function POST(request: NextRequest) {
     if (matriculaImovel !== undefined) insertData.matricula_imovel = matriculaImovel;
     if (aguaLuzIptu !== undefined) insertData.agua_luz_iptu = aguaLuzIptu;
     if (camposExigencias !== undefined) insertData.campos_exigencias = camposExigencias;
-    
+
     // Add document URL fields if provided
     if (ownerRnmFile !== undefined) insertData.owner_rnm_doc = ownerRnmFile;
     if (ownerCpfFile !== undefined) insertData.owner_cpf_doc = ownerCpfFile;
@@ -349,8 +350,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
@@ -371,7 +372,7 @@ export async function POST(request: NextRequest) {
       console.error('Error creating notification:', notificationError);
     }
 
-    return NextResponse.json(newRecord, { 
+    return NextResponse.json(newRecord, {
       status: 201,
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
@@ -379,8 +380,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('POST error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -394,9 +395,9 @@ export async function PUT(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
@@ -408,14 +409,14 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (existingError || !existing) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Record not found',
         code: 'NOT_FOUND'
       }, { status: 404 });
     }
 
     const body = await request.json();
-    const { 
+    const {
       clientName,
       type,
       currentStep,
@@ -437,20 +438,20 @@ export async function PUT(request: NextRequest) {
       procuracaoAnexada,
       peticaoAnexada,
       processoAnexado,
-    numeroProtocolo,
-    documentosFinaisAnexados,
-    peticaoConjunta,
-    termoPartilhas,
-    guarda,
-    procuracao,
-    peticaoCliente,
-    procuracaoCliente,
-    custas,
-    peticaoInicial,
-    matriculaImovel,
-    aguaLuzIptu,
-    camposExigencias,
-    // Document URL fields
+      numeroProtocolo,
+      documentosFinaisAnexados,
+      peticaoConjunta,
+      termoPartilhas,
+      guarda,
+      procuracao,
+      peticaoCliente,
+      procuracaoCliente,
+      custas,
+      peticaoInicial,
+      matriculaImovel,
+      aguaLuzIptu,
+      camposExigencias,
+      // Document URL fields
       rnmMaeFile,
       rnmPaiFile,
       rnmSupostoPaiFile,
@@ -459,25 +460,25 @@ export async function PUT(request: NextRequest) {
       certidaoNascimentoFile,
       comprovanteEnderecoFile,
       passaporteFile,
-    guiaPagaFile,
+      guiaPagaFile,
       resultadoExameDnaFile,
       procuracaoAnexadaFile,
       peticaoAnexadaFile,
       processoAnexadoFile,
       documentosFinaisAnexadosFile,
-    documentosProcessoFinalizadoFile,
-    peticaoConjuntaFile,
-    termoPartilhasFile,
-    guardaFile,
-    procuracaoFile,
-    peticaoClienteFile,
-    procuracaoClienteFile,
-    custasFile,
-    peticaoInicialFile,
-    matriculaImovelFile,
-    aguaLuzIptuFile,
-    camposExigenciasFile
-  } = body;
+      documentosProcessoFinalizadoFile,
+      peticaoConjuntaFile,
+      termoPartilhasFile,
+      guardaFile,
+      procuracaoFile,
+      peticaoClienteFile,
+      procuracaoClienteFile,
+      custasFile,
+      peticaoInicialFile,
+      matriculaImovelFile,
+      aguaLuzIptuFile,
+      camposExigenciasFile
+    } = body;
 
     // Prepare update data
     const updateData: any = {};
@@ -517,7 +518,7 @@ export async function PUT(request: NextRequest) {
     if (matriculaImovel !== undefined) updateData.matricula_imovel = matriculaImovel;
     if (aguaLuzIptu !== undefined) updateData.agua_luz_iptu = aguaLuzIptu;
     if (camposExigencias !== undefined) updateData.campos_exigencias = camposExigencias;
-    
+
     // Add document URL fields to update if provided
     if (rnmMaeFile !== undefined) updateData.rnm_mae_doc = rnmMaeFile;
     if (rnmPaiFile !== undefined) updateData.rnm_pai_doc = rnmPaiFile;
@@ -555,8 +556,8 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
@@ -579,7 +580,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(updated, { 
+    return NextResponse.json(updated, {
       status: 200,
       headers: {
         'Content-Type': 'application/json; charset=utf-8'
@@ -587,8 +588,8 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     console.error('PUT error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }
@@ -602,9 +603,9 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id || isNaN(parseInt(id))) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: "Valid ID is required",
-        code: "INVALID_ID" 
+        code: "INVALID_ID"
       }, { status: 400 });
     }
 
@@ -618,25 +619,25 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Record not found',
           code: 'NOT_FOUND'
         }, { status: 404 });
       }
       console.error('Supabase error:', error);
-      return NextResponse.json({ 
-        error: 'Internal server error: ' + error.message 
+      return NextResponse.json({
+        error: 'Internal server error: ' + error.message
       }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Record deleted successfully',
       record: deleted
     }, { status: 200 });
   } catch (error) {
     console.error('DELETE error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error: ' + (error as Error).message 
+    return NextResponse.json({
+      error: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 }

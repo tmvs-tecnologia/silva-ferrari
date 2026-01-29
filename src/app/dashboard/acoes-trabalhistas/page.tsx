@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Briefcase, 
-  Search, 
-  Plus, 
-  FileText, 
-  Eye, 
-  Clock, 
-  CheckCircle2, 
+import {
+  Briefcase,
+  Search,
+  Plus,
+  FileText,
+  Eye,
+  Clock,
+  CheckCircle2,
   AlertCircle,
   Users,
   Trash2
@@ -66,7 +66,7 @@ export default function AcoesTrabalhistasPage() {
   const { data: cases, isLoading, error, refetch } = useDataCache(
     'acoes-trabalhistas',
     async () => {
-      const response = await fetch("/api/acoes-trabalhistas?limit=100");
+      const response = await fetch("/api/acoes-trabalhistas?limit=100&select=id,client_name,type,current_step,status,notes,responsavel_name,responsavel_date,numero_processo,reu_name");
       return response.json();
     }
   );
@@ -170,7 +170,7 @@ export default function AcoesTrabalhistasPage() {
       const response = await fetch(`/api/acoes-trabalhistas/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         // Atualiza os dados via refetch para refletir a exclusão
         refetch();
@@ -234,7 +234,7 @@ export default function AcoesTrabalhistasPage() {
             </div>
           </div>
 
-          
+
 
           <div className="bg-emerald-900 rounded-lg p-4 border border-emerald-700 h-full min-h-[140px]">
             <div className="flex items-center justify-between">
@@ -324,25 +324,25 @@ export default function AcoesTrabalhistasPage() {
           </Card>
         ) : (
           filteredCases.map((caseItem) => (
-            <Card 
-              key={caseItem.id} 
+            <Card
+              key={caseItem.id}
               className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
             >
               {/* Button Container - Alinhado horizontalmente */}
               <div className="absolute top-2 right-2 flex items-center gap-2">
                 {/* Ver Detalhes Button */}
-                <OptimizedLink 
+                <OptimizedLink
                   href={`/dashboard/acoes-trabalhistas/${caseItem.id}`}
                   prefetchData={() => prefetchAcaoTrabalhistaById(caseItem.id)}
                 >
-                  <Button 
+                  <Button
                     size="sm"
                     className="bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md h-8 px-3"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
                 </OptimizedLink>
-                
+
                 {/* Delete Button */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -373,7 +373,7 @@ export default function AcoesTrabalhistasPage() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-              
+
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">

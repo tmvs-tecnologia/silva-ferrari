@@ -6,7 +6,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 // Helper function to convert snake_case to camelCase
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
-  
+
   return {
     id: record.id,
     clientName: record.client_name,
@@ -93,10 +93,11 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
     const statusFilter = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('perda_nacionalidade')
-      .select('*');
+      .select(select);
 
     // Apply filters
     if (search) {

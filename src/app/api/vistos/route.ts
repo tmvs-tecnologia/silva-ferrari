@@ -213,10 +213,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const type = searchParams.get('type');
     const status = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('vistos')
-      .select('*')
+      .select(select)
       .neq('type', 'Turismo');
 
     // Apply filters

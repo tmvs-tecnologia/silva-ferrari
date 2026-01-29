@@ -46,7 +46,9 @@ const CASE_TYPES = [
 
 export default function AcoesCiveisPage() {
   const fetchCases = useCallback(async () => {
-    const response = await fetch("/api/acoes-civeis?limit=100");
+    // Fetch only necessary columns for the list view
+    const columns = 'id,client_name,type,status,current_step,notes,created_at,updated_at';
+    const response = await fetch(`/api/acoes-civeis?limit=100&select=${columns}`);
     return response.json();
   }, []);
 
@@ -163,7 +165,7 @@ export default function AcoesCiveisPage() {
         }));
         setIsEditOpen(false);
       }
-    } catch {}
+    } catch { }
   };
 
   const lastAssignmentIdsRef = useRef<string>("");
@@ -174,35 +176,44 @@ export default function AcoesCiveisPage() {
     lastAssignmentIdsRef.current = ids;
 
     const loadAssignments = async () => {
-      const entries = await Promise.all(
-        cases.map(async (c: any) => {
-          try {
-            const res = await fetch(`/api/step-assignments?moduleType=acoes_civeis&recordId=${c.id}&stepIndex=${c.currentStep}`);
-            if (!res.ok) return [c.id, null] as const;
-            const data = await res.json();
-            const item = Array.isArray(data) ? (data[0] || null) : data;
-            return [c.id, item ? { responsibleName: item.responsibleName, dueDate: item.dueDate } : null] as const;
-          } catch {
-            return [c.id, null] as const;
-          }
-        })
-      );
-      const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
-      for (const [id, a] of entries) {
-        if (a) map[id] = a;
+      if (cases.length === 0) {
+        setCaseAssignments({});
+        return;
       }
-      const nextStr = JSON.stringify(map);
-      const prevStr = JSON.stringify(caseAssignments);
-      if (nextStr !== prevStr) {
-        setCaseAssignments(map);
+
+      try {
+        const recordIds = cases.map((c: any) => c.id).join(',');
+        const res = await fetch(`/api/step-assignments?moduleType=acoes_civeis&recordIds=${recordIds}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+
+        // Data is an array of assignments
+        if (Array.isArray(data)) {
+          data.forEach((item: any) => {
+            // We only care about the assignment for the current step of each case
+            const caseItem = cases.find((c: any) => c.id === item.recordId);
+            if (caseItem && item.stepIndex === caseItem.currentStep) {
+              map[item.recordId] = {
+                responsibleName: item.responsibleName,
+                dueDate: item.dueDate
+              };
+            }
+          });
+        }
+
+        const nextStr = JSON.stringify(map);
+        const prevStr = JSON.stringify(caseAssignments);
+        if (nextStr !== prevStr) {
+          setCaseAssignments(map);
+        }
+      } catch (err) {
+        console.error("Error loading assignments:", err);
       }
     };
 
-    if (cases.length > 0) {
-      loadAssignments();
-    } else {
-      setCaseAssignments({});
-    }
+    loadAssignments();
   }, [cases, isTypeOpen, isStatusOpen]);
 
   const filteredCases = cases.filter((c) => {
@@ -265,8 +276,8 @@ export default function AcoesCiveisPage() {
     const steps = type === "Exame DNA"
       ? EXAME_DNA_STEPS
       : (type === "Alteração de Nome" || type === "Guarda" || type === "Acordos de Guarda")
-      ? ALTERACAO_NOME_STEPS
-      : (type === "Usucapião" ? USUCAPIAO_STEPS : ((type === "Divórcio Litígio" || type === "Divórcio Consensual") ? DIVORCIO_LITIGIO_STEPS : STANDARD_CIVIL_STEPS));
+        ? ALTERACAO_NOME_STEPS
+        : (type === "Usucapião" ? USUCAPIAO_STEPS : ((type === "Divórcio Litígio" || type === "Divórcio Consensual") ? DIVORCIO_LITIGIO_STEPS : STANDARD_CIVIL_STEPS));
     const clampedIndex = Math.min(Math.max(index, 0), steps.length - 1);
     return steps[clampedIndex];
   };
@@ -345,7 +356,7 @@ export default function AcoesCiveisPage() {
       const response = await fetch(`/api/acoes-civeis/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         // Atualiza dados via refetch para refletir remoção
         refetch();
@@ -411,7 +422,7 @@ export default function AcoesCiveisPage() {
             </div>
           </div>
 
-          
+
 
           <div className="bg-emerald-900 rounded-lg p-4 border border-emerald-700 h-full min-h-[140px]">
             <div className="flex items-center justify-between">
@@ -465,8 +476,8 @@ export default function AcoesCiveisPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-              <SelectItem value="Finalizado">Finalizado</SelectItem>
+                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                <SelectItem value="Finalizado">Finalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -501,25 +512,25 @@ export default function AcoesCiveisPage() {
           </Card>
         ) : (
           filteredCases.map((caseItem) => (
-            <Card 
-              key={caseItem.id} 
+            <Card
+              key={caseItem.id}
               className="border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-amber-500/50 transition-all duration-200 bg-gradient-to-r from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 relative"
             >
               {/* Button Container - Alinhado horizontalmente */}
               <div className="absolute top-2 right-2 flex items-center gap-2">
                 {/* Ver Detalhes Button */}
-                <OptimizedLink 
+                <OptimizedLink
                   href={`/dashboard/acoes-civeis/${caseItem.id}`}
                   prefetchData={() => prefetchAcaoCivilById(caseItem.id)}
                 >
-                  <Button 
+                  <Button
                     size="sm"
                     className="bg-slate-900 hover:bg-slate-800 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-900 text-white font-semibold shadow-md h-8 px-3"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
                 </OptimizedLink>
-                
+
                 {/* Delete Button */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
@@ -550,7 +561,7 @@ export default function AcoesCiveisPage() {
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-              
+
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">
@@ -600,7 +611,7 @@ export default function AcoesCiveisPage() {
                         </div>
                       </div>
 
-                      
+
 
                       {caseItem.notes && getLastNoteContent(caseItem.notes) && (
                         <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">

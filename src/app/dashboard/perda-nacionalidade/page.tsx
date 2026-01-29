@@ -47,7 +47,7 @@ export default function PerdaNacionalidadePage() {
   const { data: casesData, isLoading, error, refetch } = useDataCache(
     "perda-nacionalidade",
     async () => {
-      const response = await fetch("/api/perda-nacionalidade?limit=100");
+      const response = await fetch("/api/perda-nacionalidade?limit=100&select=id,client_name,status,current_step,notes,created_at");
       return response.json();
     }
   );
@@ -153,7 +153,7 @@ export default function PerdaNacionalidadePage() {
         // @ts-ignore
         (typeof refetch === 'function') && refetch();
       }
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -162,27 +162,27 @@ export default function PerdaNacionalidadePage() {
     lastAssignmentIdsRef.current = ids;
 
     const loadAssignments = async () => {
-      const entries = await Promise.all(
-        cases.map(async (c: any) => {
-          try {
-            const res = await fetch(`/api/step-assignments?moduleType=perda_nacionalidade&recordId=${c.id}&stepIndex=${c.currentStep}`);
-            if (!res.ok) return [c.id, null] as const;
-            const data = await res.json();
-            const item = Array.isArray(data) ? (data[0] || null) : data;
-            return [c.id, item ? { responsibleName: item.responsibleName, dueDate: item.dueDate } : null] as const;
-          } catch {
-            return [c.id, null] as const;
+      try {
+        const recordIds = cases.map((c: any) => c.id).join(',');
+        const res = await fetch(`/api/step-assignments?moduleType=perda_nacionalidade&recordIds=${recordIds}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
+        cases.forEach((c: any) => {
+          const assignment = data.find((a: any) => a.recordId === Number(c.id) && a.stepIndex === Number(c.currentStep));
+          if (assignment) {
+            map[Number(c.id)] = { responsibleName: assignment.responsibleName, dueDate: assignment.dueDate };
           }
-        })
-      );
-      const map: Record<number, { responsibleName?: string; dueDate?: string }> = {};
-      for (const [id, a] of entries) {
-        if (a) map[id] = a;
-      }
-      const nextStr = JSON.stringify(map);
-      const prevStr = JSON.stringify(caseAssignments);
-      if (nextStr !== prevStr) {
-        setCaseAssignments(map);
+        });
+
+        const nextStr = JSON.stringify(map);
+        const prevStr = JSON.stringify(caseAssignments);
+        if (nextStr !== prevStr) {
+          setCaseAssignments(map);
+        }
+      } catch (error) {
+        console.error("Error loading assignments:", error);
       }
     };
 
@@ -291,7 +291,7 @@ export default function PerdaNacionalidadePage() {
                 Nenhum processo encontrado
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 mt-2">
-                {search || statusFilter !== "all" 
+                {search || statusFilter !== "all"
                   ? "Tente ajustar os filtros de busca"
                   : "Comece criando um novo processo de perda de nacionalidade"}
               </p>

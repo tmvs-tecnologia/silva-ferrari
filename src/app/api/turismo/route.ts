@@ -149,10 +149,11 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') ?? '0');
     const search = searchParams.get('search');
     const status = searchParams.get('status');
+    const select = searchParams.get('select') ?? '*';
 
     let query = supabase
       .from('vistos')
-      .select('*')
+      .select(select)
       .eq('type', 'Turismo'); // Filter by type
 
     // Apply filters

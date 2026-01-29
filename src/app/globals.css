@@ -111,6 +111,9 @@
   --gold-900: 25 84% 26%;
   --bronze: 22 47% 18%;
   --bronze-dark: 22 47% 12%;
+  --glass-bg: rgba(255, 252, 240, 0.45);
+  --glass-border: rgba(212, 175, 55, 0.3);
+  --glow-gold: 0 0 15px rgba(212, 175, 55, 0.2);
 
   --gold-gradient: linear-gradient(135deg, #d4af37 0%, #f1d38e 50%, #b8860b 100%);
 

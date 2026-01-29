@@ -65,7 +65,7 @@ export default function TurismoPage() {
     `turismo_page_${currentPage}`,
     async () => {
       const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-      const response = await fetch(`/api/turismo?limit=${ITEMS_PER_PAGE}&offset=${offset}`);
+      const response = await fetch(`/api/turismo?limit=${ITEMS_PER_PAGE}&offset=${offset}&select=id,client_name,status,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,created_at`);
       return response.json();
     },
     [currentPage]
@@ -150,58 +150,27 @@ export default function TurismoPage() {
   useEffect(() => {
     if (!vistosIdsKey) { setVistosAssignments({}); return; }
     const loadAssignments = async () => {
-      const entries = await Promise.all(
-        vistos.map(async (v: any) => {
-          const id = String(v.id);
-          try {
-            const res = await fetch(`/api/step-assignments?moduleType=vistos&recordId=${id}`);
-            if (!res.ok) return [id, null] as const;
-            const data = await res.json();
-            const arr = Array.isArray(data) ? data : [data];
-            let currentIdx = 0;
-            if (arr.length) {
-              const pending = arr.filter((a: any) => !a.isDone);
-              if (pending.length) {
-                currentIdx = Math.min(...pending.map((a: any) => (a.stepIndex ?? 0)));
-              } else {
-                currentIdx = Math.max(...arr.map((a: any) => (a.stepIndex ?? 0)));
-              }
-            }
-            try {
-              const caseRes = await fetch(`/api/turismo?id=${id}`);
-              if (caseRes.ok) {
-                const caseJson = await caseRes.json();
-                const serverCurrent = Number(caseJson.currentStep ?? caseJson.current_step ?? currentIdx ?? 0);
-                if (!Number.isNaN(serverCurrent)) currentIdx = serverCurrent;
-              }
-            } catch { }
-            const currentAssignment = arr.find((a: any) => a.stepIndex === currentIdx) || null;
-            return [id, { responsibleName: currentAssignment?.responsibleName, dueDate: currentAssignment?.dueDate, currentIndex: currentIdx }] as const;
-          } catch {
-            return [id, null] as const;
-          }
-        })
-      );
-      const map: Record<string, { responsibleName?: string; dueDate?: string; currentIndex?: number }> = {};
-      for (const [id, value] of entries) {
-        if (value) map[id] = value;
+      try {
+        const recordIds = vistos.map((v: any) => String(v.id)).join(',');
+        // For 'turismo', we also use moduleType=vistos as they share the same backend table but filtered
+        const res = await fetch(`/api/step-assignments?moduleType=vistos&recordIds=${recordIds}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const map: Record<string, { responsibleName?: string; dueDate?: string; currentIndex?: number }> = {};
+        vistos.forEach((v: any) => {
+          const currentStep = Number(v.currentStep ?? v.current_step ?? 0);
+          const assignment = data.find((a: any) => String(a.recordId) === String(v.id) && a.stepIndex === currentStep);
+          map[String(v.id)] = {
+            responsibleName: assignment?.responsibleName,
+            dueDate: assignment?.dueDate,
+            currentIndex: currentStep
+          };
+        });
+        setVistosAssignments(map);
+      } catch (error) {
+        console.error("Error loading assignments:", error);
       }
-      setVistosAssignments((prev) => {
-        // Simple comparison to avoid loops
-        const prevKeys = Object.keys(prev).sort().join(",");
-        const nextKeys = Object.keys(map).sort().join(",");
-        if (prevKeys === nextKeys) {
-          // Deep check values if keys match
-          let changed = false;
-          for (const k of Object.keys(map)) {
-            if (JSON.stringify(prev[k]) !== JSON.stringify(map[k])) {
-              changed = true; break;
-            }
-          }
-          if (!changed) return prev;
-        }
-        return map;
-      });
     };
     loadAssignments();
   }, [vistosIdsKey]);
