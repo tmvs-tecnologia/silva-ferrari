@@ -4,26 +4,27 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Briefcase, 
-  Shield, 
-  Home, 
-  Globe, 
-  LogOut, 
-  Menu, 
-  Bell, 
-  X, 
-  ChevronLeft, 
-  User, 
-  Settings, 
-  Search, 
-  Plus, 
-  Calendar, 
-  TrendingUp, 
+import {
+  LayoutDashboard,
+  FileText,
+  Briefcase,
+  Shield,
+  Home,
+  Globe,
+  LogOut,
+  Menu,
+  Bell,
+  X,
+  ChevronLeft,
+  User,
+  Settings,
+  Search,
+  Plus,
+  Calendar,
+  TrendingUp,
   Users
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,9 +37,10 @@ import {
 } from "@/components/ui/sheet";
 import { NotificationBell } from "@/components/notification-bell";
 import { OptimizedLink } from "@/components/optimized-link";
-import { 
-  prefetchAcoesTrabalhistas, 
-  prefetchAcoesCiveis, 
+import { PageTransition } from "@/components/page-transition";
+import {
+  prefetchAcoesTrabalhistas,
+  prefetchAcoesCiveis,
   prefetchAcoesCriminais,
   prefetchCompraVenda,
   prefetchPerdaNacionalidade,
@@ -107,29 +109,34 @@ function Sidebar({
           />
         </div>
       </div>
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => (
-          <OptimizedLink
+          <motion.div
             key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            prefetchData={PREFETCH_FUNCTIONS[item.href as keyof typeof PREFETCH_FUNCTIONS]}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-              pathname === item.href
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <OptimizedLink
+              href={item.href}
+              onClick={onNavigate}
+              prefetchData={PREFETCH_FUNCTIONS[item.href as keyof typeof PREFETCH_FUNCTIONS]}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${pathname === item.href
                 ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
                 : "text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm"
-            }`}
-          >
-            {typeof item.icon === 'string' ? (
-              <img src={item.icon} alt={item.title} className="h-5 w-5 object-contain" />
-            ) : (
-              <item.icon className="h-5 w-5" />
-            )}
-            <div className="flex-1">
-              <div className="text-sm font-medium">{item.title}</div>
-              <div className="text-xs opacity-75">{item.description}</div>
-            </div>
-          </OptimizedLink>
+                }`}
+            >
+              {typeof item.icon === 'string' ? (
+                <img src={item.icon} alt={item.title} className="h-5 w-5 object-contain" />
+              ) : (
+                <item.icon className="h-5 w-5" />
+              )}
+              <div className="flex-1">
+                <div className="text-sm font-medium">{item.title}</div>
+                <div className="text-xs opacity-75">{item.description}</div>
+              </div>
+            </OptimizedLink>
+          </motion.div>
         ))}
       </nav>
       <div className="p-4 border-t border-slate-200">
@@ -171,13 +178,13 @@ export default function DashboardLayout({
       try {
         const enc = encodeURIComponent(q);
         const [civeis, trab, crim, comp, perda, vistos, turismo] = await Promise.all([
-          fetch(`/api/acoes-civeis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/acoes-trabalhistas?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/acoes-criminais?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/compra-venda-imoveis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/perda-nacionalidade?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/vistos?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
-          fetch(`/api/turismo?search=${enc}&limit=5`).then(r => r.ok ? r.json() : [] ).catch(() => []),
+          fetch(`/api/acoes-civeis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/acoes-trabalhistas?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/acoes-criminais?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/compra-venda-imoveis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/perda-nacionalidade?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/vistos?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`/api/turismo?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
         ]);
         if (!active) return;
         const toItem = (it: any, mod: string) => {
@@ -211,7 +218,7 @@ export default function DashboardLayout({
           }
           return { module: mod, id: it.id, title, subtitle, status: it?.status || "Em andamento", href };
         };
-        const all = []
+        const all: any[] = ([] as any[])
           .concat((Array.isArray(civeis) ? civeis : []).map((it: any) => toItem(it, "Ações Cíveis")))
           .concat((Array.isArray(trab) ? trab : []).map((it: any) => toItem(it, "Ações Trabalhistas")))
           .concat((Array.isArray(crim) ? crim : []).map((it: any) => toItem(it, "Ações Criminais")))
@@ -350,29 +357,29 @@ export default function DashboardLayout({
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-              <SheetContent side="left" className="w-80 p-0">
-                <Sidebar
-                  searchQuery={searchQuery}
-                  setSearchQuery={setSearchQuery}
-                  pathname={pathname}
-                  menuItems={menuItems}
-                  onNavigate={() => setMobileMenuOpen(false)}
-                  user={user}
-                  handleLogout={handleLogout}
-                />
-              </SheetContent>
-            </Sheet>
-            <Image
-              src="https://i.imgur.com/9R0VFkm.png"
-              alt="Sistema Jurídico Logo"
-              width={96}
-              height={32}
-              className="object-contain"
-              priority
-              unoptimized
-            />
-          </div>
-            
+                <SheetContent side="left" className="w-80 p-0">
+                  <Sidebar
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    pathname={pathname}
+                    menuItems={menuItems}
+                    onNavigate={() => setMobileMenuOpen(false)}
+                    user={user}
+                    handleLogout={handleLogout}
+                  />
+                </SheetContent>
+              </Sheet>
+              <Image
+                src="https://i.imgur.com/9R0VFkm.png"
+                alt="Sistema Jurídico Logo"
+                width={96}
+                height={32}
+                className="object-contain"
+                priority
+                unoptimized
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               {pathname === "/dashboard" && <NotificationBell />}
               {pathname === "/dashboard" && (
@@ -388,43 +395,49 @@ export default function DashboardLayout({
         <main className="p-4 lg:p-6">
           {searchQuery.trim() ? (
             <div className="space-y-4">
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle>Resultados da Busca</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {searching ? (
-                    <div className="text-sm text-slate-500">Buscando...</div>
-                  ) : searchResults.length === 0 ? (
-                    <div className="text-sm text-slate-500">Nenhum resultado</div>
-                  ) : (
-                    searchResults.map((item, i) => (
-                      <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
-                        <Card
-                          className="border-slate-200 hover:shadow-md transition-all cursor-pointer"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => router.push(item.href)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') router.push(item.href); }}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold truncate">{item.title}</div>
-                                <div className="text-xs text-slate-500 truncate">{item.subtitle || item.module}</div>
+              <PageTransition>
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Resultados da Busca</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {searching ? (
+                      <div className="text-sm text-slate-500">Buscando...</div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="text-sm text-slate-500">Nenhum resultado</div>
+                    ) : (
+                      searchResults.map((item, i) => (
+                        <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
+                          <Card
+                            className="border-slate-200 hover:shadow-md transition-all cursor-pointer"
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => router.push(item.href)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') router.push(item.href); }}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold truncate">{item.title}</div>
+                                  <div className="text-xs text-slate-500 truncate">{item.subtitle || item.module}</div>
+                                </div>
+                                <Badge className={`text-xs ${item.status === 'Finalizado' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>{item.status || 'Em andamento'}</Badge>
                               </div>
-                              <Badge className={`text-xs ${item.status === 'Finalizado' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>{item.status || 'Em andamento'}</Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </PageTransition>
             </div>
           ) : (
-            <div className="w-full">{children}</div>
+            <AnimatePresence mode="wait">
+              <PageTransition key={pathname} className="w-full">
+                {children}
+              </PageTransition>
+            </AnimatePresence>
           )}
         </main>
       </div>
