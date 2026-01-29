@@ -36,7 +36,7 @@ interface VistoFormContextType {
 
 const VistoFormContext = createContext<VistoFormContextType | null>(null);
 
-const DocumentRow = ({ label, field, docField, placeholder = "Status ou informações do documento", readOnly = false }: { label: string; field?: string; docField: string; placeholder?: string; readOnly?: boolean }) => {
+const DocumentRow = ({ label, field, docField, placeholder = "Status ou informações do documento", readOnly = false, required = false }: { label: string; field?: string; docField: string; placeholder?: string; readOnly?: boolean; required?: boolean }) => {
   const context = useContext(VistoFormContext);
   if (!context) return null;
   const { formData, handleChange, uploadingDocs, extraUploads, handleDocumentUpload, handleRemoveFile } = context;
@@ -49,9 +49,20 @@ const DocumentRow = ({ label, field, docField, placeholder = "Status ou informa�
     attachedFiles.push(...extraUploads[docField]);
   }
 
+  const isMissing = required && attachedFiles.length === 0;
+
   return (
     <div className="space-y-2">
-      <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+          {label} {required && <span className="text-red-500">*</span>}
+        </Label>
+        {isMissing && (
+          <span className="text-xs font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded">
+            Pendente
+          </span>
+        )}
+      </div>
       <div className="flex gap-3 items-start">
         {readOnly ? (
           <div className="flex-1 flex items-center p-2.5 rounded-md border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm">
@@ -138,10 +149,7 @@ export default function NovoVistoPage() {
     // Campos específicos de Visto de Trabalho - Brasil
     certidaoNascimento: "",
     certidaoNascimentoDoc: "",
-    certidaoNascimento: "",
-    certidaoNascimentoDoc: "",
     // declaracaoCompreensao removed
-    certidaoNascimentoFilhos: "",
     certidaoNascimentoFilhos: "",
     certidaoNascimentoFilhosDoc: "",
     cartaoCnpj: "",
@@ -409,6 +417,7 @@ export default function NovoVistoPage() {
                 fileType: file.type,
                 clientName: formData.clientName || "Novo Cliente",
                 moduleType: "vistos"
+                // fieldName omitted to trigger temporary upload flow (no recordId needed)
               })
             });
 
@@ -440,7 +449,7 @@ export default function NovoVistoPage() {
                 fileName: file.name,
                 fileType: file.type,
                 fileSize: file.size,
-                fieldName: field,
+                // fieldName omitted for temporary upload flow
                 moduleType: "vistos",
                 clientName: formData.clientName
               })

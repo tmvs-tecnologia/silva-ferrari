@@ -289,8 +289,8 @@ export default function NovoTurismoPage() {
               body: JSON.stringify({
                 fileName: file.name,
                 fileType: file.type,
-                moduleType: "vistos",
-                fieldName: field
+                moduleType: "vistos"
+                // fieldName omitted to trigger temporary upload flow (no recordId needed)
               })
             });
 

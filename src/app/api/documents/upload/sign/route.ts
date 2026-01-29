@@ -115,6 +115,35 @@ const FIELD_TO_STEP_MAP: Record<string, string> = {
 
   // Ações Trabalhistas e Criminais
   fotoNotificacaoDoc: 'documentos-acao',
+
+  // Additional Vistos/Turismo Mappings
+  traducaoAntecedentesCriminaisDoc: 'traducao',
+  traducaoCertificadoTrabalhoDoc: 'traducao',
+  traducaoDiplomaDoc: 'traducao',
+  traducaoCertidaoNascimentoDoc: 'traducao',
+  procuracaoEmpresaDoc: 'procuracao',
+  procuracaoEmpresaAssinadaDoc: 'procuracao',
+  procuracaoImigranteDoc: 'procuracao',
+  procuracaoImigranteAssinadaDoc: 'procuracao',
+  formularioRn01Doc: 'formularios',
+  guiaPagaDoc: 'guia-judicial',
+  publicacaoDouDoc: 'deferimento',
+  comprovanteInvestimentoDoc: 'financeiro',
+  planoInvestimentosDoc: 'financeiro',
+  formularioRequerimentoDoc: 'formularios',
+  protocoladoDoc: 'protocolo',
+  contratoTrabalhoDoc: 'profissional',
+  folhaPagamentoDoc: 'financeiro',
+  comprovanteVinculoAnteriorDoc: 'profissional',
+  declaracaoAntecedentesCriminaisDoc: 'documentos-pessoais',
+  ctpsDoc: 'profissional',
+  contratoTrabalhoAnteriorDoc: 'profissional',
+  contratoTrabalhoAtualDoc: 'profissional',
+  formularioProrrogacaoDoc: 'formularios',
+  contratoTrabalhoIndeterminadoDoc: 'profissional',
+  justificativaMudancaEmpregadorDoc: 'profissional',
+  gfipDoc: 'financeiro',
+  certificadoTrabalhoDoc: 'profissional',
 };
 
 const sanitizeClientName = (name: string): string => {
