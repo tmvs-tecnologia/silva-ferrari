@@ -345,27 +345,33 @@ export default function PendenciasPage() {
       <div className="container mx-auto px-6 max-w-7xl space-y-10">
         {/* Header Section */}
         <header className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              className="group flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors p-0 h-auto font-semibold"
-              onClick={() => window.history.back()}
-            >
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              Voltar
-            </Button>
-            <Button
-              onClick={() => fetchTasks()}
-              disabled={loading}
-              className="bg-[#F59E0B] hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-full transition-all shadow-lg shadow-amber-500/30 border border-white/20 h-auto"
-            >
-              <RotateCcw className={`mr-2 h-4 w-4 ${(loading || loadingDocs) ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">Tarefas Pendentes</h1>
-            <p className="text-slate-500 font-medium">Gestão administrativa de prazos e obrigações jurídicas</p>
+          <div className="grid grid-cols-3 items-center w-full">
+            <div className="flex justify-start">
+              <Button
+                variant="ghost"
+                className="group flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors p-0 h-auto font-semibold"
+                onClick={() => window.history.back()}
+              >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                Voltar
+              </Button>
+            </div>
+
+            <div className="flex flex-col items-center text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-1">Tarefas Pendentes</h1>
+              <p className="text-sm text-slate-500 font-medium whitespace-nowrap">Gestão administrativa de prazos e obrigações jurídicas</p>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => fetchTasks()}
+                disabled={loading}
+                className="bg-[#F59E0B] hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-full transition-all shadow-lg shadow-amber-500/30 border border-white/20 h-auto"
+              >
+                <RotateCcw className={`mr-2 h-4 w-4 ${(loading || loadingDocs) ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </header>
 

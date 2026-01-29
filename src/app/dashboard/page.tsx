@@ -5,15 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { 
-  FileText, 
-  Briefcase, 
-  Shield, 
-  Home, 
-  Globe, 
-  Bell, 
-  TrendingUp, 
-  Users, 
+import {
+  FileText,
+  Briefcase,
+  Shield,
+  Home,
+  Globe,
+  Bell,
+  TrendingUp,
+  Users,
   Calendar,
   Clock,
   ArrowUpRight,
@@ -107,7 +107,7 @@ export default function DashboardPage() {
             const raJson = ct.includes('application/json') ? await raRes.json() : [];
             setRecentActivity(Array.isArray(raJson) ? raJson : []);
           }
-        } catch {}
+        } catch { }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -128,7 +128,7 @@ export default function DashboardPage() {
       fetch('/api/alerts?isRead=false&limit=10')
         .then(r => r.ok ? r.json() : [])
         .then(j => setAlerts(Array.isArray(j) ? j : []))
-        .catch(() => {});
+        .catch(() => { });
     };
     const onStorage = (e: StorageEvent) => { if (e.key === 'alerts-updated') refreshAlerts(); };
     const onCustom = () => refreshAlerts();
@@ -254,228 +254,242 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white via-blue-50 to-indigo-100 p-8 border border-slate-200/50">
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                Bem-vindo ao Sistema Jurídico
+    <div className="relative min-h-[calc(100vh-120px)] w-full">
+      {/* Liquid Background Blobs */}
+      <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-[#fef1bf]/[0.15] rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-[#fdf3ce]/[0.12] rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] right-[10%] w-[35vw] h-[35vw] bg-[#fef9e6]/[0.1] rounded-full blur-[100px]" />
+      </div>
+
+      <div className="space-y-10 animate-in fade-in duration-700">
+        {/* Welcome Section */}
+        <section className="premium-glass rounded-[2.5rem] p-10 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-[400px] h-full bg-gradient-to-l from-gold-300/10 to-transparent pointer-events-none group-hover:from-gold-300/20 transition-all duration-700"></div>
+
+          <div className="flex flex-col md:flex-row justify-between items-start relative z-10 gap-6">
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h1 className="text-4xl font-extrabold text-[#432818] mb-3 tracking-tight">
+                Bem-vindo ao <span className="gold-text-gradient">Sistema Jurídico</span>
               </h1>
-              <p className="text-slate-600 text-lg">
-                Gerencie seus processos de forma inteligente e eficiente
+              <p className="text-[#432818]/70 text-xl font-medium">
+                Gestão de alto padrão para seus processos inteligentes
               </p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-slate-500 mb-1">Processos Totais</div>
-              <div className="text-4xl font-bold gradient-text">
+            </motion.div>
+
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 100, delay: 0.4 }}
+              className="text-right"
+            >
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ca8a04] mb-2">Processos Totais</p>
+              <div className="text-7xl font-black text-[#432818] opacity-90 gold-text-gradient">
                 {loading ? "..." : totalProcessos}
               </div>
-            </div>
+            </motion.div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-600">Ações</div>
-                    <div className="text-xl font-bold text-slate-900">{loading ? '...' : totalCount}</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 cursor-pointer" onClick={() => router.push('/dashboard/pendencias')}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-600">Pendências</div>
-                    <div className="text-xs text-slate-500">Acesse o calendário de pendências</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card className="bg-white/70 backdrop-blur-sm border-slate-200/50 cursor-pointer" onClick={() => router.push('/dashboard/procuracao/novo')}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-slate-600">Elaborar Procuração</div>
-                    <div className="text-xs text-slate-500">Criar rapidamente uma procuração</div>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12 relative z-10">
+            <motion.div whileHover={{ y: -5 }} className="glass-card rounded-2xl p-6 bg-white/40 border-gold-200/50 hover:bg-white/60 cursor-pointer transition-all">
+              <div className="flex items-center gap-5">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#facc15] to-[#ca8a04] text-white shadow-lg shadow-gold-500/20">
+                  <Users className="w-6 h-6" />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className="text-xs font-bold text-gold-800/60 uppercase tracking-wider">Ações</p>
+                  <p className="text-3xl font-bold text-[#432818]">{loading ? '...' : totalCount}</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ y: -5 }}
+              onClick={() => router.push('/dashboard/pendencias')}
+              className="glass-card rounded-2xl p-6 bg-white/40 border-gold-200/50 hover:bg-white/60 cursor-pointer transition-all"
+            >
+              <div className="flex items-center gap-5">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/20">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gold-800/60 uppercase tracking-wider">Pendências</p>
+                  <p className="text-lg font-bold text-[#432818]">Abrir Calendário</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ y: -5 }}
+              onClick={() => router.push('/dashboard/procuracao/novo')}
+              className="glass-card rounded-2xl p-6 bg-white/40 border-gold-200/50 hover:bg-white/60 cursor-pointer transition-all"
+            >
+              <div className="flex items-center gap-5">
+                <div className="p-4 rounded-xl bg-gradient-to-br from-[#432818] to-[#2d1b10] text-white shadow-lg shadow-bronze/20">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gold-800/60 uppercase tracking-wider">Documentos</p>
+                  <p className="text-lg font-bold text-[#432818]">Criar Procuração</p>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-transparent rounded-full -translate-y-32 translate-x-32"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-indigo-400/20 to-transparent rounded-full translate-y-24 -translate-x-24"></div>
-      </div>
+        </section>
 
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {modules.map((module) => (
-          <Link key={module.href} href={module.href}>
-            <Card className="group relative overflow-hidden border-slate-200/50 bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1">
-              <div className={`absolute inset-0 bg-gradient-to-br ${module.color} opacity-5 group-hover:opacity-10 transition-opacity`}></div>
-              <CardHeader className="relative pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold text-slate-800">
-                    {module.title}
-                  </CardTitle>
-                  <div className={`p-3 rounded-xl ${module.bgColor} group-hover:scale-110 transition-transform`}>
-                    <module.icon className={`h-6 w-6 text-slate-700`} />
+        {/* Modules Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {modules.map((module, index) => (
+            <motion.div
+              key={module.href}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 * index }}
+            >
+              <Link href={module.href}>
+                <Card className="glass-card rounded-2xl p-6 flex flex-col justify-between h-full bg-white/30 border-gold-200/30 hover:border-gold-400/50 hover:bg-white/50 transition-all group">
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-bold text-lg text-[#432818] group-hover:text-[#ca8a04] transition-colors">{module.title}</h3>
+                      <module.icon className="w-5 h-5 text-gold-600" />
+                    </div>
+                    <p className="text-sm text-[#432818]/60 mb-8">{module.description}</p>
                   </div>
-                </div>
-                <p className="text-sm text-slate-600 mt-1">{module.description}</p>
+                  <div className="flex items-end justify-between">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-black text-[#432818]">{module.count}</span>
+                      <span className="text-xs font-bold text-amber-600 flex items-center bg-amber-100/50 px-2 py-0.5 rounded-full">
+                        <ArrowUpRight className="w-3 h-3 mr-0.5" /> {module.trend}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1 text-[10px] font-bold text-gold-700 uppercase tracking-tight">
+                        <Activity className="w-3 h-3" /> ativos
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
+        </section>
+
+        {/* Bottom Section: Activity & Alerts */}
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Alerts Section */}
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            <Card className="premium-glass rounded-[2rem] border-gold-200/30 overflow-hidden">
+              <CardHeader className="border-b border-gold-200/30 p-6">
+                <CardTitle className="flex items-center justify-between text-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <Bell className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <span className="text-[#432818] font-bold">Alertas Recentes</span>
+                    {alerts.length > 0 && (
+                      <Badge className="bg-red-500 text-white border-0">{alerts.length}</Badge>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={clearAlerts} className="hover:bg-amber-50 text-amber-700 font-bold">Limpar</Button>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="relative">
+              <CardContent className="p-0 h-[320px] overflow-y-auto custom-scrollbar">
                 {loading ? (
-                  <Skeleton className="h-12 w-24 bg-slate-200" />
+                  <div className="p-6 space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full bg-slate-100 rounded-xl" />
+                    ))}
+                  </div>
+                ) : alerts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                    <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
+                      <CheckCircle className="w-8 h-8" />
+                    </div>
+                    <p className="text-[#432818]/60 font-medium">Tudo sob controle</p>
+                    <p className="text-xs text-[#432818]/40 mt-1">Nenhum alerta pendente</p>
+                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-end gap-2">
-                      <div className="text-3xl font-bold text-slate-900">
-                        {module.count}
+                  <div className="p-4 space-y-3">
+                    {alerts.map((alert) => (
+                      <div key={alert.id} className="flex flex-col p-4 rounded-xl bg-white/30 border border-gold-200/20 hover:bg-white/50 transition-all">
+                        <p className="text-sm font-semibold text-[#432818] mb-1">{alert.message}</p>
+                        <span className="text-[10px] text-gold-700/60 uppercase font-bold tracking-wider">{new Date().toLocaleDateString('pt-BR')}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-green-600 mb-1">
-                        <ArrowUpRight className="w-4 h-4" />
-                        <span>{module.trend}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-500">
-                      <Activity className="w-4 h-4" />
-                      <span>processos ativos</span>
-                    </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
-          </Link>
-        ))}
-      </div>
+          </motion.div>
 
-      
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Alerts Section */}
-        <Card className="border-slate-200/50 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="border-b border-slate-200/50">
-            <CardTitle className="flex items-center justify-between text-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-amber-600" />
-                </div>
-                <span className="text-slate-900">Alertas Recentes</span>
-                {alerts.length > 0 && (
-                  <Badge className="bg-red-500 text-white border-0">{alerts.length}</Badge>
+          {/* Activity Section */}
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            <Card className="premium-glass rounded-[2rem] border-gold-200/30 overflow-hidden">
+              <CardHeader className="border-b border-gold-200/30 p-6">
+                <CardTitle className="flex items-center justify-between text-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <span className="text-[#432818] font-bold">Atividade Recente</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={clearRecentActivity} className="hover:bg-blue-50 text-blue-700 font-bold">Limpar</Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 h-[320px] overflow-y-auto custom-scrollbar">
+                {loading ? (
+                  <div className="p-6 space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full bg-slate-100 rounded-xl" />
+                    ))}
+                  </div>
+                ) : recentActivity.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                    <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mb-4">
+                      <Activity className="w-8 h-8" />
+                    </div>
+                    <p className="text-[#432818]/60 font-medium">Sem atividades</p>
+                    <p className="text-xs text-[#432818]/40 mt-1">As movimentações aparecerão aqui</p>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-3">
+                    {recentActivity.map((activity: any) => (
+                      <div key={activity.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/30 border border-gold-200/20 hover:bg-white/50 transition-all group">
+                        <div className="w-10 h-10 bg-gold-50 text-gold-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Activity className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-[#432818]">
+                            {formatTypeLabel(activity.type)}
+                          </p>
+                          <p className="text-[10px] text-gold-700 font-bold uppercase tracking-wider">
+                            {formatModule(activity.moduleType)}
+                          </p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                          <span className="text-[10px] font-bold text-[#432818]/40">{new Date(activity.time).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-[11px] font-bold text-amber-600">{formatDetail(activity)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </div>
-              <Button variant="outline" size="sm" onClick={clearAlerts}>Limpar tudo</Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 h-80 overflow-y-auto">
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full bg-slate-200" />
-                ))}
-              </div>
-            ) : alerts.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                  <Bell className="w-8 h-8 text-green-600" />
-                </div>
-                <p className="text-slate-600 font-medium">Nenhum alerta pendente</p>
-                <p className="text-sm text-slate-500 mt-2">Todos os alertas foram processados</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors"
-                  >
-                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Bell className="w-4 h-4 text-amber-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 mb-1">{alert.message}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200/50 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="border-b border-slate-200/50">
-            <CardTitle className="flex items-center justify-between text-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-blue-600" />
-                </div>
-                <span className="text-slate-900">Atividade Recente</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={clearRecentActivity}>Limpar tudo</Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 h-80 overflow-y-auto">
-            {loading ? (
-              <div className="space-y-4">
-                {[1,2,3].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full bg-slate-200" />
-                ))}
-              </div>
-            ) : recentActivity.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-                  <Clock className="w-8 h-8 text-blue-600" />
-                </div>
-                <p className="text-slate-600 font-medium">Nenhuma atividade recente</p>
-                <p className="text-sm text-slate-500 mt-2">As atividades aparecerão aqui</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentActivity.map((activity: any) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200"
-                  >
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Activity className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">
-                        {formatTypeLabel(activity.type)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {activity.title} • {formatModule(activity.moduleType)} • {new Date(activity.time).toLocaleString('pt-BR')}
-                      </p>
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {formatDetail(activity)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
