@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Calendar as CalendarIcon, Users, Clock, FileText, ChevronRight, Trash2, Filter, CheckCircle, Eye, AlertTriangle } from "lucide-react";
+import { Calendar as CalendarIcon, Users, Clock, FileText, ChevronRight, Trash2, Filter, CheckCircle, Eye, AlertTriangle, ArrowLeft, RotateCcw, AlertCircle, ChevronDown, ChevronUp, RefreshCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,20 @@ export default function PendenciasPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+  const [pendingDocs, setPendingDocs] = useState<any[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [expandedRecordIds, setExpandedRecordIds] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const togglePendingDocsExpansion = (moduleType: string, recordId: number) => {
+    const key = `${moduleType}-${recordId}`;
+    setExpandedRecordIds(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const fetchTasks = async (respOverride?: string, moduleOverride?: string) => {
     setLoading(true);
@@ -44,8 +58,38 @@ export default function PendenciasPage() {
     setLoading(false);
   };
 
+  const fetchPendingDocs = async () => {
+    setLoadingDocs(true);
+    try {
+      const res = await fetch('/api/pending-documents');
+      if (res.ok) {
+        const data = await res.json();
+        const filtered = (Array.isArray(data) ? data : []).filter((d: any) => (d.missing_count || 0) > 0);
+        setPendingDocs(filtered);
+      }
+    } catch (err) {
+      console.error('Error fetching pending docs:', err);
+    }
+    setLoadingDocs(false);
+  };
+
+  const syncPendingDocs = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch("/api/pending-documents/rebuild", { method: 'POST' });
+      if (res.ok) {
+        await fetchPendingDocs();
+      }
+    } catch (error) {
+      console.error("Erro ao sincronizar documentos:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
+    fetchPendingDocs();
   }, []);
   useEffect(() => {
     // Atualiza automaticamente quando o responsável muda
@@ -56,14 +100,14 @@ export default function PendenciasPage() {
     fetchTasks();
   }, [moduleType]);
 
-  const todayStart = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }, []);
+  const todayStart = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   const isOverdue = (due?: string) => {
     if (!due) return false;
-    const t = new Date(due); t.setHours(0,0,0,0); return t.getTime() < todayStart;
+    const t = new Date(due); t.setHours(0, 0, 0, 0); return t.getTime() < todayStart;
   };
   const isDueSoon = (due?: string) => {
     if (!due) return false;
-    const t = new Date(due); t.setHours(0,0,0,0);
+    const t = new Date(due); t.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((t.getTime() - todayStart) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 2;
   };
@@ -112,6 +156,10 @@ export default function PendenciasPage() {
     const p = s.split("-").map((v) => parseInt(v, 10));
     const d = new Date(p[0], (p[1] || 1) - 1, p[2] || 1);
     return d.toLocaleDateString("pt-BR");
+  };
+
+  const formatNumber = (num: number) => {
+    return num < 10 ? `0${num}` : num.toString();
   };
 
   const formatDateBR = (s?: string) => {
@@ -167,8 +215,8 @@ export default function PendenciasPage() {
     const steps = caseType === "Exame DNA"
       ? EXAME_DNA_STEPS
       : (caseType === "Alteração de Nome" || caseType === "Guarda" || caseType === "Acordos de Guarda")
-      ? ALTERACAO_NOME_STEPS
-      : STANDARD_CIVIL_STEPS;
+        ? ALTERACAO_NOME_STEPS
+        : STANDARD_CIVIL_STEPS;
     return steps[stepIndex] || `Passo ${stepIndex}`;
   };
 
@@ -286,82 +334,92 @@ export default function PendenciasPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-8 shadow-lg border border-slate-700">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-amber-500 rounded-lg">
-                <CalendarIcon className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">Visão Admin Tarefas Pendentes</h1>
-                <p className="text-slate-300 mt-1">Painel administrativo para gerenciar tarefas jurídicas pendentes</p>
-              </div>
-            </div>
-          </div>
-          <Button onClick={() => fetchTasks()} className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold shadow-lg">
-            Atualizar
-          </Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2 items-stretch">
-          <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 h-full min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm font-medium">Tarefas Pendentes</p>
-                <p className="text-3xl font-bold text-white mt-1">{totalPending}</p>
-              </div>
-              <div className="p-3 bg-slate-700 rounded-lg">
-                <FileText className="h-6 w-6 text-slate-300" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-red-900 rounded-lg p-4 border border-red-700 h-full min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-300 text-sm font-medium">Atrasadas</p>
-                <p className="text-3xl font-bold text-red-400 mt-1">{overdueCount}</p>
-              </div>
-              <div className="p-3 bg-red-800 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-red-400" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-amber-900 rounded-lg p-4 border border-amber-700 h-full min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-300 text-sm font-medium">Próximas</p>
-                <p className="text-3xl font-bold text-amber-400 mt-1">{upcomingCount}</p>
-              </div>
-              <div className="p-3 bg-amber-800 rounded-lg">
-                <CalendarIcon className="h-6 w-6 text-amber-400" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-emerald-900 rounded-lg p-4 border border-emerald-700 h-full min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-300 text-sm font-medium">Concluídas</p>
-                <p className="text-3xl font-bold text-emerald-400 mt-1">{completedCount}</p>
-              </div>
-              <div className="p-3 bg-emerald-800 rounded-lg">
-                <CheckCircle className="h-6 w-6 text-emerald-400" />
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-slate-50/50 pt-6 pb-12">
+      {/* Liquid Background Blobs */}
+      <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-indigo-500/[0.08] rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-pink-500/[0.06] rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] right-[10%] w-[35vw] h-[35vw] bg-sky-500/[0.05] rounded-full blur-[100px]" />
       </div>
 
-      <Card className="border-slate-200 dark:border-slate-700 shadow-md">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-          <div className="grid gap-1 grid-cols-1 xl:grid-cols-4">
-            <div>
-              <label className="text-xs font-medium text-slate-600">Filtrar por Responsável</label>
+      <div className="container mx-auto px-6 max-w-7xl space-y-10">
+        {/* Header Section */}
+        <header className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              className="group flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors p-0 h-auto font-semibold"
+              onClick={() => window.history.back()}
+            >
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+              Voltar
+            </Button>
+            <Button
+              onClick={() => fetchTasks()}
+              disabled={loading}
+              className="bg-[#F59E0B] hover:bg-amber-500 text-white font-bold py-2.5 px-6 rounded-full transition-all shadow-lg shadow-amber-500/30 border border-white/20 h-auto"
+            >
+              <RotateCcw className={`mr-2 h-4 w-4 ${(loading || loadingDocs) ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">Tarefas Pendentes</h1>
+            <p className="text-slate-500 font-medium">Gestão administrativa de prazos e obrigações jurídicas</p>
+          </div>
+        </header>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Tarefas Pendentes */}
+          <div className="glass-card rounded-[2.5rem] p-6 flex flex-col justify-between min-h-[140px]">
+            <div className="flex justify-between items-start">
+              <span className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Tarefas Pendentes</span>
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600">
+                <FileText className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-4xl font-bold text-slate-900 tracking-tighter">{formatNumber(totalPending)}</span>
+            </div>
+          </div>
+
+          {/* Atrasadas */}
+          <div className="glass-card rounded-[2.5rem] p-6 flex flex-col justify-between min-h-[140px]">
+            <div className="flex justify-between items-start">
+              <span className="text-red-500/80 text-sm font-semibold uppercase tracking-wider">Atrasadas</span>
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-4xl font-bold text-red-600 tracking-tighter">{formatNumber(overdueCount)}</span>
+            </div>
+          </div>
+
+          {/* Próximas */}
+          <div className="glass-card rounded-[2.5rem] p-6 flex flex-col justify-between min-h-[140px]">
+            <div className="flex justify-between items-start">
+              <span className="text-amber-600/80 text-sm font-semibold uppercase tracking-wider">Próximas</span>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600">
+                <Clock className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-4xl font-bold text-amber-600 tracking-tighter">{formatNumber(upcomingCount)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Section */}
+        <div className="glass-card rounded-[2.5rem] p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="relative">
               <Select value={responsible} onValueChange={(v) => setResponsible(v === 'all' ? '' : v)}>
-                <SelectTrigger className="h-9 mt-1">
+                <SelectTrigger className="w-full h-12 bg-white/50 border-white/80 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all shadow-none">
                   <SelectValue placeholder="Responsável" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-2xl border-white/80 shadow-xl backdrop-blur-xl bg-white/90">
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="__none__">Sem responsável</SelectItem>
                   {responsaveis.map((nome) => (
@@ -370,44 +428,44 @@ export default function PendenciasPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600">Filtrar por Módulo</label>
+
+            <div className="relative">
               <Select value={moduleType} onValueChange={(v) => setModuleType(v === 'all' ? '' : v)}>
-                <SelectTrigger className="h-9 mt-1">
+                <SelectTrigger className="w-full h-12 bg-white/50 border-white/80 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all shadow-none">
                   <SelectValue placeholder="Módulo" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                <SelectContent className="rounded-2xl border-white/80 shadow-xl backdrop-blur-xl bg-white/90">
+                  <SelectItem value="all">Todos os Módulos</SelectItem>
                   {MODULE_OPTIONS.map((opt) => (
                     <SelectItem key={opt.key} value={opt.key}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600">Filtrar por Status</label>
+
+            <div className="relative">
               <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v)}>
-                <SelectTrigger className="h-9 mt-1">
+                <SelectTrigger className="w-full h-12 bg-white/50 border-white/80 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all shadow-none">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                <SelectContent className="rounded-2xl border-white/80 shadow-xl backdrop-blur-xl bg-white/90">
+                  <SelectItem value="all">Todos os Status</SelectItem>
                   <SelectItem value="Atrasado">Atrasado</SelectItem>
                   <SelectItem value="Próximo">Próximo</SelectItem>
                   <SelectItem value="Concluída">Concluída</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600">Intervalo de Datas</label>
+
+            <div className="relative">
               <Popover>
                 <PopoverTrigger asChild>
-                  <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm h-9 mt-1 bg-white shadow-xs cursor-pointer">
-                    <CalendarIcon className="h-4 w-4" />
-                    <span>{dateRangeLabel || "Selecione"}</span>
-                  </div>
+                  <button className="w-full h-12 flex items-center gap-3 rounded-2xl border border-white/80 bg-white/50 hover:bg-white/80 transition-all px-4 text-sm text-slate-600 shadow-none">
+                    <CalendarIcon className="h-5 w-5 text-slate-400" />
+                    <span className="truncate">{dateRangeLabel || "Intervalo de Datas"}</span>
+                  </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[360px] p-3" align="start">
+                <PopoverContent className="w-[360px] p-4 rounded-3xl border-white shadow-2xl backdrop-blur-xl" align="end">
                   <Calendar
                     mode="range"
                     selected={dateRange as any}
@@ -424,97 +482,227 @@ export default function PendenciasPage() {
                 </PopoverContent>
               </Popover>
             </div>
-            
           </div>
-          
-        </CardHeader>
-        <CardContent className="pt-2 space-y-2">
-          
-          {loading ? (
-            <div className="p-4 text-center text-slate-600">Carregando...</div>
-          ) : displayTasks.length === 0 ? (
-            <div className="p-8 text-center text-slate-600">Nenhuma pendência</div>
-          ) : (
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-4/12 px-3">Descrição da Tarefa</TableHead>
-                  <TableHead className="w-3/12 px-3">Advogado Responsável</TableHead>
-                  <TableHead className="w-2/12 px-3">Prazo</TableHead>
-                  <TableHead className="w-1/12 px-3">Status Atual</TableHead>
-                  <TableHead className="w-2/12 px-3 text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {displayTasks.map((t: any) => {
-                  const overdue = !t.isDone && isOverdue(t.dueDate);
-                  const dueSoon = !t.isDone && isDueSoon(t.dueDate) && !overdue;
-                  return (
-                    <TableRow key={`${t.moduleType}-${t.recordId}-${t.stepIndex}-${t.id}`}>
-                      <TableCell className="w-4/12 px-3">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-slate-600" />
-                          <div className="truncate flex items-center gap-2">
-                            <div className="text-sm font-medium truncate">{getStepTitle(t)}</div>
-                            <Badge variant="outline" className="border-slate-300 text-slate-700 bg-slate-50">
-                              {moduleLabel(t.moduleType)}
-                            </Badge>
+        </div>
+
+        {/* Pending Documents Section */}
+        {pendingDocs.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-4">
+              <h2 className="text-xl font-bold text-slate-900">Documentos Pendentes</h2>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={syncPendingDocs}
+                disabled={isSyncing}
+                className="bg-white hover:bg-orange-50 text-orange-600 border-orange-200 hover:border-orange-300 gap-2 font-bold text-[10px] uppercase tracking-wider"
+              >
+                <RefreshCcw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+              </Button>
+            </div>
+            <div className="grid grid-cols-12 px-8 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500">
+              <div className="col-span-4">Cliente</div>
+              <div className="col-span-3 text-center">Módulo</div>
+              <div className="col-span-4 text-center">Status</div>
+              <div className="col-span-1 text-right">Ações</div>
+            </div>
+
+            <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2 custom-scrollbar">
+              {pendingDocs.map((doc: any) => {
+                const isExpanded = expandedRecordIds.has(`${doc.module_type}-${doc.record_id}`);
+                const pendingData = Array.isArray(doc.pending) ? doc.pending : (doc.pending ? [doc.pending] : []);
+
+                return (
+                  <div
+                    key={`pending-doc-${doc.module_type}-${doc.record_id}-${doc.id}`}
+                    className="space-y-3"
+                  >
+                    <div
+                      className="glass-row rounded-[2.5rem] p-5 grid grid-cols-12 items-center px-8"
+                    >
+                      <div className="col-span-4 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm bg-orange-50 border-orange-100 text-orange-500">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-slate-900 truncate">{doc.client_name}</h3>
+                        </div>
+                      </div>
+
+                      <div className="col-span-3 text-center">
+                        <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200">
+                          {moduleLabel(doc.module_type)}
+                        </span>
+                      </div>
+
+                      <div className="col-span-4 flex justify-center">
+                        <button
+                          onClick={() => togglePendingDocsExpansion(doc.module_type, doc.record_id)}
+                          className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-600 border border-amber-500/30 hover:bg-amber-500/20 transition-all flex items-center gap-2"
+                        >
+                          {doc.missing_count} Documentos Pendentes
+                          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </button>
+                      </div>
+
+                      <div className="col-span-1 flex justify-end gap-2">
+                        <Link href={`/dashboard/${doc.module_type === 'turismo' ? 'turismo' : 'vistos'}/${doc.record_id}`}>
+                          <button className="w-9 h-9 rounded-xl bg-white/40 hover:bg-white flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all border border-white/50 shadow-sm">
+                            <Eye className="h-5 w-5" />
+                          </button>
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Expandable Content (Image 2 style) */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 shadow-sm">
+                          <div className="flex items-start justify-between mb-4">
+                            <h4 className="flex items-center gap-2 text-amber-800 font-bold">
+                              <AlertCircle className="h-5 w-5" />
+                              Documentos Pendentes
+                            </h4>
+                          </div>
+                          <p className="text-sm text-amber-700 mb-6">
+                            Os documentos abaixo ainda não foram adicionados ao fluxo do processo.
+                          </p>
+
+                          <div className="space-y-6">
+                            {doc.pending && Array.isArray(doc.pending) ? (
+                              doc.pending.map((group: any) => (
+                                <div key={group.flow} className="space-y-3">
+                                  <h5 className="text-sm font-bold text-amber-900 border-b border-amber-200 pb-1.5 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                    {group.flow || "Sem Categoria"}
+                                  </h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2.5 pt-1">
+                                    {group.docs && Array.isArray(group.docs) && group.docs.map((f: any) => (
+                                      <div key={f.key || Math.random()} className="flex items-start gap-2.5 text-[13px] text-amber-800/90 group leading-relaxed">
+                                        <span className="mt-1.5 w-2 h-0.5 bg-amber-300 flex-shrink-0 group-hover:bg-amber-500 transition-colors" />
+                                        <span className="font-semibold">{f.label || f.key || "Documento Pendente"}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="flex flex-col items-center justify-center p-8 text-center bg-amber-100/30 rounded-lg border border-dashed border-amber-200">
+                                <FileText className="h-8 w-8 text-amber-300 mb-2" />
+                                <p className="text-sm text-amber-700 font-medium">Informações detalhadas não disponíveis.</p>
+                                <p className="text-xs text-amber-600/80 mt-1">Sincronize os dados para atualizar esta lista.</p>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="w-3/12 px-3 truncate">{t.responsibleName || 'Sem responsável'}</TableCell>
-                      <TableCell className="w-2/12 px-3">{formatDueDate(t.dueDate)}</TableCell>
-                      <TableCell className="w-1/12 px-3">
-                        {overdue ? (
-                          <Badge variant="outline" className="border-red-500 text-red-700 bg-red-50">Atrasado</Badge>
-                        ) : dueSoon ? (
-                          <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50">Próximo</Badge>
-                        ) : t.isDone ? (
-                          <Badge variant="outline" className="border-emerald-500 text-emerald-700 bg-emerald-50">Concluída</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-slate-300 text-slate-700 bg-slate-50">Sem prazo</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="w-2/12 px-3">
-                        <div className="flex items-center gap-1 justify-end min-w-[110px]">
-                          <Link href={linkFor(t)}>
-                            <Button variant="outline" size="icon" aria-label="Ver" title="Ver" className="h-8 w-8 p-0">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant={t.isDone ? 'outline' : 'default'}
-                            size="icon"
-                            className={(t.isDone ? 'border-emerald-500 text-emerald-700 bg-emerald-50 ' : 'bg-emerald-600 hover:bg-emerald-700 text-white ') + 'h-8 w-8 p-0'}
-                            aria-label={t.isDone ? 'Concluída' : 'Concluir'}
-                            title={t.isDone ? 'Concluída' : 'Concluir'}
-                            onClick={() => toggleDone(t)}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="text-red-600 border-red-300 hover:bg-red-50 h-8 w-8 p-0"
-                            aria-label="Excluir"
-                            title="Excluir"
-                            onClick={async () => {
-                              const ok = typeof window !== 'undefined' ? window.confirm('Excluir esta pendência?') : true;
-                              if (ok) await handleDelete(t);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Task List Section */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-slate-900 px-4">Tarefas Pendentes</h2>
+          <div className="grid grid-cols-12 px-8 py-2 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500">
+            <div className="col-span-4">Descrição da Tarefa</div>
+            <div className="col-span-3 text-center">Advogado Responsável</div>
+            <div className="col-span-2 text-center">Prazo</div>
+            <div className="col-span-2 text-center">Status</div>
+            <div className="col-span-1 text-right">Ações</div>
+          </div>
+
+          <div className="space-y-4 max-h-[520px] overflow-y-auto pr-2 custom-scrollbar">
+            {loading ? (
+              <div className="glass-row rounded-[2rem] p-12 text-center text-slate-500 font-medium">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                  Carregando tarefas...
+                </div>
+              </div>
+            ) : displayTasks.length === 0 ? (
+              <div className="glass-row rounded-[2rem] p-12 text-center text-slate-500 font-medium italic border-dashed border-slate-200">
+                Nenhuma pendência encontrada com os filtros atuais
+              </div>
+            ) : (
+              displayTasks.map((t: any) => {
+                const overdue = !t.isDone && isOverdue(t.dueDate);
+                const dueSoon = !t.isDone && isDueSoon(t.dueDate) && !overdue;
+                const done = !!t.isDone;
+
+                return (
+                  <div
+                    key={`${t.moduleType}-${t.recordId}-${t.stepIndex}-${t.id}`}
+                    className="glass-row rounded-[2.5rem] p-5 grid grid-cols-12 items-center px-8"
+                  >
+                    {/* Task Info */}
+                    <div className="col-span-4 flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm ${overdue ? 'bg-red-50 border-red-100 text-red-500' :
+                        dueSoon ? 'bg-amber-50 border-amber-100 text-amber-500' :
+                          done ? 'bg-emerald-50 border-emerald-100 text-emerald-500' :
+                            'bg-indigo-50 border-indigo-100 text-indigo-500'
+                        }`}>
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-slate-900 truncate">{getStepTitle(t)}</h3>
+                        <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+                          Módulo: {moduleLabel(t.moduleType)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-3 text-center">
+                      <span className="text-sm font-medium text-slate-600 truncate block px-2">
+                        {t.responsibleName || 'Sem responsável'}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 text-center">
+                      <span className={`text-sm font-bold ${overdue ? 'text-red-600' : 'text-slate-700'}`}>
+                        {formatDueDate(t.dueDate)}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 flex justify-center">
+                      {overdue ? (
+                        <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-red-500/10 text-red-600 border border-red-500/30">Atrasado</div>
+                      ) : dueSoon ? (
+                        <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-600 border border-amber-500/30">Próxima</div>
+                      ) : done ? (
+                        <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">Concluída</div>
+                      ) : (
+                        <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200">Pendente</div>
+                      )}
+                    </div>
+
+                    <div className="col-span-1 flex justify-end gap-2">
+                      <Link href={linkFor(t)}>
+                        <button className="w-9 h-9 rounded-xl bg-white/40 hover:bg-white flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all border border-white/50 shadow-sm">
+                          <Eye className="h-5 w-5" />
+                        </button>
+                      </Link>
+                      <button
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border shadow-sm ${done
+                          ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-200'
+                          : 'bg-white/40 hover:bg-emerald-50 text-emerald-600 border-white/50'
+                          }`}
+                        onClick={() => toggleDone(t)}
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

@@ -6,17 +6,49 @@ export type PendingDocGroup = {
   fields: PendingDocField[];
 };
 
+export function isBrasilVisto(type?: string, country?: string): boolean {
+  const t = String(type || "").toLowerCase();
+  const c = String(country || "").toLowerCase();
+  return (t.includes("trabalho") && (t.includes("brasil") || c.includes("brasil"))) ||
+    String(type || "") === "Visto de Trabalho - Brasil";
+}
+
+export function extractDocumentsFromRecord(record: any): Set<string> {
+  const keys = new Set<string>();
+  if (!record) return keys;
+
+  const docExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.txt'];
+
+  Object.entries(record).forEach(([key, value]) => {
+    const isDocKey = key.toLowerCase().includes('doc') || key.toLowerCase().includes('file');
+    const isDocValue = typeof value === 'string' && (
+      value.includes('supabase') ||
+      docExtensions.some(ext => value.toLowerCase().endsWith(ext)) ||
+      (value.startsWith('http') && docExtensions.some(ext => value.toLowerCase().includes(ext)))
+    );
+
+    if ((isDocKey || isDocValue) && value) {
+      const normalizedKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      keys.add(normalizedKey);
+      keys.add(key);
+      // Support common variations: passaporte_doc -> passaporte
+      keys.add(key.replace(/_doc$/i, ''));
+      keys.add(normalizedKey.replace(/Doc$/i, ''));
+    }
+  });
+
+  return keys;
+}
+
 export function getVistosDocRequirements(input: { type?: string; country?: string }): PendingDocGroup[] {
   const t = String(input.type || "").toLowerCase();
-  const countryStr = String(input.country || "").toLowerCase();
-
+  const showBrasil = isBrasilVisto(input.type, input.country);
   const showResidenciaPrevia = t.includes("trabalho") && (t.includes("resid") || t.includes("prévia") || t.includes("previ"));
   const showInvestidor = t.includes("invest");
   const showTrabalhistas = t.includes("trabalhistas");
   const showRenovacao = t.includes("renov") || t.includes("1 ano");
   const showIndeterminado = t.includes("indeterminado");
   const showMudancaEmpregador = t.includes("mudan") && t.includes("empregador");
-  const showBrasil = (t.includes("trabalho") && (t.includes("brasil") || countryStr.includes("brasil"))) || String(input.type || "") === "Visto de Trabalho - Brasil";
 
   if (showBrasil) {
     return [
@@ -272,57 +304,57 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
 export function getTurismoDocRequirements(): PendingDocGroup[] {
   return [
     {
-      title: "Documentos Pessoais",
+      title: "Cadastro de Documentos",
       step: "Cadastro de Documentos",
       fields: [
         { key: "cpfDoc", label: "CPF" },
-        { key: "rnmDoc", label: "RNM" },
         { key: "passaporteDoc", label: "Passaporte" },
-        { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
         { key: "declaracaoResidenciaDoc", label: "Declaração de Residência" },
-        { key: "foto3x4Doc", label: "Foto/Selfie" },
         { key: "documentoChinesDoc", label: "Documento Chinês" },
-        { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
-      ],
-    },
-    {
-      title: "Comprovação Financeira",
-      step: "Cadastro de Documentos",
-      fields: [
         { key: "certidaoNascimentoFilhosDoc", label: "Certidão Nascimento Filhos" },
-        { key: "cartaoCnpjDoc", label: "CNPJ" },
-        { key: "contratoEmpresaDoc", label: "Contrato Social" },
         { key: "escrituraImoveisDoc", label: "Escritura/Matrícula" },
-        { key: "extratosBancariosDoc", label: "Extratos Bancários" },
         { key: "impostoRendaDoc", label: "Imposto de Renda" },
-      ],
-    },
-    {
-      title: "Outros Documentos",
-      step: "Cadastro de Documentos",
-      fields: [
-        { key: "reservasPassagensDoc", label: "Reservas de Passagens" },
         { key: "reservasHotelDoc", label: "Reservas de Hotel" },
-        { key: "seguroViagemDoc", label: "Seguro Viagem" },
         { key: "roteiroViagemDoc", label: "Roteiro de Viagem" },
-        { key: "taxaDoc", label: "Taxa Consular" },
         { key: "formularioConsuladoDoc", label: "Formulário do Consulado" },
+        { key: "rnmDoc", label: "RNM" },
+        { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
+        { key: "foto3x4Doc", label: "Foto/Selfie" },
+        { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
+        { key: "cartaoCnpjDoc", label: "CNPJ" },
+        { key: "extratosBancariosDoc", label: "Extratos Bancários" },
+        { key: "reservasPassagensDoc", label: "Reservas de Passagens" },
+        { key: "seguroViagemDoc", label: "Seguro Viagem" },
+        { key: "taxaDoc", label: "Taxa Consular" },
+        { key: "documentosAdicionaisDoc", label: "Documentos Adicionais" },
       ],
     },
-    { title: "Agendamento", step: "Agendar no Consulado", fields: [{ key: "comprovante-agendamento", label: "Comprovante de Agendamento" }] },
-    { title: "Formulário", step: "Preencher Formulário", fields: [{ key: "formulario-visto", label: "Formulário de Visto" }] },
     {
-      title: "Documentação Preparada",
+      title: "Agendar no Consulado",
+      step: "Agendar no Consulado",
+      fields: [{ key: "comprovante-agendamento", label: "Comprovante de Agendamento" }],
+    },
+    {
+      title: "Preencher Formulário",
+      step: "Preencher Formulário",
+      fields: [{ key: "formulario-visto", label: "Formulário de Visto" }],
+    },
+    {
+      title: "Preparar Documentação",
       step: "Preparar Documentação",
       fields: [
-        { key: "formulario-visto", label: "Formulário de Visto Preenchido" },
+        { key: "formulario-visto-preenchido", label: "Formulário de Visto Preenchido" },
         { key: "documentos-traduzidos", label: "Documentos Traduzidos" },
         { key: "documentos-autenticados", label: "Documentos Autenticados" },
       ],
     },
-    { title: "Aprovação", step: "Aguardar Aprovação", fields: [{ key: "comprovante-aprovacao", label: "Comprovante de Aprovação" }] },
     {
-      title: "Finalização",
+      title: "Aguardar Aprovação",
+      step: "Aguardar Aprovação",
+      fields: [{ key: "comprovante-aprovacao", label: "Comprovante de Aprovação" }],
+    },
+    {
+      title: "Processo Finalizado",
       step: "Processo Finalizado",
       fields: [
         { key: "processo-finalizado", label: "Processo Finalizado" },
@@ -337,12 +369,28 @@ export function computePendingByFlow(groups: PendingDocGroup[], uploadedKeys: Se
   let totalCount = 0;
   let missingCount = 0;
 
+  // Normalize uploaded keys for fuzzy matching
+  const normalizedUploaded = new Set<string>();
+  uploadedKeys.forEach(k => {
+    const low = k.toLowerCase().replace(/^(vistos|turismo)-/, '');
+    normalizedUploaded.add(low);
+    normalizedUploaded.add(low.replace(/_/g, '')); // also match without underscores
+  });
+
   for (const group of groups) {
     const step = group.step;
     if (!merged[step]) merged[step] = [];
     for (const field of group.fields) {
       totalCount += 1;
-      if (!uploadedKeys.has(field.key)) {
+
+      const fieldLow = field.key.toLowerCase();
+      const fieldNoUnderscore = fieldLow.replace(/_/g, '');
+
+      const isUploaded = uploadedKeys.has(field.key) ||
+        normalizedUploaded.has(fieldLow) ||
+        normalizedUploaded.has(fieldNoUnderscore);
+
+      if (!isUploaded) {
         missingCount += 1;
         merged[step].push(field);
       }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
-import { computePendingByFlow, getTurismoDocRequirements, getVistosDocRequirements } from "@/lib/pending-documents";
+import { computePendingByFlow, extractDocumentsFromRecord, getTurismoDocRequirements, getVistosDocRequirements } from "@/lib/pending-documents";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,7 @@ async function listAllRows<T>(query: any): Promise<T[]> {
   const out: T[] = [];
   const pageSize = 1000;
   let offset = 0;
-  for (;;) {
+  for (; ;) {
     const { data, error } = await query.range(offset, offset + pageSize - 1);
     if (error) throw error;
     const arr = Array.isArray(data) ? data : [];
@@ -58,25 +58,38 @@ export async function POST(request: NextRequest) {
     const moduleTypes = (body.moduleTypes?.length ? body.moduleTypes : ["vistos", "turismo"]) as Array<"vistos" | "turismo">;
     let processed = 0;
 
+    // Limpar tabela antes de reconstruir para evitar duplicatas/órfãos
+    await supabase.from("pending_documents").delete().neq("id", 0);
+
     for (const moduleType of moduleTypes) {
       if (moduleType === "vistos") {
-        const records = await listAllRows<{ id: number; client_name: string; type: string; country?: string }>(
-          supabase.from("vistos").select("id, client_name, type, country").order("id", { ascending: true })
+        const records = await listAllRows<any>(
+          supabase.from("vistos").select("*").order("id", { ascending: true })
         );
 
         for (const r of records) {
           const docsPrimary = await supabase.from("documents").select("*").eq("record_id", r.id).eq("module_type", "vistos");
-          const docsFallback = docsPrimary.error ? null : docsPrimary.data;
-          const docs = Array.isArray(docsFallback) ? docsFallback : [];
+          const docs = Array.isArray(docsPrimary.data) ? docsPrimary.data : [];
+
+          // Combine documents table and record columns
           const uploaded = extractUploadedKeys(docs);
-          const requirements = getVistosDocRequirements({ type: r.type, country: r.country });
+          const recordDocs = extractDocumentsFromRecord(r);
+          recordDocs.forEach((k: string) => uploaded.add(k));
+
+          const isTurismo = r.type === "Turismo";
+          const targetModule = isTurismo ? "turismo" : "vistos";
+          const requirements = isTurismo
+            ? getTurismoDocRequirements()
+            : getVistosDocRequirements({ type: r.type, country: r.country });
+
           const computed = computePendingByFlow(requirements, uploaded);
+          // ... rest of the loop ...
 
           const { error: upsertError } = await supabase
             .from("pending_documents")
             .upsert(
               {
-                module_type: "vistos",
+                module_type: targetModule,
                 record_id: r.id,
                 client_name: r.client_name,
                 pending: computed.pending,
@@ -92,20 +105,22 @@ export async function POST(request: NextRequest) {
       }
 
       if (moduleType === "turismo") {
-        const records = await listAllRows<{ id: number; client_name: string; tipo_de_visto: string }>(
-          supabase.from("turismo").select("id, client_name, tipo_de_visto").order("id", { ascending: true })
+        const records = await listAllRows<any>(
+          supabase.from("turismo").select("*").order("id", { ascending: true })
         );
 
         for (const r of records) {
-          const primary = await supabase.from("documents").select("*").eq("record_id", r.id).eq("module_type", "vistos");
-          let docs = Array.isArray(primary.data) ? primary.data : [];
+          const primary = await supabase.from("documents")
+            .select("*")
+            .eq("record_id", r.id)
+            .in("module_type", ["vistos", "turismo"]);
 
-          if ((!docs || docs.length === 0) && !primary.error) {
-            const fallback = await supabase.from("documents").select("*").eq("record_id", r.id).eq("module_type", "turismo");
-            docs = Array.isArray(fallback.data) ? fallback.data : docs;
-          }
+          const docs = Array.isArray(primary.data) ? primary.data : [];
 
           const uploaded = extractUploadedKeys(docs);
+          const recordDocs = extractDocumentsFromRecord(r);
+          recordDocs.forEach((k: string) => uploaded.add(k));
+
           const requirements = getTurismoDocRequirements();
           const computed = computePendingByFlow(requirements, uploaded);
 

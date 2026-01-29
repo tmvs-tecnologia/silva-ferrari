@@ -75,14 +75,42 @@ export default function PastaTurismoDetail({ params }: { params: Promise<{ id: s
     try {
       const [folderRes, recRes, vistosRes] = await Promise.all([
         fetch(`/api/folders/${folderId}`),
-        fetch(`/api/folders/${folderId}/records`),
+        fetch(`/api/folders/${folderId}/records?includeDetails=true`),
         fetch(`/api/turismo?limit=200`),
       ]);
       const fold = await folderRes.json();
-      const recs = await recRes.json();
+      const recs = await recRes.json(); // Now contains details
       const vistos = await vistosRes.json();
+
       setFolder(fold || null);
-      setRecords(Array.isArray(recs) ? recs.map((r: any) => ({ record_id: r.record_id, module_type: r.module_type })) : []);
+
+      // Ensure we extract ID and type for records state
+      setRecords(Array.isArray(recs) ? recs.map((r: any) => ({
+        record_id: r.record_id,
+        module_type: r.module_type
+      })) : []);
+
+      // Create mapping from recs details
+      const folderVistosMapped = Array.isArray(recs) ? recs.map((r: any) => {
+        const v = r.details;
+        if (!v) return null;
+        return {
+          id: v.id,
+          client_name: v.clientName || v.client_name,
+          type: v.type,
+          status: v.status,
+          created_at: v.created_at || v.createdAt,
+          updated_at: v.updated_at || v.updatedAt,
+          country: v.country,
+          travelStartDate: v.travelStartDate || v.travel_start_date,
+          travelEndDate: v.travelEndDate || v.travel_end_date,
+          currentStep: v.currentStep ?? v.current_step,
+          statusFinal: v.statusFinal ?? v.status_final,
+          statusFinalOutro: v.statusFinalOutro ?? v.status_final_outro
+        };
+      }).filter((v: any): v is Visto => v !== null) : [];
+
+      // We still use vistosList for candidates to add to folder
       setVistosList(Array.isArray(vistos) ? vistos.map((v: any) => ({
         id: v.id,
         client_name: v.clientName || v.client_name,
@@ -97,8 +125,18 @@ export default function PastaTurismoDetail({ params }: { params: Promise<{ id: s
         statusFinal: v.statusFinal ?? v.status_final,
         statusFinalOutro: v.statusFinalOutro ?? v.status_final_outro
       })) : []);
+
+      // Overwrite vistosList with combined data to ensure all records in folder are available for display
+      setVistosList(prevVistos => {
+        const existingIds = new Set(prevVistos.map(v => v.id));
+        const missingFromList = folderVistosMapped.filter(v => !existingIds.has(v.id));
+        return [...prevVistos, ...missingFromList];
+      });
+
       setNewName(String((fold && fold.name) || ''));
-    } catch { }
+    } catch (err) {
+      console.error("Error loading folder details:", err);
+    }
     setLoading(false);
   };
 

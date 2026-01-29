@@ -8,12 +8,61 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const folderId = parseInt(id);
     if (isNaN(folderId)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
 
+    const { searchParams } = new URL(request.url);
+    const includeDetails = searchParams.get('includeDetails') === 'true';
+
     const { data: items, error } = await supabaseAdmin
       .from('folder_records')
       .select('*')
       .eq('folder_id', folderId)
       .order('created_at', { ascending: false });
     if (error) throw error;
+
+    if (!items || items.length === 0) return NextResponse.json([]);
+
+    if (includeDetails) {
+      // Agrupar por módulo para buscar detalhes de forma eficiente
+      const moduleGroups: Record<string, number[]> = {};
+      items.forEach((item: any) => {
+        if (!moduleGroups[item.module_type]) moduleGroups[item.module_type] = [];
+        moduleGroups[item.module_type].push(item.record_id);
+      });
+
+      const detailsMap: Record<string, any> = {};
+
+      for (const [module, ids] of Object.entries(moduleGroups)) {
+        let table = '';
+        if (module === 'turismo' || module === 'vistos') table = 'vistos';
+        else if (module === 'acoes-civeis') table = 'acoes_civeis';
+        else if (module === 'acoes-criminais') table = 'acoes_criminais';
+        else if (module === 'acoes-trabalhistas') table = 'acoes_trabalhistas';
+        else if (module === 'compra-venda') table = 'compra_venda_imoveis';
+        else if (module === 'perda-nacionalidade') table = 'perda_nacionalidade';
+
+        if (table) {
+          const { data: records, error: detailsError } = await supabaseAdmin
+            .from(table)
+            .select('*')
+            .in('id', ids);
+
+          if (!detailsError && records) {
+            records.forEach((r: any) => {
+              detailsMap[`${module}_${r.id}`] = r;
+            });
+          }
+        }
+      }
+
+      // Filtrar apenas itens que possuem detalhes (exclui órfãos) e mesclar
+      const mergedItems = items
+        .filter((item: any) => detailsMap[`${item.module_type}_${item.record_id}`])
+        .map((item: any) => ({
+          ...item,
+          details: detailsMap[`${item.module_type}_${item.record_id}`]
+        }));
+
+      return NextResponse.json(mergedItems);
+    }
 
     return NextResponse.json(items || []);
   } catch (error) {

@@ -65,7 +65,7 @@ export default function PastasTurismoPage() {
       const next: Record<number, number> = {};
       for (const f of folders) {
         try {
-          const r = await fetch(`/api/folders/${f.id}/records`);
+          const r = await fetch(`/api/folders/${f.id}/records?includeDetails=true`);
           if (!r.ok) continue;
           const arr = await r.json();
           next[f.id] = Array.isArray(arr) ? arr.length : 0;
