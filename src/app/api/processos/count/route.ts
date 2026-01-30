@@ -21,30 +21,32 @@ export async function GET(_request: NextRequest) {
       return [table, count ?? 0] as const;
     });
 
-    // Count Vistos (excluding Turismo records which are now in their own table)
+    // Count Vistos (excluding Turismo records)
     const vistosCountPromise = supabase
       .from('vistos')
       .select('*', { count: 'exact', head: true })
+      .neq('type', 'Turismo')
       .then(({ count, error }) => {
         if (error) throw error;
         return ['vistos', count ?? 0] as const;
       });
 
-    // Count Turismo (from turismo table)
+    // Count Turismo (from vistos table with type='Turismo')
     const turismoCountPromise = supabase
-      .from('turismo')
+      .from('vistos')
       .select('*', { count: 'exact', head: true })
+      .eq('type', 'Turismo')
       .then(({ count, error }) => {
         if (error) throw error;
         return ['turismo', count ?? 0] as const;
       });
 
     const results = await Promise.all([
-      ...standardCountsPromises, 
-      vistosCountPromise, 
+      ...standardCountsPromises,
+      vistosCountPromise,
       turismoCountPromise
     ]);
-    
+
     const byTable = Object.fromEntries(results);
     const total = Object.values(byTable).reduce((sum: number, c: any) => sum + (c as number), 0);
 
