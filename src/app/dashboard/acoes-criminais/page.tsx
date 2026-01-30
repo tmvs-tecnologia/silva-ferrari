@@ -62,7 +62,7 @@ export default function AcoesCriminaisPage() {
   const { data: cases, isLoading, error, refetch } = useDataCache(
     "acoes-criminais",
     async () => {
-      const response = await fetch("/api/acoes-criminais?limit=100&select=id,client_name,type,current_step,status,responsavel_name,responsavel_date,numero_processo,reu_name,notes");
+      const response = await fetch("/api/acoes-criminais?limit=100&select=id,client_name,status,responsavel_name,responsavel_date,numero_processo,reu_name,notes");
       return response.json();
     }
   );

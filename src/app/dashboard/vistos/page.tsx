@@ -60,10 +60,7 @@ export default function VistosPage() {
   const { data: vistosData, isLoading, error, refetch } = useDataCache(
     "vistos",
     async () => {
-      async () => {
-        const response = await fetch("/api/vistos?limit=100&select=id,client_name,type,status,created_at,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data");
-        return response.json();
-      }
+      const response = await fetch("/api/vistos?limit=100&select=id,client_name,type,status,created_at,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data");
       return response.json();
     }
   );

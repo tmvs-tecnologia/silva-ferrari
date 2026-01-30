@@ -66,7 +66,7 @@ export default function AcoesTrabalhistasPage() {
   const { data: cases, isLoading, error, refetch } = useDataCache(
     'acoes-trabalhistas',
     async () => {
-      const response = await fetch("/api/acoes-trabalhistas?limit=100&select=id,client_name,type,current_step,status,notes,responsavel_name,responsavel_date,numero_processo,reu_name");
+      const response = await fetch("/api/acoes-trabalhistas?limit=100&select=id,client_name,current_step,status,notes,responsavel_name,responsavel_date,numero_processo,reu_name");
       return response.json();
     }
   );
