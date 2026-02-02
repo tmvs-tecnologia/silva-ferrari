@@ -60,6 +60,22 @@ const config: Config = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        gold: {
+          50: "hsl(var(--gold-50))",
+          100: "hsl(var(--gold-100))",
+          200: "hsl(var(--gold-200))",
+          300: "hsl(var(--gold-300))",
+          400: "hsl(var(--gold-400))",
+          500: "hsl(var(--gold-500))",
+          600: "hsl(var(--gold-600))",
+          700: "hsl(var(--gold-700))",
+          800: "hsl(var(--gold-800))",
+          900: "hsl(var(--gold-900))",
+        },
+        bronze: {
+          DEFAULT: "hsl(var(--bronze))",
+          dark: "hsl(var(--bronze-dark))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -79,12 +95,12 @@ const config: Config = {
       },
       keyframes: {
         fadeInUp: {
-            '0%': { opacity: '0', transform: 'translateY(20px)' },
-            '100%': { opacity: '1', transform: 'translateY(0)' },
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         float: {
-            '0%, 100%': { transform: 'translateY(0)' },
-            '50%': { transform: 'translateY(-10px)' },
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
         },
         "accordion-down": {
           from: { height: "0" },

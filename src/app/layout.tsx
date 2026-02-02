@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./layout.css";
 import VisualEditsMessenger from "../visual-edits/VisualEditsMessenger";
 import ErrorReporter from "@/components/ErrorReporter";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-plus-jakarta",
+});
 
 export const metadata: Metadata = {
   title: "Silva & Ferrari - Sistema Jurídico Integrado",
@@ -65,7 +72,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="antialiased force-light">
+      <body className={`antialiased force-light ${plusJakarta.className}`}>
         <ErrorReporter />
         <Toaster />
         <Script id="sw-unregister" strategy="afterInteractive">

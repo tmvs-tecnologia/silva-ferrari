@@ -2,34 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import {
-  LayoutDashboard,
-  FileText,
-  Briefcase,
-  Shield,
-  Home,
-  Globe,
   LogOut,
   Menu,
-  Bell,
-  X,
-  ChevronLeft,
+  Search as SearchIcon,
   User,
-  Settings,
-  Search,
-  Plus,
-  Calendar,
-  TrendingUp,
-  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -48,6 +30,8 @@ import {
   prefetchTurismo,
   prefetchDashboard
 } from "@/utils/prefetch-functions";
+import { useGlobalSearch } from "@/hooks/use-global-search";
+import { GlobalSearchResults } from "@/components/global-search/global-search-results";
 
 interface User {
   id: number;
@@ -91,7 +75,7 @@ function Sidebar({
         <div className="mb-4 flex justify-center">
           <Image
             src="https://i.imgur.com/9R0VFkm.png"
-            alt="Sistema Jurídico Logo"
+            alt="Silva & Ferrari"
             width={180}
             height={60}
             className="object-contain"
@@ -99,13 +83,13 @@ function Sidebar({
             unoptimized
           />
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+        <div className="relative group">
+          <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
           <Input
-            placeholder="Buscar..."
+            placeholder="Buscar em todo o sistema..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.currentTarget.value)}
-            className="pl-9 bg-white/50 border-slate-200 focus:border-blue-400 focus:ring-blue-400"
+            className="pl-9 bg-white/50 border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all font-medium"
           />
         </div>
       </div>
@@ -122,7 +106,7 @@ function Sidebar({
               onClick={onNavigate}
               prefetchData={PREFETCH_FUNCTIONS[item.href as keyof typeof PREFETCH_FUNCTIONS]}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${pathname === item.href
-                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/20"
                 : "text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm"
                 }`}
             >
@@ -133,7 +117,7 @@ function Sidebar({
               )}
               <div className="flex-1">
                 <div className="text-sm font-medium">{item.title}</div>
-                <div className="text-xs opacity-75">{item.description}</div>
+                <div className={`text-xs ${pathname === item.href ? "text-blue-100" : "text-slate-400"}`}>{item.description}</div>
               </div>
             </OptimizedLink>
           </motion.div>
@@ -143,10 +127,10 @@ function Sidebar({
         <Button
           variant="ghost"
           onClick={handleLogout}
-          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 gap-2"
+          className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 gap-2 font-medium"
         >
           <LogOut className="h-4 w-4" />
-          Sair
+          Sair do Sistema
         </Button>
       </div>
     </div>
@@ -162,78 +146,9 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults([]);
-      return;
-    }
-    let active = true;
-    setSearching(true);
-    const fetchAll = async () => {
-      try {
-        const enc = encodeURIComponent(q);
-        const [civeis, trab, crim, comp, perda, vistos, turismo] = await Promise.all([
-          fetch(`/api/acoes-civeis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/acoes-trabalhistas?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/acoes-criminais?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/compra-venda-imoveis?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/perda-nacionalidade?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/vistos?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-          fetch(`/api/turismo?search=${enc}&limit=5`).then(r => r.ok ? r.json() : []).catch(() => []),
-        ]);
-        if (!active) return;
-        const toItem = (it: any, mod: string) => {
-          const title = it?.clientName || it?.client_name || it?.enderecoImovel || it?.endereco_imovel || "";
-          const subtitle = it?.type || "";
-          let href = "";
-          switch (mod) {
-            case "Ações Cíveis":
-              href = `/dashboard/acoes-civeis/${it.id}`;
-              break;
-            case "Ações Trabalhistas":
-              href = `/dashboard/acoes-trabalhistas/${it.id}`;
-              break;
-            case "Ações Criminais":
-              href = `/dashboard/acoes-criminais/${it.id}`;
-              break;
-            case "Compra e Venda":
-              href = `/dashboard/compra-venda/${it.id}`;
-              break;
-            case "Perda de Nacionalidade":
-              href = `/dashboard/perda-nacionalidade/${it.id}`;
-              break;
-            case "Vistos":
-              href = `/dashboard/vistos/${it.id}`;
-              break;
-            case "Turismo":
-              href = `/dashboard/turismo/${it.id}`;
-              break;
-            default:
-              href = `/dashboard`;
-          }
-          return { module: mod, id: it.id, title, subtitle, status: it?.status || "Em andamento", href };
-        };
-        const all: any[] = ([] as any[])
-          .concat((Array.isArray(civeis) ? civeis : []).map((it: any) => toItem(it, "Ações Cíveis")))
-          .concat((Array.isArray(trab) ? trab : []).map((it: any) => toItem(it, "Ações Trabalhistas")))
-          .concat((Array.isArray(crim) ? crim : []).map((it: any) => toItem(it, "Ações Criminais")))
-          .concat((Array.isArray(comp) ? comp : []).map((it: any) => toItem(it, "Compra e Venda")))
-          .concat((Array.isArray(perda) ? perda : []).map((it: any) => toItem(it, "Perda de Nacionalidade")))
-          .concat((Array.isArray(vistos) ? vistos : []).map((it: any) => toItem(it, "Vistos")))
-          .concat((Array.isArray(turismo) ? turismo : []).map((it: any) => toItem(it, "Turismo")));
-        setSearchResults(all);
-      } finally {
-        if (active) setSearching(false);
-      }
-    };
-    fetchAll();
-    return () => { active = false; };
-  }, [searchQuery]);
+  // Use custom global search hook
+  const { query, setQuery, results, isSearching } = useGlobalSearch();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -245,6 +160,14 @@ export default function DashboardLayout({
       setUser(JSON.parse(storedUser));
     }
   }, [router]);
+
+  // Clear search when navigating (optional, depends on UX preference)
+  // useEffect(() => {
+  //   setQuery("");
+  // }, [pathname, setQuery]); 
+  // I'll keep the search active if the user navigates, or maybe clear it? 
+  // Usually if they click a result, they navigate, so `query` stays but main view changes.
+  // Integrating the "result view" inside existing layout means if `query` is present, show results.
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
@@ -310,12 +233,12 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-slate-50/50">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col border-r border-slate-200/50 w-64">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col border-r border-slate-200/50 w-64 bg-white/50 backdrop-blur-xl z-50">
         <Sidebar
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
+          searchQuery={query}
+          setSearchQuery={setQuery}
           pathname={pathname}
           menuItems={menuItems}
           onNavigate={() => setMobileMenuOpen(false)}
@@ -325,7 +248,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col min-h-screen">
         {/* Mobile Header */}
         <header className={`${pathname === "/dashboard" ? "lg:hidden hidden" : "lg:hidden"} sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/50`}>
           <div className="flex items-center justify-between px-4 py-3">
@@ -338,8 +261,8 @@ export default function DashboardLayout({
                 </SheetTrigger>
                 <SheetContent side="left" className="w-80 p-0">
                   <Sidebar
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
+                    searchQuery={query}
+                    setSearchQuery={setQuery}
                     pathname={pathname}
                     menuItems={menuItems}
                     onNavigate={() => setMobileMenuOpen(false)}
@@ -350,7 +273,7 @@ export default function DashboardLayout({
               </Sheet>
               <Image
                 src="https://i.imgur.com/9R0VFkm.png"
-                alt="Sistema Jurídico Logo"
+                alt="Silva & Ferrari"
                 width={96}
                 height={32}
                 className="object-contain"
@@ -371,49 +294,18 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className={pathname === "/dashboard" ? "" : "p-4 lg:p-6"}>
-          {searchQuery.trim() ? (
-            <div className="space-y-4">
-              <PageTransition>
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Resultados da Busca</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {searching ? (
-                      <div className="text-sm text-slate-500">Buscando...</div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="text-sm text-slate-500">Nenhum resultado</div>
-                    ) : (
-                      searchResults.map((item, i) => (
-                        <Link key={`${item.module}-${item.id}-${i}`} href={item.href}>
-                          <Card
-                            className="border-slate-200 hover:shadow-md transition-all cursor-pointer"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => router.push(item.href)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') router.push(item.href); }}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="text-sm font-semibold truncate">{item.title}</div>
-                                  <div className="text-xs text-slate-500 truncate">{item.subtitle || item.module}</div>
-                                </div>
-                                <Badge className={`text-xs ${item.status === 'Finalizado' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'}`}>{item.status || 'Em andamento'}</Badge>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </PageTransition>
+        <main className={`flex-1 ${pathname === "/dashboard" ? "" : "p-4 lg:p-6"}`}>
+          {query.trim() ? (
+            <div className="p-6 max-w-7xl mx-auto w-full">
+              <GlobalSearchResults
+                results={results}
+                isSearching={isSearching}
+                query={query}
+              />
             </div>
           ) : (
             <AnimatePresence mode="wait">
-              <PageTransition key={pathname} className="w-full">
+              <PageTransition key={pathname} className="w-full h-full">
                 {children}
               </PageTransition>
             </AnimatePresence>

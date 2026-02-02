@@ -3,11 +3,11 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = getSupabaseAdminClient();
-    const { id } = params;
+    const { id } = await params;
 
     // Validate ID
     if (!id || isNaN(parseInt(id))) {
@@ -34,26 +34,26 @@ export async function GET(
       throw error;
     }
 
-      const mapped = {
-        id: data.id,
-        clientName: data.client_name,
-        type: data.type,
-        currentStep: data.current_step,
-        status: data.status,
-        statusFinal: (data as any).status_final,
-        statusFinalOutro: (data as any).status_final_outro,
-        notes: data.notes,
-        ownerName: (data as any).owner_name,
-        ownerCpf: (data as any).owner_cpf,
-        ownerRnm: (data as any).owner_rnm,
-        ownerRnmDoc: (data as any).owner_rnm_doc,
-        ownerCpfDoc: (data as any).owner_cpf_doc,
-        endereco: (data as any).endereco,
-        declaracaoVizinhosDoc: (data as any).declaracao_vizinhos_doc,
-        matriculaImovelDoc: (data as any).matricula_imovel_doc,
-        contaAguaDoc: (data as any).conta_agua_doc,
-        contaLuzDoc: (data as any).conta_luz_doc,
-        iptuDoc: (data as any).iptu_doc,
+    const mapped = {
+      id: data.id,
+      clientName: data.client_name,
+      type: data.type,
+      currentStep: data.current_step,
+      status: data.status,
+      statusFinal: (data as any).status_final,
+      statusFinalOutro: (data as any).status_final_outro,
+      notes: data.notes,
+      ownerName: (data as any).owner_name,
+      ownerCpf: (data as any).owner_cpf,
+      ownerRnm: (data as any).owner_rnm,
+      ownerRnmDoc: (data as any).owner_rnm_doc,
+      ownerCpfDoc: (data as any).owner_cpf_doc,
+      endereco: (data as any).endereco,
+      declaracaoVizinhosDoc: (data as any).declaracao_vizinhos_doc,
+      matriculaImovelDoc: (data as any).matricula_imovel_doc,
+      contaAguaDoc: (data as any).conta_agua_doc,
+      contaLuzDoc: (data as any).conta_luz_doc,
+      iptuDoc: (data as any).iptu_doc,
       nomeMae: data.nome_mae,
       nomePaiRegistral: data.nome_pai_registral,
       nomeSupostoPai: data.nome_suposto_pai,
@@ -108,11 +108,11 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = getSupabaseAdminClient();
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     // Validate ID
