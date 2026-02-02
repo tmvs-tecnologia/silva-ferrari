@@ -90,6 +90,13 @@ const WORKFLOWS = {
     "Exigências",
     "Processo Finalizado"
   ],
+  "Visto de Residência Prévia": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
+  ],
   "Visto de Turismo": [
     "Cadastro de Documentos",
     "Agendar no Consulado",
@@ -570,6 +577,8 @@ export default function VistoDetailsPage() {
       let flowType: VistoType = "Visto de Trabalho";
       if (lowerType.includes("trabalho") && (lowerType.includes("brasil") || String(record.country || "").toLowerCase().includes("brasil"))) {
         flowType = "Visto de Trabalho - Brasil" as any;
+      } else if (lowerType.includes("trabalho") && lowerType.includes("residência prévia")) {
+        flowType = "Visto de Residência Prévia" as any;
       } else if (lowerType.includes("turismo")) flowType = "Visto de Turismo";
       else if (lowerType.includes("estudante")) flowType = "Visto de Estudante";
       else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
@@ -1160,6 +1169,12 @@ export default function VistoDetailsPage() {
           return renderVistoReuniaoFamiliarStepContent(step);
         case "Visto de Trabalho - Brasil" as any:
           return renderVistoTrabalhoStepContent(step);
+        case "Trabalho:Brasil":
+          return renderVistoTrabalhoStepContent(step);
+        case "Visto de Residência Prévia" as any:
+          return renderVistoTrabalhoStepContent(step);
+        case "Trabalho:Residência Prévia":
+          return renderVistoTrabalhoStepContent(step);
         default:
           return renderDefaultStepContent(step);
       }
@@ -1170,6 +1185,12 @@ export default function VistoDetailsPage() {
         return renderVistoTrabalhoStepContent(step);
       case "Visto de Trabalho - Brasil" as any:
         return renderVistoTrabalhoStepContent(step);
+      case "Trabalho:Brasil":
+        return renderVistoTrabalhoStepContent(step);
+      case "Visto de Residência Prévia" as any:
+        return renderVistoTrabalhoStepContent(step);
+      case "Trabalho:Residência Prévia":
+        return renderVistoTrabalhoStepContent(step);
       case "Visto de Turismo":
         return renderVistoTurismoStepContent(step);
       case "Visto de Estudante":
@@ -1177,6 +1198,10 @@ export default function VistoDetailsPage() {
       case "Visto de Reunião Familiar":
         return renderVistoReuniaoFamiliarStepContent(step);
       default:
+        // Check if it's a generic Residência Prévia case
+        if (caseData?.type?.includes("Residência Prévia")) {
+          return renderVistoTrabalhoStepContent(step);
+        }
         return renderDefaultStepContent(step);
     }
   };
@@ -1278,8 +1303,11 @@ export default function VistoDetailsPage() {
 
     switch (stepId) {
       case 0: { // Cadastro de Documentos
-        // Implementação do fluxo de documentos para "Trabalho - Brasil"
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
+        // Implementação do fluxo de documentos para "Trabalho - Brasil" e "Residência Prévia"
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
+
+        if (isBrasil || isResidenciaPrevia) {
           return (
             <div className="space-y-8 pb-8">
               {/* 1. Identificação */}
@@ -1830,9 +1858,12 @@ export default function VistoDetailsPage() {
         );
       }
 
-      case 1: // Agendar no Consulado
-        // Implementação do fluxo de documentos para protocolo (Brasil)
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
+      case 1: { // Agendar no Consulado
+        // Implementação do fluxo de documentos para protocolo (Brasil e Residência Prévia)
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
+
+        if (isBrasil || isResidenciaPrevia) {
           return (
             <div className="space-y-8 pb-8">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1966,6 +1997,7 @@ export default function VistoDetailsPage() {
             </div>
           </div>
         );
+      }
 
 
 
@@ -1974,27 +2006,14 @@ export default function VistoDetailsPage() {
 
 
 
-      case 1: // Documentos para Protocolo
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
-          return (
-            <div className="space-y-8 pb-8">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                {renderHeader("Documentos para Protocolo")}
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {renderRow(stepId, "Formulário de Requerimento", "formularioRequerimento", "formularioRequerimentoDoc")}
-                  {renderRow(stepId, "Contrato de Trabalho", "contratoTrabalho", "contratoTrabalhoDoc")}
-                  {renderRow(stepId, "Guia de Recolhimento (GRU)", "guiaPaga", "guiaPagaDoc")}
-                  {renderRow(stepId, "Declarações da Empresa", "declaracoesEmpresa", "declaracoesEmpresaDoc")}
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return renderDefaultStepContent(step);
 
-      case 2: // Protocolo
-        // Implementação do fluxo de Protocolo (Brasil)
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
+
+      case 2: { // Protocolo
+        // Implementação do fluxo de Protocolo (Brasil e Residência Prévia)
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
+
+        if (isBrasil || isResidenciaPrevia) {
           return (
             <div className="space-y-8 pb-8">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -2041,10 +2060,14 @@ export default function VistoDetailsPage() {
             </div>
           </div>
         );
+      }
 
-      case 3: // Exigências
-        // Implementação do fluxo de Exigências (Brasil)
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
+      case 3: { // Exigências
+        // Implementação do fluxo de Exigências (Brasil e Residência Prévia)
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
+
+        if (isBrasil || isResidenciaPrevia) {
           return (
             <div className="space-y-8 pb-8">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -2119,9 +2142,13 @@ export default function VistoDetailsPage() {
           );
         }
         return renderDefaultStepContent(step);
+      }
 
-      case 4:
-        if ((caseData?.type as string) === "Visto de Trabalho - Brasil") {
+      case 4: {
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
+
+        if (isBrasil || isResidenciaPrevia) {
           return (
             <div className="space-y-8 pb-8">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -2299,6 +2326,7 @@ export default function VistoDetailsPage() {
           return renderFinalizadoStepContent(step);
         }
         return renderDefaultStepContent(step);
+      }
 
       case 5: // Processo Finalizado
         return renderFinalizadoStepContent(step);
@@ -2795,7 +2823,7 @@ export default function VistoDetailsPage() {
   const showRenovacao = t.includes('renov') || t.includes('1 ano');
   const showIndeterminado = t.includes('indeterminado');
   const showMudancaEmpregador = t.includes('mudan') && t.includes('empregador');
-  const showBrasil = ((t.includes('trabalho') && (t.includes('brasil') || countryStr.includes('brasil'))) || (caseData?.type as string) === "Visto de Trabalho - Brasil");
+  const showBrasil = ((t.includes('trabalho') && (t.includes('brasil') || countryStr.includes('brasil'))) || (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string) === "Visto de Residência Prévia");
 
   if (showBrasil) {
     docRequirements = [
