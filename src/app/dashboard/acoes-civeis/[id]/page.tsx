@@ -1981,15 +1981,6 @@ export default function AcoesCiveisDetailsPage() {
                 const formatted = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 return (
                   <div key={n.id} className="group relative bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-sm leading-snug">
-                    <button
-                      type="button"
-                      aria-label="Excluir"
-                      title="Excluir"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition bg-white border border-gray-300 rounded-full p-0.5 shadow"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNote(n.id); }}
-                    >
-                      <X className="h-3 w-3 text-gray-600" />
-                    </button>
                     <div className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-2">
                       {(() => {
                         const name = String(n.authorName || '').trim();

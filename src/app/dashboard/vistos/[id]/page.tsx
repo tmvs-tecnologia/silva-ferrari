@@ -3563,14 +3563,15 @@ export default function VistoDetailsPage() {
                                 </>
                               )}
                             </span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.preventDefault(); deleteNote(n.id); }}
-                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all text-slate-400"
-                              title="Excluir nota"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                            <span className="text-xs font-medium text-slate-500 flex items-center gap-1">
+                              {formatted}
+                              {showName && (
+                                <>
+                                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                  <span className="text-slate-600 dark:text-slate-400">{name}</span>
+                                </>
+                              )}
+                            </span>
                           </div>
                           <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.content}</p>
                         </div>

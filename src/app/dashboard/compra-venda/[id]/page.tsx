@@ -997,7 +997,6 @@ export default function CompraVendaDetailsPage() {
           <div className="max-h-[60vh] overflow-y-auto space-y-3">
             {notesArray.length ? notesArray.map((n) => (
               <div key={n.id} className="bg-gray-50 p-3 rounded border relative group">
-                <button className="absolute top-2 right-2 opacity-0 group-hover:opacity-100" onClick={() => deleteNote(n.id)}><X className="h-3 w-3" /></button>
                 <div className="text-xs font-medium mb-1">{new Date(n.timestamp).toLocaleString()} - {n.authorName}</div>
                 <p className="text-sm">{n.content}</p>
               </div>
