@@ -1863,7 +1863,7 @@ export default function VistoDetailsPage() {
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
-        if (isBrasil || isResidenciaPrevia) {
+        if (isBrasil) {
           return (
             <div className="space-y-8 pb-8">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -1881,6 +1881,30 @@ export default function VistoDetailsPage() {
                   {renderRow(stepId, "I2 Trabalho", "i2Trabalho", "i2TrabalhoDoc", "Arquivo contendo declaração de trabalho do país de origem e tradução juramentada")}
                   {renderRow(stepId, "I3 Diploma", "i3Diploma", "i3DiplomaDoc", "Arquivo contendo declaração de trabalho do país de origem e tradução juramentada")}
                   {renderRow(stepId, "I6 Nascimento", "i6Nascimento", "i6NascimentoDoc", "Arquivo contendo declaração de trabalho do país de origem e tradução juramentada")}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isResidenciaPrevia) {
+          return (
+            <div className="space-y-8 pb-8">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Documentos para Protocolo")}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
+                  {renderRow(stepId, "Formulário RN 02", "formularioRn02", "formularioRn02Doc")}
+                  {renderRow(stepId, "CNPJ", "cartaoCnpj", "cartaoCnpjDoc")}
+                  {renderRow(stepId, "Folha de Pagamento", "folhaPagamento", "folhaPagamentoDoc")}
+                  {renderRow(stepId, "Declarações da Empresa", "declaracoesEmpresa", "declaracoesEmpresaDoc")}
+                  {renderRow(stepId, "Procuração Empresa", "procuracaoEmpresa", "procuracaoEmpresaDoc")}
+                  {renderRow(stepId, "Trabalho", "trabalho", "trabalhoDoc")}
+                  {renderRow(stepId, "Diploma", "diploma", "diplomaDoc")}
+                  {renderRow(stepId, "Contrato de trabalho", "contratoTrabalho", "contratoTrabalhoDoc")}
+                  {renderRow(stepId, "Passaporte", "passaporte", "passaporteDoc")}
+                  {renderRow(stepId, "GUIA PAGA", "guiaPaga", "guiaPagaDoc")}
+                  {renderRow(stepId, "Declaração de Compreensão", "declaracaoCompreensao", "declaracaoCompreensaoDoc")}
                 </div>
               </div>
             </div>
