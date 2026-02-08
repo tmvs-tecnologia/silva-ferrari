@@ -971,19 +971,10 @@ export default function VistoDetailsPage() {
       if (!prev) return prev;
       const isCurrentlyCompleted = prev.steps.find(s => s.id === stepId)?.completed;
       const updatedSteps = prev.steps.map(step => {
-        if (isCurrentlyCompleted) {
-          // Desfazer conclusão a partir desta etapa: manter prefixo concluído
-          if (step.id >= stepId) {
-            return { ...step, completed: false, completedAt: undefined };
-          }
-          return step;
-        } else {
-          // Concluir etapa e todas anteriores para garantir continuidade
-          if (step.id <= stepId) {
-            return { ...step, completed: true, completedAt: step.completed ? step.completedAt : new Date().toISOString() };
-          }
-          return step;
+        if (step.id === stepId) {
+          return { ...step, completed: !isCurrentlyCompleted, completedAt: !isCurrentlyCompleted ? new Date().toISOString() : undefined };
         }
+        return step;
       });
       const completedStepsArr = updatedSteps.filter(s => s.completed).map(s => s.id);
       const newCurrent = isCurrentlyCompleted
