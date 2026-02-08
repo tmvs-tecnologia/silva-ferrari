@@ -143,6 +143,97 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
     ];
   }
 
+  const showRenovacao1Ano = (t.includes("renov") && t.includes("1 ano")) || t === "visto de trabalho - renovação 1 ano";
+
+  if (showRenovacao1Ano) {
+    return [
+      {
+        title: "1. Identificação",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "passaporteDoc", label: "Passaporte" },
+          { key: "cpfDoc", label: "CPF" },
+          { key: "rnmDoc", label: "RNM" },
+        ],
+      },
+      {
+        title: "2. Documentos da Empresa",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "contratoEmpresaDoc", label: "Contrato Social" },
+          { key: "cartaoCnpjDoc", label: "CNPJ" },
+          { key: "gfipDoc", label: "GFIP" },
+        ],
+      },
+      {
+        title: "3. Certidões",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "antecedentesCriminaisDoc", label: "Certidão Criminal" },
+          { key: "certificadoTrabalhoDoc", label: "Certificado de Trabalho" },
+          { key: "diplomaDoc", label: "Diploma" },
+          { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
+        ],
+      },
+      {
+        title: "4. Traduções",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "traducaoAntecedentesCriminaisDoc", label: "Tradução Certidão Criminal" },
+          { key: "traducaoCertificadoTrabalhoDoc", label: "Tradução Certificado de Trabalho" },
+          { key: "traducaoDiplomaDoc", label: "Tradução Diploma" },
+          { key: "traducaoCertidaoNascimentoDoc", label: "Tradução Certidão de Nascimento" },
+        ],
+      },
+      {
+        title: "5. Procurações",
+        step: "Cadastro de Documentos",
+        fields: [
+          { key: "procuracaoEmpresaDoc", label: "Procuração Empresa" },
+          { key: "procuracaoEmpresaAssinadaDoc", label: "Procuração Empresa Assinada" },
+          { key: "procuracaoImigranteDoc", label: "Procuração Imigrante" },
+          { key: "procuracaoImigranteAssinadaDoc", label: "Procuração Imigrante Assinada" },
+        ],
+      },
+      {
+        title: "Protocolo",
+        step: "Documentos para Protocolo",
+        fields: [
+          { key: "contratoEmpresaDoc", label: "Contrato Social" },
+          { key: "ctpsDoc", label: "CTPS" },
+          { key: "rnmDoc", label: "RNM" },
+          { key: "contratoTrabalhoAnteriorDoc", label: "Contrato de trabalho anterior" },
+          { key: "antecedentesCriminaisDoc", label: "Declaração de Antecedentes" },
+          { key: "formularioProrrogacaoDoc", label: "Formulário prorrogação" },
+          { key: "contratoTrabalhoDoc", label: "Contrato de trabalho atual" },
+          { key: "procuracaoEmpresaDoc", label: "Procuração empresa" },
+        ],
+      },
+      {
+        title: "Protocolo",
+        step: "Protocolo",
+        fields: [{ key: "comprovanteProtocolo", label: "Comprovante de Protocolo" }],
+      },
+      {
+        title: "Exigências",
+        step: "Exigências",
+        fields: [
+          { key: "cartaExigencia", label: "Carta de Exigência" },
+          { key: "documentosExigidos", label: "Documentos Exigidos" },
+          { key: "cartaResposta", label: "Carta Resposta" },
+        ],
+      },
+      {
+        title: "Processo Finalizado",
+        step: "Processo Finalizado",
+        fields: [
+          { key: "publicacaoDou", label: "Publicação D.O.U" },
+          { key: "agendamentoPfDoc", label: "Comprovante de Agendamento PF" },
+        ],
+      },
+    ];
+  }
+
   if (t.includes("turismo")) {
     return [
       {
@@ -260,7 +351,7 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
     });
   }
 
-  if (showRenovacao) {
+  if (showRenovacao && !showRenovacao1Ano) {
     docRequirements.push({
       title: "Renovação 1 ano",
       step: "Cadastro de Documentos",

@@ -72,6 +72,10 @@ import { formatDateBR, formatISODateLocal } from "@/lib/date";
 import { DocumentChip } from "@/components/ui/document-chip";
 import { subscribeTable, unsubscribe } from "@/lib/realtime";
 import { toast } from "sonner";
+import { RESPONSAVEIS } from "@/constants/responsibles";
+import { ObservationResponsibleModal } from "@/components/modals/ObservationResponsibleModal";
+
+import { getVistosDocRequirements, computePendingByFlow, extractDocumentsFromRecord } from "@/lib/pending-documents";
 
 // Definindo os workflows para Vistos
 const WORKFLOWS = {
@@ -91,6 +95,13 @@ const WORKFLOWS = {
     "Processo Finalizado"
   ],
   "Visto de Residência Prévia": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
+  ],
+  "Visto de Trabalho - Renovação 1 ano": [
     "Cadastro de Documentos",
     "Documentos para Protocolo",
     "Protocolo",
@@ -421,6 +432,47 @@ export default function VistoDetailsPage() {
   const [noteResponsible, setNoteResponsible] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
 
+  // Pending Documents State
+  const [pendingDocs, setPendingDocs] = useState<any[]>([]);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [completedDocs, setCompletedDocs] = useState(0);
+
+  useEffect(() => {
+    if (visto && documents) {
+      const requirements = getVistosDocRequirements({ type: visto.type, country: visto.country });
+
+      const uploaded = new Set<string>();
+      // Add existing docs
+      documents.forEach(d => {
+        const k = (d as any).field_name || (d as any).fieldName || (d as any).document_type;
+        if (k) uploaded.add(k);
+      });
+      // Add record fields
+      const recordDocs = extractDocumentsFromRecord(visto);
+      recordDocs.forEach(k => uploaded.add(k));
+
+      const { pending, totalCount, missingCount } = computePendingByFlow(requirements, uploaded);
+
+      // Flatten pending for the list component
+      const flatPending: any[] = [];
+      pending.forEach(group => {
+        group.docs.forEach(doc => {
+          flatPending.push({
+            key: doc.key,
+            label: doc.label,
+            group: group.flow,
+            status: "pending", // You might want more sophisticated status logic here
+            priority: "medium"
+          });
+        });
+      });
+
+      setPendingDocs(flatPending);
+      setTotalDocs(totalCount);
+      setCompletedDocs(totalCount - missingCount);
+    }
+  }, [visto, documents]);
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setShowInfoModal(false);
@@ -454,14 +506,8 @@ export default function VistoDetailsPage() {
       console.log('Nota excluída', { noteId });
     } catch (e) { console.error('Erro ao excluir nota:', e); }
   };
-  const RESPONSAVEIS = [
-    "Secretária – Jessica Cavallaro",
-    "Advogada – Jailda Silva",
-    "Advogada – Adriana Roder",
-    "Advogado – Fábio Ferrari",
-    "Advogado – Guilherme Augusto",
-    "Estagiário – Wendel Macriani",
-  ];
+
+
 
   useEffect(() => {
     if (params.id) {
@@ -579,6 +625,8 @@ export default function VistoDetailsPage() {
         flowType = "Visto de Trabalho - Brasil" as any;
       } else if (lowerType.includes("trabalho") && lowerType.includes("residência prévia")) {
         flowType = "Visto de Residência Prévia" as any;
+      } else if (lowerType.includes("renov") && lowerType.includes("1 ano")) {
+        flowType = "Visto de Trabalho - Renovação 1 ano" as any;
       } else if (lowerType.includes("turismo")) flowType = "Visto de Turismo";
       else if (lowerType.includes("estudante")) flowType = "Visto de Estudante";
       else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
@@ -1047,17 +1095,19 @@ export default function VistoDetailsPage() {
     setShowResponsibleModal(true);
   };
 
-  const confirmSaveNote = async () => {
-    if (!pendingNote || !noteResponsible.trim()) return;
+  const confirmSaveNote = async (responsibleName?: string) => {
+    const finalResponsible = responsibleName || noteResponsible;
+    if (!pendingNote || !finalResponsible.trim()) return;
+
     const { stepId, text } = pendingNote;
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
 
-    const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
+    const suggestion = RESPONSAVEIS.find((r) => r.includes(finalResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
 
-    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
+    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: finalResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/vistos?id=${params.id}`, {
         method: 'PUT',
@@ -1069,7 +1119,7 @@ export default function VistoDetailsPage() {
         setCaseData((prev) => prev ? { ...prev, updatedAt: new Date().toISOString() } : prev);
         setVisto((prev: any) => ({ ...(prev || {}), notes: JSON.stringify(next) }));
         setNotes((prev) => ({ ...prev, [stepId]: '' }));
-        console.log('Nota salva', { id, stepId, authorName: noteResponsible, timestamp: iso });
+        console.log('Nota salva', { id, stepId, authorName: finalResponsible, timestamp: iso });
       }
     } catch (error) {
       console.error('Erro ao salvar notas da etapa:', error);
@@ -1175,6 +1225,10 @@ export default function VistoDetailsPage() {
           return renderVistoTrabalhoStepContent(step);
         case "Trabalho:Residência Prévia":
           return renderVistoTrabalhoStepContent(step);
+        case "Visto de Trabalho - Renovação 1 ano" as any:
+          return renderVistoTrabalhoStepContent(step);
+        case "Trabalho:Renovação 1 ano":
+          return renderVistoTrabalhoStepContent(step);
         default:
           return renderDefaultStepContent(step);
       }
@@ -1190,6 +1244,10 @@ export default function VistoDetailsPage() {
       case "Visto de Residência Prévia" as any:
         return renderVistoTrabalhoStepContent(step);
       case "Trabalho:Residência Prévia":
+        return renderVistoTrabalhoStepContent(step);
+      case "Visto de Trabalho - Renovação 1 ano" as any:
+        return renderVistoTrabalhoStepContent(step);
+      case "Trabalho:Renovação 1 ano":
         return renderVistoTrabalhoStepContent(step);
       case "Visto de Turismo":
         return renderVistoTurismoStepContent(step);
@@ -1303,8 +1361,11 @@ export default function VistoDetailsPage() {
 
     switch (stepId) {
       case 0: { // Cadastro de Documentos
-        // Implementação do fluxo de documentos para "Trabalho - Brasil" e "Residência Prévia"
-        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        // Implementação do fluxo de documentos para "Trabalho - Brasil" e "Residência Prévia" e "Renovação 1 ano"
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
+          (caseData?.type as string)?.includes("Trabalho:Brasil") ||
+          (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+          (caseData?.type as string)?.includes("Renovação 1 ano");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -1859,8 +1920,33 @@ export default function VistoDetailsPage() {
       }
 
       case 1: { // Agendar no Consulado
+        // Implementação do fluxo de documentos para protocolo (Renovação 1 ano)
+        const isRenovacao1Ano = (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+          (caseData?.type as string)?.includes("Renovação 1 ano");
+
+        if (isRenovacao1Ano) {
+          return (
+            <div className="space-y-8 pb-8">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Documentos para Protocolo")}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
+                  {renderRow(stepId, "CTPS", "ctps", "ctpsDoc")}
+                  {renderRow(stepId, "RNM", "rnm", "rnmDoc")}
+                  {renderRow(stepId, "Contrato de trabalho anterior", "contratoTrabalhoAnterior", "contratoTrabalhoAnteriorDoc")}
+                  {renderRow(stepId, "Declaração de Antecedentes", "antecedentesCriminais", "antecedentesCriminaisDoc")}
+                  {renderRow(stepId, "Formulário prorrogação", "formularioProrrogacao", "formularioProrrogacaoDoc")}
+                  {renderRow(stepId, "Contrato de trabalho atual", "contratoTrabalho", "contratoTrabalhoDoc")}
+                  {renderRow(stepId, "Procuração empresa", "procuracaoEmpresa", "procuracaoEmpresaDoc")}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         // Implementação do fluxo de documentos para protocolo (Brasil e Residência Prévia)
-        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
+          (caseData?.type as string)?.includes("Trabalho:Brasil");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil) {
@@ -2033,8 +2119,11 @@ export default function VistoDetailsPage() {
 
 
       case 2: { // Protocolo
-        // Implementação do fluxo de Protocolo (Brasil e Residência Prévia)
-        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        // Implementação do fluxo de Protocolo (Brasil e Residência Prévia e Renovação 1 ano)
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
+          (caseData?.type as string)?.includes("Trabalho:Brasil") ||
+          (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+          (caseData?.type as string)?.includes("Renovação 1 ano");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2087,8 +2176,11 @@ export default function VistoDetailsPage() {
       }
 
       case 3: { // Exigências
-        // Implementação do fluxo de Exigências (Brasil e Residência Prévia)
-        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        // Implementação do fluxo de Exigências (Brasil e Residência Prévia e Renovação 1 ano)
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
+          (caseData?.type as string)?.includes("Trabalho:Brasil") ||
+          (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+          (caseData?.type as string)?.includes("Renovação 1 ano");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2169,7 +2261,10 @@ export default function VistoDetailsPage() {
       }
 
       case 4: {
-        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string)?.includes("Trabalho:Brasil");
+        const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
+          (caseData?.type as string)?.includes("Trabalho:Brasil") ||
+          (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+          (caseData?.type as string)?.includes("Renovação 1 ano");
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2834,307 +2929,6 @@ export default function VistoDetailsPage() {
 
   // Validação de Documentos para Visto de Trabalho - Brasil e Visto de Turismo
   // NOTA: Estes documentos são sugeridos/opcionais para o salvamento. O sistema permite salvar mesmo com documentos pendentes.
-  let docRequirements: { title: string; step?: string; fields: { key: string; label: string }[] }[] = [];
-
-  const rawTypeStr = String(visto?.type || caseData?.type || '');
-  const t = rawTypeStr.toLowerCase();
-  const countryStr = String(visto?.country || (caseData as any)?.country || '').toLowerCase();
-
-  const showResidenciaPrevia = t.includes('trabalho') && (t.includes('resid') || t.includes('prévia') || t.includes('previ'));
-  const showInvestidor = t.includes('invest');
-  const showTrabalhistas = t.includes('trabalhistas');
-  const showFormacao = t.includes('forma');
-  const showRenovacao = t.includes('renov') || t.includes('1 ano');
-  const showIndeterminado = t.includes('indeterminado');
-  const showMudancaEmpregador = t.includes('mudan') && t.includes('empregador');
-  const showBrasil = ((t.includes('trabalho') && (t.includes('brasil') || countryStr.includes('brasil'))) || (caseData?.type as string) === "Visto de Trabalho - Brasil" || (caseData?.type as string) === "Visto de Residência Prévia");
-
-  if (showBrasil) {
-    docRequirements = [
-      {
-        title: "1. Identificação",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "passaporteDoc", label: "Passaporte" },
-          { key: "cpfDoc", label: "CPF" },
-          { key: "rnmDoc", label: "RNM" },
-        ]
-      },
-      {
-        title: "2. Documentos da Empresa",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "contratoEmpresaDoc", label: "Contrato Social" },
-          { key: "cartaoCnpjDoc", label: "CNPJ" },
-          { key: "gfipDoc", label: "GFIP" },
-        ]
-      },
-      {
-        title: "3. Certidões",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "antecedentesCriminaisDoc", label: "Certidão Criminal" },
-          { key: "certificadoTrabalhoDoc", label: "Certificado de Trabalho" },
-          { key: "diplomaDoc", label: "Diploma" },
-          { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
-        ]
-      },
-      {
-        title: "4. Traduções",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "traducaoAntecedentesCriminaisDoc", label: "Tradução Certidão Criminal" },
-          { key: "traducaoCertificadoTrabalhoDoc", label: "Tradução Certificado de Trabalho" },
-          { key: "traducaoDiplomaDoc", label: "Tradução Diploma" },
-          { key: "traducaoCertidaoNascimentoDoc", label: "Tradução Certidão de Nascimento" },
-        ]
-      },
-      {
-        title: "5. Procurações",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "procuracaoEmpresaDoc", label: "Procuração Empresa" },
-          { key: "procuracaoEmpresaAssinadaDoc", label: "Procuração Empresa Assinada" },
-          { key: "procuracaoImigranteDoc", label: "Procuração Imigrante" },
-          { key: "procuracaoImigranteAssinadaDoc", label: "Procuração Imigrante Assinada" },
-        ]
-      },
-      {
-        title: "Protocolo",
-        step: "Documentos para Protocolo",
-        fields: [
-          { key: "formularioRn01Doc", label: "Formulário RN 01/2017" },
-          { key: "declaracaoCompreensaoDoc", label: "Declaração de Compreensão" },
-          { key: "declaracaoNaoAntecedentesDoc", label: "Declaração de Não Antecedentes" },
-          { key: "declaracoesEmpresaDoc", label: "Declarações da Empresa" },
-          { key: "convencaoColetivaDoc", label: "Convenção Coletiva" },
-          { key: "contratoTrabalhoDoc", label: "Contrato de Trabalho" },
-          { key: "gruDoc", label: "GRU" },
-          { key: "comprovantePagamentoGruDoc", label: "Comprovante de Pagamento GRU" },
-          { key: "i1CriminalDoc", label: "I1 Criminal" },
-          { key: "i2TrabalhoDoc", label: "I2 Trabalho" },
-          { key: "i3DiplomaDoc", label: "I3 Diploma" },
-          { key: "i6NascimentoDoc", label: "I6 Nascimento" },
-        ]
-      },
-      {
-        title: "Protocolo",
-        step: "Protocolo",
-        fields: [
-          { key: "comprovanteProtocolo", label: "Comprovante de Protocolo" },
-        ]
-      },
-      {
-        title: "Exigências",
-        step: "Exigências",
-        fields: [
-          { key: "cartaExigencia", label: "Carta de Exigência" },
-          { key: "documentosExigidos", label: "Documentos Exigidos" },
-          { key: "cartaResposta", label: "Carta Resposta" },
-        ]
-      },
-      {
-        title: "Processo Finalizado",
-        step: "Processo Finalizado",
-        fields: [
-          { key: "publicacaoDou", label: "Publicação D.O.U" },
-          { key: "agendamentoPfDoc", label: "Comprovante de Agendamento PF" },
-        ]
-      }
-    ];
-  } else if (t.includes("turismo")) {
-    docRequirements = [
-      {
-        title: "Documentos Pessoais",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "passaporteDoc", label: "Passaporte" },
-          { key: "cpfDoc", label: "CPF" },
-          { key: "rnmDoc", label: "RNM" },
-          { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
-          { key: "foto3x4Doc", label: "Foto/Selfie" },
-          { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
-        ]
-      },
-      {
-        title: "Comprovação Financeira",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "cartaoCnpjDoc", label: "Empresa: Cartão CNPJ" },
-          { key: "contratoEmpresaDoc", label: "Contrato Social" },
-        ]
-      },
-      {
-        title: "Histórico e Segurança",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "declaracaoAntecedentesCriminaisDoc", label: "Declaração de Antecedentes Criminais" }
-        ]
-      },
-      {
-        title: "Formação Acadêmica",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "diplomaDoc", label: "Diploma" },
-        ]
-      },
-      {
-        title: "Formulários",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "formulario-visto", label: "Formulário de Visto" },
-        ]
-      }
-    ];
-  } else {
-    // Genérico ou Outros Vistos de Trabalho
-    docRequirements = [
-      {
-        title: "Dados do Cliente",
-        step: "Cadastro de Documentos",
-        fields: []
-      },
-      {
-        title: "Documentos Pessoais",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "country", label: "País do Visto" },
-          { key: "cpfDoc", label: "CPF" },
-          { key: "rnmDoc", label: "RNM" },
-          { key: "passaporteDoc", label: "Passaporte" },
-          { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
-          { key: "foto3x4Doc", label: "Foto/Selfie" },
-          { key: "documentoChinesDoc", label: "Documento Chinês" },
-          { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
-        ]
-      },
-      {
-        title: "Comprovação Financeira PF",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "certidaoNascimentoFilhosDoc", label: "Filhos (Certidão de Nascimento)" },
-          { key: "cartaoCnpjDoc", label: "Empresa: Cartão CNPJ" },
-          { key: "contratoEmpresaDoc", label: "Contrato Social" },
-        ]
-      },
-      {
-        title: "Histórico e Segurança",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "antecedentesCriminaisDoc", label: "Antecedentes Criminais" },
-          { key: "declaracaoAntecedentesCriminaisDoc", label: "Declaração de Antecedentes Criminais" },
-        ]
-      },
-      {
-        title: "Formação Acadêmica",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "diplomaDoc", label: "Diploma" },
-        ]
-      }
-    ];
-
-    if (showResidenciaPrevia) {
-      docRequirements.push({
-        title: "Residência Prévia",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "formularioRn02Doc", label: "Formulário RN02" },
-          { key: "comprovanteResidenciaPreviaDoc", label: "Comprovante Residência Prévia" },
-          { key: "comprovanteAtividadeDoc", label: "Comprovante de Atividade" },
-          { key: "protocoladoDoc", label: "Protocolado" },
-        ]
-      });
-    }
-
-    if (showInvestidor) {
-      docRequirements.push({
-        title: "Investidor",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "comprovanteInvestimentoDoc", label: "Comprovante de Investimento" },
-          { key: "planoInvestimentosDoc", label: "Plano de Investimentos" },
-          { key: "formularioRequerimentoDoc", label: "Formulário de Requerimento" },
-          { key: "protocoladoDoc", label: "Protocolado" },
-        ]
-      });
-    }
-
-    if (showTrabalhistas || showMudancaEmpregador) {
-      docRequirements.push({
-        title: "Trabalhistas",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "contratoTrabalhoDoc", label: "Contrato de Trabalho" },
-          { key: "folhaPagamentoDoc", label: "Folha de Pagamento" },
-          { key: "comprovanteVinculoAnteriorDoc", label: "Comprovante de Vínculo Anterior" },
-          { key: "justificativaMudancaEmpregadorDoc", label: "Justificativa Mudança de Empregador" },
-          { key: "declaracaoAntecedentesCriminaisDoc", label: "Declaração de Antecedentes Criminais" },
-          { key: "protocoladoDoc", label: "Protocolado" },
-        ]
-      });
-    }
-
-    if (showRenovacao) {
-      docRequirements.push({
-        title: "Renovação 1 ano",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "ctpsDoc", label: "CTPS" },
-          { key: "contratoTrabalhoAnteriorDoc", label: "Contrato de Trabalho Anterior" },
-          { key: "contratoTrabalhoAtualDoc", label: "Contrato de Trabalho Atual" },
-          { key: "formularioProrrogacaoDoc", label: "Formulário de Prorrogação" },
-          { key: "protocoladoDoc", label: "Protocolado" },
-        ]
-      });
-    }
-
-    if (showIndeterminado) {
-      docRequirements.push({
-        title: "Indeterminado",
-        step: "Cadastro de Documentos",
-        fields: [
-          { key: "contratoTrabalhoIndeterminadoDoc", label: "Contrato de Trabalho Indeterminado" },
-          { key: "protocoladoDoc", label: "Protocolado" },
-        ]
-      });
-    }
-
-    // Add generic steps docs
-    docRequirements.push(
-      {
-        title: "Agendamento",
-        step: "Agendar no Consulado",
-        fields: [
-          { key: "comprovante-agendamento", label: "Comprovante de Agendamento" },
-        ]
-      },
-      {
-        title: "Protocolo",
-        step: "Protocolo",
-        fields: [
-          { key: "comprovanteProtocolo", label: "Comprovante de Protocolo" },
-        ]
-      },
-      {
-        title: "Processo Finalizado",
-        step: "Processo Finalizado",
-        fields: [
-          { key: "processo-finalizado", label: "Processo Finalizado" },
-          { key: "relatorio-final", label: "Relatório Final" },
-        ]
-      }
-    );
-  }
-
-  const pendingDocs = docRequirements.flatMap(group =>
-    group.fields
-      .filter(f => !documents.some(d => (d.field_name || d.fieldName) === f.key))
-      .map(f => ({ ...f, group: group.step || group.title }))
-  );
-
-  const totalDocs = docRequirements.reduce((acc, g) => acc + g.fields.length, 0);
-  const completedDocs = totalDocs - pendingDocs.length;
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0;
 
   return (
@@ -3204,6 +2998,8 @@ export default function VistoDetailsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+
+
                 {caseData.steps.map((step, index) => {
                   const isCurrent = index === currentStepIndex;
                   const isCompleted = step.completed;
@@ -3355,7 +3151,7 @@ export default function VistoDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2.5">
-              {((caseData?.type as string) === "Visto de Trabalho - Brasil" || String(caseData?.type || "").toLowerCase().includes("turismo")) && (
+              {((caseData?.type as string) === "Visto de Trabalho - Brasil" || String(caseData?.type || "").toLowerCase().includes("turismo") || String(caseData?.type || "").toLowerCase().includes("renovação 1 ano")) && (
                 <div className="mb-8 space-y-6">
                   <div
                     className="space-y-2 cursor-pointer group select-none"
@@ -3745,156 +3541,87 @@ export default function VistoDetailsPage() {
       </Dialog>
 
       {/* Process Flow Info Modal */}
-      {showInfoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={() => setShowInfoModal(false)}
-          role="dialog"
-          aria-modal="true"
-        >
+      {
+        showInfoModal && (
           <div
-            className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200"
-            onClick={e => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+            onClick={() => setShowInfoModal(false)}
+            role="dialog"
+            aria-modal="true"
           >
-            <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-amber-600" />
-                Documentos Pendentes
-              </h3>
-              <button
-                onClick={() => setShowInfoModal(false)}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                aria-label="Fechar"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+            <div
+              className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-700 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                  Documentos Pendentes
+                </h3>
+                <button
+                  onClick={() => setShowInfoModal(false)}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  aria-label="Fechar"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                Os documentos abaixo ainda não foram adicionados ao fluxo do processo.
-              </p>
-              <div className="space-y-4">
-                {pendingDocs.length > 0 ? (
-                  Object.entries(
-                    pendingDocs.reduce((acc, doc) => {
-                      if (!acc[doc.group]) acc[doc.group] = [];
-                      acc[doc.group].push(doc);
-                      return acc;
-                    }, {} as Record<string, typeof pendingDocs>)
-                  ).map(([group, docs]) => (
-                    <div key={group} className="space-y-2">
-                      <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-1">
-                        {group}
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                        {docs.map((doc) => (
-                          <div key={doc.key} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300 group">
-                            <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 group-hover:scale-125 transition-transform" />
-                            <span className="font-medium">{doc.label}</span>
-                          </div>
-                        ))}
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  Os documentos abaixo ainda não foram adicionados ao fluxo do processo.
+                </p>
+                <div className="space-y-4">
+                  {pendingDocs.length > 0 ? (
+                    Object.entries(
+                      pendingDocs.reduce((acc, doc) => {
+                        if (!acc[doc.group]) acc[doc.group] = [];
+                        acc[doc.group].push(doc);
+                        return acc;
+                      }, {} as Record<string, typeof pendingDocs>)
+                    ).map(([group, docs]) => (
+                      <div key={group} className="space-y-2">
+                        <h5 className="text-sm font-bold text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-gray-700 pb-1">
+                          {group}
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                          {docs.map((doc) => (
+                            <div key={doc.key} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-gray-300 group">
+                              <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 group-hover:scale-125 transition-transform" />
+                              <span className="font-medium">{doc.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-5 flex items-start gap-4 text-green-800 animate-in fade-in duration-500">
+                      <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
+                        <CheckCircle className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg mb-1">Documentação Completa!</h4>
+                        <p className="text-green-700">Todos os documentos obrigatórios foram anexados com sucesso.</p>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-5 flex items-start gap-4 text-green-800 animate-in fade-in duration-500">
-                    <div className="p-2 bg-green-100 rounded-full flex-shrink-0">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg mb-1">Documentação Completa!</h4>
-                      <p className="text-green-700">Todos os documentos obrigatórios foram anexados com sucesso.</p>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Modal de Responsável */}
-      <Dialog open={showResponsibleModal} onOpenChange={setShowResponsibleModal}>
-        <DialogContent className="sm:max-w-[500px] bg-card text-card-foreground border border-border shadow-xl rounded-2xl p-6 overflow-hidden gap-6">
-          <DialogHeader className="mb-0">
-            <DialogTitle className="text-xl font-semibold flex items-center gap-3 text-foreground">
-              <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              Responsável pela Observação
-            </DialogTitle>
-            <DialogDescription className="text-base text-muted-foreground mt-2 ml-1">
-              Identifique quem está registrando esta observação para manter o histórico do processo organizado.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="responsible" className="text-sm font-semibold text-foreground ml-1">
-                Nome do Responsável
-              </Label>
-              <div className="relative group">
-                <User className="absolute left-3.5 top-3 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <Input
-                  id="responsible"
-                  value={noteResponsible}
-                  onChange={(e) => setNoteResponsible(e.target.value)}
-                  className="pl-11 h-11 text-base bg-background border-input focus:border-ring focus:ring-4 focus:ring-ring/10 rounded-xl transition-all shadow-sm hover:border-ring/50"
-                  placeholder="Digite ou selecione abaixo..."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">
-                Seleção Rápida
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {RESPONSAVEIS.map((resp) => {
-                  const name = resp.split(' – ')[1] || resp;
-                  const isSelected = noteResponsible === name;
-                  return (
-                    <button
-                      key={resp}
-                      type="button"
-                      onClick={() => setNoteResponsible(name)}
-                      className={`
-                        group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
-                        ${isSelected
-                          ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-[1.02]'
-                          : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5'}
-                      `}
-                    >
-                      {isSelected && <CheckCircle className="w-3.5 h-3.5 animate-in zoom-in duration-200" />}
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-muted/30 border-t border-border flex items-center justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setShowResponsibleModal(false)}
-              className="h-10 px-4 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              onClick={confirmSaveNote}
-              disabled={!noteResponsible.trim()}
-              className="h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-lg shadow-primary/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Confirmar e Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      <ObservationResponsibleModal
+        open={showResponsibleModal}
+        onOpenChange={setShowResponsibleModal}
+        onConfirm={(name) => {
+          setNoteResponsible(name);
+          confirmSaveNote(name);
+        }}
+        currentResponsible={noteResponsible}
+      />
     </div >
   );
 }

@@ -64,6 +64,8 @@ import "react-day-picker/dist/style.css";
 import { StatusPanel } from "@/components/detail/StatusPanel";
 import { formatDateBR } from "@/lib/date";
 import { subscribeTable, unsubscribe } from "@/lib/realtime";
+import { RESPONSAVEIS } from "@/constants/responsibles";
+import { ObservationResponsibleModal } from "@/components/modals/ObservationResponsibleModal";
 
 const TURISMO_WORKFLOW = [
   "Cadastro de Documentos",
@@ -355,14 +357,7 @@ export default function TurismoDetailsPage() {
     } catch (e) { console.error('Erro ao excluir nota:', e); }
   };
 
-  const RESPONSAVEIS = [
-    "Secretária – Jessica Cavallaro",
-    "Advogada – Jailda Silva",
-    "Advogada – Adriana Roder",
-    "Advogado – Fábio Ferrari",
-    "Advogado – Guilherme Augusto",
-    "Estagiário – Wendel Macriani",
-  ];
+
 
   useEffect(() => {
     if (params.id) {
@@ -901,17 +896,19 @@ export default function TurismoDetailsPage() {
     setShowResponsibleModal(true);
   };
 
-  const confirmSaveNote = async () => {
-    if (!pendingNote || !noteResponsible.trim()) return;
+  const confirmSaveNote = async (responsibleName?: string) => {
+    const finalResponsible = responsibleName || noteResponsible;
+    if (!pendingNote || !finalResponsible.trim()) return;
+
     const { stepId, text } = pendingNote;
     const iso = new Date().toISOString();
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const arr = parseNotesArray(visto?.notes);
 
-    const suggestion = RESPONSAVEIS.find((r) => r.includes(noteResponsible)) || '';
+    const suggestion = RESPONSAVEIS.find((r) => r.includes(finalResponsible)) || '';
     const role = suggestion ? suggestion.split(' – ')[0] : '';
 
-    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: noteResponsible, authorRole: role }];
+    const next = [...arr, { id, stepId, content: text, timestamp: iso, authorName: finalResponsible, authorRole: role }];
     try {
       const res = await fetch(`/api/turismo?id=${params.id}`, {
         method: 'PUT',
@@ -2367,85 +2364,16 @@ export default function TurismoDetailsPage() {
       </Dialog>
 
       {/* Modal de Responsável */}
-      <Dialog open={showResponsibleModal} onOpenChange={setShowResponsibleModal}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-6 overflow-hidden gap-6">
-          <DialogHeader className="mb-0">
-            <DialogTitle className="text-xl font-semibold flex items-center gap-3 text-slate-900 dark:text-slate-100">
-              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              Responsável pela Observação
-            </DialogTitle>
-            <DialogDescription className="text-base text-slate-500 dark:text-slate-400 mt-2 ml-1">
-              Identifique quem está registrando esta observação para manter o histórico do processo organizado.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="responsible" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
-                Nome do Responsável
-              </Label>
-              <div className="relative group">
-                <User className="absolute left-3.5 top-3 h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                <Input
-                  id="responsible"
-                  value={noteResponsible}
-                  onChange={(e) => setNoteResponsible(e.target.value)}
-                  className="pl-11 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-xl transition-all shadow-sm hover:border-blue-400 dark:hover:border-blue-600"
-                  placeholder="Digite ou selecione abaixo..."
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">
-                Seleção Rápida
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {RESPONSAVEIS.map((resp) => {
-                  const name = resp.split(' – ')[1] || resp;
-                  const isSelected = noteResponsible === name;
-                  return (
-                    <button
-                      key={resp}
-                      type="button"
-                      onClick={() => setNoteResponsible(name)}
-                      className={`
-                        group flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200 border
-                        ${isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20 scale-[1.02]'
-                          : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'}
-                      `}
-                    >
-                      {isSelected && <CheckCircle className="w-3.5 h-3.5 animate-in zoom-in duration-200" />}
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="mt-0 -mx-6 -mb-6 px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-3">
-            <Button
-              variant="ghost"
-              onClick={() => setShowResponsibleModal(false)}
-              className="h-10 px-4 text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:hover:bg-slate-800 rounded-lg"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              onClick={confirmSaveNote}
-              disabled={!noteResponsible.trim()}
-              className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 rounded-lg shadow-lg shadow-slate-900/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Confirmar e Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ObservationResponsibleModal
+        open={showResponsibleModal}
+        onOpenChange={setShowResponsibleModal}
+        onConfirm={(name) => {
+          setNoteResponsible(name);
+          confirmSaveNote(name);
+        }}
+        currentResponsible={noteResponsible}
+      />
     </div>
   );
 }
+

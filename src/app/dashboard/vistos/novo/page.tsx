@@ -780,7 +780,7 @@ export default function NovoVistoPage() {
             </div>
 
             {/* Form Section - Conditional Rendering */}
-            {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? (
+            {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? (
               /* Layout específico para Trabalho - Brasil e Residência Prévia */
               <div className="space-y-8">
                 {/* 1. Identificação */}
@@ -818,11 +818,11 @@ export default function NovoVistoPage() {
                   <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">3</span>
-                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? "Certidões do País de Origem" : "Documentos Trabalhistas"}
+                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? "Certidões do País de Origem" : "Documentos Trabalhistas"}
                     </h2>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? (
+                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? (
                       <>
                         <DocumentRow label="Certidão Criminal" field="antecedentesCriminais" docField="antecedentesCriminaisDoc" />
                         <DocumentRow label="Certificado de Trabalho" field="certificadoTrabalho" docField="certificadoTrabalhoDoc" />
@@ -846,11 +846,11 @@ export default function NovoVistoPage() {
                   <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">4</span>
-                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? "Traduções Juramentadas" : "Histórico e Segurança"}
+                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? "Traduções Juramentadas" : "Histórico e Segurança"}
                     </h2>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? (
+                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? (
                       <>
                         <DocumentRow label="Certidão Criminal" field="traducaoAntecedentesCriminais" docField="traducaoAntecedentesCriminaisDoc" />
                         <DocumentRow label="Certificado de Trabalho" field="traducaoCertificadoTrabalho" docField="traducaoCertificadoTrabalhoDoc" />
@@ -871,11 +871,11 @@ export default function NovoVistoPage() {
                   <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">5</span>
-                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? "Procurações" : "Formação Acadêmica"}
+                      {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? "Procurações" : "Formação Acadêmica"}
                     </h2>
                   </div>
                   <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" ? (
+                    {formData.type === "Trabalho:Brasil" || formData.type === "Trabalho:Residência Prévia" || formData.type === "Trabalho:Renovação 1 ano" ? (
                       <>
                         <DocumentRow label="Procuração Empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
                         <DocumentRow label="Procuração Empresa Assinada" field="procuracaoEmpresaAssinada" docField="procuracaoEmpresaAssinadaDoc" />
@@ -891,99 +891,7 @@ export default function NovoVistoPage() {
 
               </div>
 
-            ) : formData.type === "Trabalho:Renovação 1 ano" ? (
-              /* Layout específico para Trabalho - Renovação 1 ano */
-              <div className="space-y-8">
-                {/* 1. Identificação */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">1</span>
-                      Identificação
-                    </h2>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 gap-6">
-                    <DocumentRow label="RNM" field="rnm" docField="rnmDoc" />
-                  </div>
-                </div>
 
-                {/* 2. Documentos da Empresa */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">2</span>
-                      Documentos da Empresa
-                    </h2>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                    <DocumentRow label="Contrato Social" field="contratoEmpresa" docField="contratoEmpresaDoc" />
-                    <DocumentRow label="Procuração da empresa" field="procuracaoEmpresa" docField="procuracaoEmpresaDoc" />
-                    <DocumentRow label="Protocolado" field="protocolado" docField="protocoladoDoc" placeholder="Recibo/Protocolo do pedido" />
-                    <div className="col-span-2">
-                      <DocumentRow label="Publicação no DOU" field="publicacaoDou" docField="publicacaoDouDoc" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Vínculo de Trabalho */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">3</span>
-                      Vínculo de Trabalho
-                    </h2>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
-                    <DocumentRow label="CTPS (páginas do contrato e anotações)" field="ctps" docField="ctpsDoc" />
-                    <DocumentRow label="Contrato de trabalho anterior" field="contratoTrabalhoAnterior" docField="contratoTrabalhoAnteriorDoc" />
-                    <DocumentRow label="Contrato de trabalho atual" field="contratoTrabalhoAtual" docField="contratoTrabalhoAtualDoc" />
-                    <DocumentRow label="Formulário de prorrogação" field="formularioProrrogacao" docField="formularioProrrogacaoDoc" />
-                  </div>
-                </div>
-
-                {/* 4. Segurança */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">4</span>
-                      Segurança
-                    </h2>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 gap-6">
-                    <DocumentRow label="Declaração de Antecedentes Criminais" field="declaracaoAntecedentesCriminais" docField="declaracaoAntecedentesCriminaisDoc" />
-                  </div>
-                </div>
-
-                {/* 5. Outras Informações */}
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-3">
-                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">5</span>
-                      Outras Informações
-                    </h2>
-                  </div>
-                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Procurador</Label>
-                      <Input
-                        value={formData.procurador}
-                        onChange={(e) => handleChange("procurador", e.target.value)}
-                        className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                        placeholder="Nome do procurador responsável"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="block text-sm font-medium text-slate-700 dark:text-slate-200">Número do Processo</Label>
-                      <Input
-                        value={formData.numeroProcesso}
-                        onChange={(e) => handleChange("numeroProcesso", e.target.value)}
-                        className="w-full rounded-md border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-200 text-sm py-2.5"
-                        placeholder="0000000-00.0000.0.00.0000"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
             ) : formData.type === "Trabalho:Indeterminado" ? (
               /* Layout específico para Trabalho - Indeterminado */
               <div className="space-y-8">
@@ -1339,14 +1247,7 @@ export default function NovoVistoPage() {
 
 
 
-                    {formData.type === "Trabalho:Renovação 1 ano" && (
-                      <>
-                        <DocumentRow label="CTPS" field="ctps" docField="ctpsDoc" />
-                        <DocumentRow label="Contrato de Trabalho Anterior" field="contratoTrabalhoAnterior" docField="contratoTrabalhoAnteriorDoc" />
-                        <DocumentRow label="Contrato de Trabalho Atual" field="contratoTrabalhoAtual" docField="contratoTrabalhoAtualDoc" />
-                        <DocumentRow label="Formulário de Prorrogação" field="formularioProrrogacao" docField="formularioProrrogacaoDoc" />
-                      </>
-                    )}
+
 
                     {formData.type === "Trabalho:Indeterminado" && (
                       <>
