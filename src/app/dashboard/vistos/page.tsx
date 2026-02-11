@@ -49,6 +49,7 @@ interface Visto {
   statusFinal?: string;
   statusFinalOutro?: string;
   currentStep?: number;
+  completedSteps?: number[] | string; // Supabase might return JSON string or array
   country?: string;
   travelStartDate?: string;
   travelEndDate?: string;
@@ -60,7 +61,7 @@ export default function VistosPage() {
   const { data: vistosData, isLoading, error, refetch } = useDataCache(
     "vistos",
     async () => {
-      const response = await fetch("/api/vistos?limit=100&select=id,client_name,type,status,created_at,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data");
+      const response = await fetch("/api/vistos?limit=100&select=id,client_name,type,status,created_at,current_step,completed_steps,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data");
       return response.json();
     }
   );
@@ -638,11 +639,38 @@ export default function VistosPage() {
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           <span className="font-medium">Fluxo atual:</span>
-                          <span>{getVistoStepTitle(
-                            visto.type,
-                            (visto.currentStep ?? vistosAssignments[String(visto.id)]?.currentIndex ?? 0),
-                            visto.country
-                          )}</span>
+                          <span>{(() => {
+                            // Calculate active step based on completedSteps to match details page logic
+                            const normalizeSteps = (val: any) => {
+                              if (Array.isArray(val)) return val;
+                              if (typeof val === 'string') {
+                                try { return JSON.parse(val); } catch { return []; }
+                              }
+                              return [];
+                            };
+                            const completed = normalizeSteps(visto.completedSteps || (visto as any).completed_steps);
+
+                            // Calculate contiguous completed steps from 0
+                            const allTitles = getVistoSteps((visto.type || "") + (visto.country ? ` - ${visto.country}` : ""));
+                            let activeIndex = 0;
+                            // Also consider currentStep from DB if it makes sense, but details page logic 
+                            // seems to rely heavily on contiguous completion.
+                            // Let's replicate details page:
+                            // "currentStep" there is calculated by how many steps are completed in order.
+                            // If step 0 is completed, we are at step 1.
+                            while (activeIndex < allTitles.length && completed.includes(activeIndex)) {
+                              activeIndex++;
+                            }
+
+                            // Clamp to valid range
+                            const clampedIndex = Math.min(activeIndex, allTitles.length - 1);
+
+                            return getVistoStepTitle(
+                              visto.type,
+                              clampedIndex,
+                              visto.country
+                            );
+                          })()}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />

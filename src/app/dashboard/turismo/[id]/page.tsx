@@ -2072,7 +2072,22 @@ export default function TurismoDetailsPage() {
               onStatusChange={handleStatusChange}
               currentStep={currentStepIndex + 1}
               totalSteps={caseData.steps.length}
-              currentStepTitle={caseData.steps[currentStepIndex]?.title}
+              currentStepTitle={(() => {
+                const title = caseData.steps[currentStepIndex]?.title;
+                if (title === "Processo Finalizado") {
+                  const stepId = caseData.steps[currentStepIndex].id;
+                  const sData = stepData[stepId] || {};
+                  if (sData.statusFinal === "Aguardando") return "Aguardar Aprovação";
+
+                  const prevStepIndex = currentStepIndex - 1;
+                  if (prevStepIndex >= 0 && caseData.steps[prevStepIndex]?.title === "Aguardar Aprovação") {
+                    const prevStepId = caseData.steps[prevStepIndex].id;
+                    const prevSData = stepData[prevStepId] || {};
+                    if (prevSData.statusFinal === "Aguardando") return "Aguardar Aprovação";
+                  }
+                }
+                return title;
+              })()}
               createdAt={caseData.createdAt}
               updatedAt={caseData.updatedAt}
             />

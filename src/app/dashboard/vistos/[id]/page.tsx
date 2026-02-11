@@ -982,12 +982,24 @@ export default function VistoDetailsPage() {
         : Math.min(stepId + 1, updatedSteps.length - 1);
       (async () => {
         try {
+          const isFinalStep = updatedSteps[newCurrent]?.title === 'Processo Finalizado';
+          const payload: any = { currentStep: newCurrent, completedSteps: completedStepsArr };
+          if (isFinalStep) payload.status = 'Finalizado';
+
           await fetch(`/api/vistos?id=${params.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentStep: newCurrent, completedSteps: completedStepsArr })
+            body: JSON.stringify(payload)
           });
-          setCaseData((prev2) => prev2 ? { ...prev2, updatedAt: new Date().toISOString() } : prev2);
+          
+          if (isFinalStep) setStatus('Finalizado');
+
+          setCaseData((prev2) => prev2 ? { 
+            ...prev2, 
+            updatedAt: new Date().toISOString(),
+            status: isFinalStep ? 'Finalizado' : prev2.status
+          } : prev2);
+          
           try {
             await fetch(`/api/step-assignments`, {
               method: 'POST',
@@ -1122,13 +1134,32 @@ export default function VistoDetailsPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus);
+    
+    let nextStep = -1;
+    if (newStatus === 'Finalizado' && caseData?.steps) {
+      const idx = caseData.steps.findIndex(s => s.title === 'Processo Finalizado');
+      if (idx !== -1) nextStep = idx;
+    }
+
+    const payload: any = { status: newStatus };
+    if (nextStep !== -1) payload.currentStep = nextStep;
+
     try {
       await fetch(`/api/vistos?id=${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(payload)
       });
-      setCaseData((prev) => prev ? { ...prev, updatedAt: new Date().toISOString() } : prev);
+      
+      setCaseData((prev) => {
+        if (!prev) return prev;
+        return { 
+          ...prev, 
+          updatedAt: new Date().toISOString(), 
+          status: newStatus,
+          currentStep: nextStep !== -1 ? nextStep : prev.currentStep
+        };
+      });
     } catch (e) {
       console.error('Erro ao atualizar status:', e);
     }
@@ -3302,7 +3333,22 @@ export default function VistoDetailsPage() {
               onStatusChange={handleStatusChange}
               currentStep={currentStepIndex + 1}
               totalSteps={caseData.steps.length}
-              currentStepTitle={caseData.steps[currentStepIndex]?.title}
+              currentStepTitle={(() => {
+                const title = caseData.steps[currentStepIndex]?.title;
+                if (title === "Processo Finalizado") {
+                  const stepId = caseData.steps[currentStepIndex].id;
+                  const sData = stepData[stepId] || {};
+                  if (sData.statusFinal === "Aguardando") return "Aguardar Aprovação";
+
+                  const prevStepIndex = currentStepIndex - 1;
+                  if (prevStepIndex >= 0 && caseData.steps[prevStepIndex]?.title === "Aguardar Aprovação") {
+                    const prevStepId = caseData.steps[prevStepIndex].id;
+                    const prevSData = stepData[prevStepId] || {};
+                    if (prevSData.statusFinal === "Aguardando") return "Aguardar Aprovação";
+                  }
+                }
+                return title;
+              })()}
               workflowTitle={(() => {
                 const t = (visto?.type || caseData.type || '');
                 const c = (visto?.country || (caseData as any)?.country || '');
