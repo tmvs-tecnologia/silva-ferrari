@@ -200,7 +200,10 @@ export default function VistosPage() {
   };
 
   const getVistoSteps = (type: string) => {
-    const t = (type || "").toLowerCase();
+    const rawTypeStr = String(type || "");
+    const lowerType = rawTypeStr.toLowerCase();
+
+    // Workflow definitions matching details page
     const WORKFLOWS_LIST = {
       "Visto de Trabalho": [
         "Cadastro de Documentos",
@@ -209,6 +212,41 @@ export default function VistosPage() {
         "Preparar Documentação",
         "Aguardar Aprovação",
         "Processo Finalizado",
+      ],
+      "Visto de Trabalho - Brasil": [
+        "Cadastro de Documentos",
+        "Documentos para Protocolo",
+        "Protocolo",
+        "Exigências",
+        "Processo Finalizado"
+      ],
+      "Visto de Residência Prévia": [
+        "Cadastro de Documentos",
+        "Documentos para Protocolo",
+        "Protocolo",
+        "Exigências",
+        "Processo Finalizado"
+      ],
+      "Visto de Trabalho - Renovação 1 ano": [
+        "Cadastro de Documentos",
+        "Documentos para Protocolo",
+        "Protocolo",
+        "Exigências",
+        "Processo Finalizado"
+      ],
+      "Visto de Trabalho - Indeterminado": [
+        "Cadastro de Documentos",
+        "Documentos para Protocolo",
+        "Protocolo",
+        "Exigências",
+        "Processo Finalizado"
+      ],
+      "Visto de Trabalho - Mudança de Empregador": [
+        "Cadastro de Documentos",
+        "Documentos para Protocolo",
+        "Protocolo",
+        "Exigências",
+        "Processo Finalizado"
       ],
       "Visto de Turismo": [
         "Cadastro de Documentos",
@@ -236,16 +274,26 @@ export default function VistosPage() {
       ],
     } as const;
 
-    if (t.includes("turismo")) return WORKFLOWS_LIST["Visto de Turismo"];
-    if (t.includes("estudante")) return WORKFLOWS_LIST["Visto de Estudante"];
-    if (t.includes("reunião") || t.includes("reuniao")) return WORKFLOWS_LIST["Visto de Reunião Familiar"];
-    if (t.includes("trabalho") && t.includes("brasil")) return [
-      "Cadastro de Documentos",
-      "Documentos para Protocolo",
-      "Protocolo",
-      "Exigências",
-      "Processo Finalizado"
-    ];
+    // Selection logic matching fetchCaseData in details page
+    if (lowerType.includes("trabalho") && (lowerType.includes("brasil") || lowerType.includes("trabalho:brasil"))) {
+      return WORKFLOWS_LIST["Visto de Trabalho - Brasil"];
+    }
+    if (lowerType.includes("trabalho") && lowerType.includes("residência prévia")) {
+      return WORKFLOWS_LIST["Visto de Residência Prévia"];
+    }
+    if (lowerType.includes("renov") && lowerType.includes("1 ano")) {
+      return WORKFLOWS_LIST["Visto de Trabalho - Renovação 1 ano"];
+    }
+    if (lowerType.includes("indeterminado")) {
+      return WORKFLOWS_LIST["Visto de Trabalho - Indeterminado"];
+    }
+    if (lowerType.includes("mudan") && lowerType.includes("empregador")) {
+      return WORKFLOWS_LIST["Visto de Trabalho - Mudança de Empregador"];
+    }
+    if (lowerType.includes("turismo")) return WORKFLOWS_LIST["Visto de Turismo"];
+    if (lowerType.includes("estudante")) return WORKFLOWS_LIST["Visto de Estudante"];
+    if (lowerType.includes("reuni") && lowerType.includes("familiar")) return WORKFLOWS_LIST["Visto de Reunião Familiar"];
+
     return WORKFLOWS_LIST["Visto de Trabalho"];
   };
 
