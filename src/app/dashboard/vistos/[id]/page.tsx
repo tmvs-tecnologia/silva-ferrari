@@ -3349,7 +3349,7 @@ export default function VistoDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="px-2.5">
-              {((caseData?.type as string) === "Visto de Trabalho - Brasil" || String(caseData?.type || "").toLowerCase().includes("turismo") || String(caseData?.type || "").toLowerCase().includes("renovação 1 ano")) && (
+              {caseData?.type && (
                 <div className="mb-8 space-y-6">
                   <div
                     className="space-y-2 cursor-pointer group select-none"

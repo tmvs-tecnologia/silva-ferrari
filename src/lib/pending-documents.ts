@@ -10,7 +10,8 @@ export function isBrasilVisto(type?: string, country?: string): boolean {
   const t = String(type || "").toLowerCase();
   const c = String(country || "").toLowerCase();
   return (t.includes("trabalho") && (t.includes("brasil") || c.includes("brasil"))) ||
-    String(type || "") === "Visto de Trabalho - Brasil";
+    String(type || "") === "Visto de Trabalho - Brasil" ||
+    t.includes("desportista");
 }
 
 export function extractDocumentsFromRecord(record: any): Set<string> {
@@ -46,12 +47,12 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
   // Detect specific types
   const isIndeterminado = t.includes("indeterminado");
   const isMudancaEmpregador = t.includes("mudan") && t.includes("empregador");
+  const showInvestidor = t.includes("invest");
 
-  // Force showBrasil to true for Indeterminado and Mudanca de Empregador
-  const showBrasil = isBrasilVisto(input.type, input.country) || isIndeterminado || isMudancaEmpregador;
+  // Force showBrasil to true for Indeterminado, Mudanca de Empregador and Investidor
+  const showBrasil = isBrasilVisto(input.type, input.country) || isIndeterminado || isMudancaEmpregador || showInvestidor;
 
   const showResidenciaPrevia = t.includes("trabalho") && (t.includes("resid") || t.includes("prévia") || t.includes("previ"));
-  const showInvestidor = t.includes("invest");
   const showTrabalhistas = t.includes("trabalhistas");
   const showRenovacao = t.includes("renov") || t.includes("1 ano");
 
@@ -60,6 +61,19 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
   const showMudancaEmpregador = isMudancaEmpregador;
 
   if (showBrasil) {
+    const documentsEmpresaFields = [
+      { key: "contratoEmpresaDoc", label: "Contrato Social" },
+      { key: "cartaoCnpjDoc", label: "CNPJ" },
+      { key: "gfipDoc", label: "GFIP" },
+    ];
+
+    if (showInvestidor) {
+      documentsEmpresaFields.push(
+        { key: "comprovanteInvestimentoDoc", label: "Comprovante do Investimento" },
+        { key: "planoInvestimentosDoc", label: "Plano de Investimentos" }
+      );
+    }
+
     return [
       {
         title: "1. Identificação",
@@ -73,11 +87,7 @@ export function getVistosDocRequirements(input: { type?: string; country?: strin
       {
         title: "2. Documentos da Empresa",
         step: "Cadastro de Documentos",
-        fields: [
-          { key: "contratoEmpresaDoc", label: "Contrato Social" },
-          { key: "cartaoCnpjDoc", label: "CNPJ" },
-          { key: "gfipDoc", label: "GFIP" },
-        ],
+        fields: documentsEmpresaFields,
       },
       {
         title: "3. Certidões",
