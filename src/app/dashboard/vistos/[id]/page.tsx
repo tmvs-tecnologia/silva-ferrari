@@ -108,6 +108,20 @@ const WORKFLOWS = {
     "Exigências",
     "Processo Finalizado"
   ],
+  "Visto de Trabalho - Indeterminado": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
+  ],
+  "Visto de Trabalho - Mudança de Empregador": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
+  ],
   "Visto de Turismo": [
     "Cadastro de Documentos",
     "Agendar no Consulado",
@@ -627,6 +641,10 @@ export default function VistoDetailsPage() {
         flowType = "Visto de Residência Prévia" as any;
       } else if (lowerType.includes("renov") && lowerType.includes("1 ano")) {
         flowType = "Visto de Trabalho - Renovação 1 ano" as any;
+      } else if (lowerType.includes("indeterminado")) {
+        flowType = "Visto de Trabalho - Indeterminado" as any;
+      } else if (lowerType.includes("mudan") && lowerType.includes("empregador")) {
+        flowType = "Visto de Trabalho - Mudança de Empregador" as any;
       } else if (lowerType.includes("turismo")) flowType = "Visto de Turismo";
       else if (lowerType.includes("estudante")) flowType = "Visto de Estudante";
       else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
@@ -991,15 +1009,15 @@ export default function VistoDetailsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          
+
           if (isFinalStep) setStatus('Finalizado');
 
-          setCaseData((prev2) => prev2 ? { 
-            ...prev2, 
+          setCaseData((prev2) => prev2 ? {
+            ...prev2,
             updatedAt: new Date().toISOString(),
             status: isFinalStep ? 'Finalizado' : prev2.status
           } : prev2);
-          
+
           try {
             await fetch(`/api/step-assignments`, {
               method: 'POST',
@@ -1134,7 +1152,7 @@ export default function VistoDetailsPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     setStatus(newStatus);
-    
+
     let nextStep = -1;
     if (newStatus === 'Finalizado' && caseData?.steps) {
       const idx = caseData.steps.findIndex(s => s.title === 'Processo Finalizado');
@@ -1150,12 +1168,12 @@ export default function VistoDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       setCaseData((prev) => {
         if (!prev) return prev;
-        return { 
-          ...prev, 
-          updatedAt: new Date().toISOString(), 
+        return {
+          ...prev,
+          updatedAt: new Date().toISOString(),
           status: newStatus,
           currentStep: nextStep !== -1 ? nextStep : prev.currentStep
         };
@@ -1251,6 +1269,10 @@ export default function VistoDetailsPage() {
           return renderVistoTrabalhoStepContent(step);
         case "Trabalho:Renovação 1 ano":
           return renderVistoTrabalhoStepContent(step);
+        case "Visto de Trabalho - Indeterminado" as any:
+          return renderVistoTrabalhoStepContent(step);
+        case "Visto de Trabalho - Mudança de Empregador" as any:
+          return renderVistoTrabalhoStepContent(step);
         default:
           return renderDefaultStepContent(step);
       }
@@ -1270,6 +1292,10 @@ export default function VistoDetailsPage() {
       case "Visto de Trabalho - Renovação 1 ano" as any:
         return renderVistoTrabalhoStepContent(step);
       case "Trabalho:Renovação 1 ano":
+        return renderVistoTrabalhoStepContent(step);
+      case "Visto de Trabalho - Indeterminado" as any:
+        return renderVistoTrabalhoStepContent(step);
+      case "Visto de Trabalho - Mudança de Empregador" as any:
         return renderVistoTrabalhoStepContent(step);
       case "Visto de Turismo":
         return renderVistoTurismoStepContent(step);
@@ -1387,7 +1413,9 @@ export default function VistoDetailsPage() {
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
           (caseData?.type as string)?.includes("Trabalho:Brasil") ||
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
-          (caseData?.type as string)?.includes("Renovação 1 ano");
+          (caseData?.type as string)?.includes("Renovação 1 ano") ||
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -1469,9 +1497,9 @@ export default function VistoDetailsPage() {
         const showInvestidor = t.includes('invest');
         const showTrabalhistas = t.includes('trabalhistas');
         const showFormacao = t.includes('forma');
-        const showRenovacao = t.includes('renov') || t.includes('1 ano');
+        const showRenovacao = t.includes('renov') || t.includes('1 ano') || t.includes('indeterminado') || (t.includes('mudan') && t.includes('empregador'));
         const showIndeterminado = t.includes('indeterminado');
-        const showMudancaEmpregador = t.includes('mudan') && t.includes('empregador');
+        const showMudancaEmpregador = (t.includes('mudan') && t.includes('empregador'));
         const isTurismo = t.includes('turismo');
 
         if (isTurismo) {
@@ -1937,6 +1965,53 @@ export default function VistoDetailsPage() {
                 </div>
               </div>
             ) : null}
+
+            {showMudancaEmpregador ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-lg">Mudança de Empregador</h4>
+                  {!isEditingDocuments ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setIsEditingDocuments(true)}>Editar</Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
+                  {renderRow('Justificativa Mudança', 'justificativaMudanca', 'justificativaMudancaDoc')}
+                  {renderRow('Contrato Novo', 'contratoNovo', 'contratoNovoDoc')}
+                  {renderRow('Protocolado', 'protocolado', 'protocoladoDoc')}
+                </div>
+              </div>
+            ) : null}
+
+            {showIndeterminado ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-lg">Indeterminado</h4>
+                  {!isEditingDocuments ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setIsEditingDocuments(true)}>Editar</Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
+                  {renderRow('Contrato de Trabalho Indeterminado', 'contratoTrabalhoIndeterminado', 'contratoTrabalhoIndeterminadoDoc')}
+                  {renderRow('Protocolado', 'protocolado', 'protocoladoDoc')}
+                </div>
+              </div>
+            ) : null}
+
+            {showMudancaEmpregador ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-lg">Mudança de Empregador</h4>
+                  {!isEditingDocuments ? (
+                    <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setIsEditingDocuments(true)}>Editar</Button>
+                  ) : null}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted rounded-lg">
+                  {renderRow('Justificativa Mudança', 'justificativaMudanca', 'justificativaMudancaDoc')}
+                  {renderRow('Contrato Novo', 'contratoNovo', 'contratoNovoDoc')}
+                  {renderRow('Protocolado', 'protocolado', 'protocoladoDoc')}
+                </div>
+              </div>
+            ) : null}
           </div>
         );
       }
@@ -1944,7 +2019,9 @@ export default function VistoDetailsPage() {
       case 1: { // Agendar no Consulado
         // Implementação do fluxo de documentos para protocolo (Renovação 1 ano)
         const isRenovacao1Ano = (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
-          (caseData?.type as string)?.includes("Renovação 1 ano");
+          (caseData?.type as string)?.includes("Renovação 1 ano") ||
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
 
         if (isRenovacao1Ano) {
           return (
@@ -1958,8 +2035,9 @@ export default function VistoDetailsPage() {
                   {renderRow(stepId, "Contrato de trabalho anterior", "contratoTrabalhoAnterior", "contratoTrabalhoAnteriorDoc")}
                   {renderRow(stepId, "Declaração de Antecedentes", "antecedentesCriminais", "antecedentesCriminaisDoc")}
                   {renderRow(stepId, "Formulário prorrogação", "formularioProrrogacao", "formularioProrrogacaoDoc")}
-                  {renderRow(stepId, "Contrato de trabalho atual", "contratoTrabalho", "contratoTrabalhoDoc")}
+                  {renderRow(stepId, (caseData?.type as string)?.toLowerCase().includes("indeterminado") ? "Contrato de trabalho por prazo indeterminado" : "Contrato de trabalho atual", "contratoTrabalho", "contratoTrabalhoDoc")}
                   {renderRow(stepId, "Procuração empresa", "procuracaoEmpresa", "procuracaoEmpresaDoc")}
+                  {(caseData?.type as string)?.toLowerCase().includes("indeterminado") && renderRow(stepId, "Guia Paga", "guiaPaga", "guiaPagaDoc")}
                 </div>
               </div>
             </div>
@@ -2145,7 +2223,9 @@ export default function VistoDetailsPage() {
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
           (caseData?.type as string)?.includes("Trabalho:Brasil") ||
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
-          (caseData?.type as string)?.includes("Renovação 1 ano");
+          (caseData?.type as string)?.includes("Renovação 1 ano") ||
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2202,7 +2282,9 @@ export default function VistoDetailsPage() {
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
           (caseData?.type as string)?.includes("Trabalho:Brasil") ||
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
-          (caseData?.type as string)?.includes("Renovação 1 ano");
+          (caseData?.type as string)?.includes("Renovação 1 ano") ||
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2286,7 +2368,9 @@ export default function VistoDetailsPage() {
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
           (caseData?.type as string)?.includes("Trabalho:Brasil") ||
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
-          (caseData?.type as string)?.includes("Renovação 1 ano");
+          (caseData?.type as string)?.includes("Renovação 1 ano") ||
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {

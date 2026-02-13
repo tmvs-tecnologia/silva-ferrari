@@ -42,13 +42,22 @@ export function extractDocumentsFromRecord(record: any): Set<string> {
 
 export function getVistosDocRequirements(input: { type?: string; country?: string }): PendingDocGroup[] {
   const t = String(input.type || "").toLowerCase();
-  const showBrasil = isBrasilVisto(input.type, input.country);
+  
+  // Detect specific types
+  const isIndeterminado = t.includes("indeterminado");
+  const isMudancaEmpregador = t.includes("mudan") && t.includes("empregador");
+  
+  // Force showBrasil to true for Indeterminado and Mudanca de Empregador
+  const showBrasil = isBrasilVisto(input.type, input.country) || isIndeterminado || isMudancaEmpregador;
+  
   const showResidenciaPrevia = t.includes("trabalho") && (t.includes("resid") || t.includes("prévia") || t.includes("previ"));
   const showInvestidor = t.includes("invest");
   const showTrabalhistas = t.includes("trabalhistas");
   const showRenovacao = t.includes("renov") || t.includes("1 ano");
-  const showIndeterminado = t.includes("indeterminado");
-  const showMudancaEmpregador = t.includes("mudan") && t.includes("empregador");
+  
+  // Note: These flags are now redundant if showBrasil is true, but kept for other potential logic
+  const showIndeterminado = isIndeterminado;
+  const showMudancaEmpregador = isMudancaEmpregador;
 
   if (showBrasil) {
     return [
