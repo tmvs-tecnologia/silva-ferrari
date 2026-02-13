@@ -145,6 +145,20 @@ const WORKFLOWS = {
     "Preparar Documentação",
     "Aguardar Aprovação",
     "Processo Finalizado"
+  ],
+  "Visto de Investidor": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
+  ],
+  "Visto Desportista": [
+    "Cadastro de Documentos",
+    "Documentos para Protocolo",
+    "Protocolo",
+    "Exigências",
+    "Processo Finalizado"
   ]
 } as const;
 
@@ -648,6 +662,9 @@ export default function VistoDetailsPage() {
       } else if (lowerType.includes("turismo")) flowType = "Visto de Turismo";
       else if (lowerType.includes("estudante")) flowType = "Visto de Estudante";
       else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
+      else if (lowerType.includes("reuni") && lowerType.includes("familiar")) flowType = "Visto de Reunião Familiar";
+      else if (lowerType.includes("investidor")) flowType = "Visto de Investidor";
+      else if (lowerType.includes("desportista")) flowType = "Visto Desportista";
 
       // Initialize stepData with values from DB record
       const initialStepData: { [key: number]: any } = {};
@@ -1273,6 +1290,10 @@ export default function VistoDetailsPage() {
           return renderVistoTrabalhoStepContent(step);
         case "Visto de Trabalho - Mudança de Empregador" as any:
           return renderVistoTrabalhoStepContent(step);
+        case "Visto de Investidor":
+          return renderVistoTrabalhoStepContent(step);
+        case "Visto Desportista":
+          return renderVistoTrabalhoStepContent(step);
         default:
           return renderDefaultStepContent(step);
       }
@@ -1303,6 +1324,10 @@ export default function VistoDetailsPage() {
         return renderVistoEstudanteStepContent(step);
       case "Visto de Reunião Familiar":
         return renderVistoReuniaoFamiliarStepContent(step);
+      case "Visto de Investidor":
+        return renderVistoTrabalhoStepContent(step);
+      case "Visto Desportista":
+        return renderVistoTrabalhoStepContent(step);
       default:
         // Check if it's a generic Residência Prévia case
         if (caseData?.type?.includes("Residência Prévia")) {
@@ -1415,7 +1440,9 @@ export default function VistoDetailsPage() {
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
           (caseData?.type as string)?.includes("Renovação 1 ano") ||
           (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
-          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador")) ||
+          (caseData?.type as string) === "Visto de Investidor" ||
+          (caseData?.type as string) === "Visto Desportista";
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -1438,6 +1465,12 @@ export default function VistoDetailsPage() {
                   {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
                   {renderRow(stepId, "CNPJ", "cartaoCnpj", "cartaoCnpjDoc")}
                   {renderRow(stepId, "GFIP", "gfip", "gfipDoc")}
+                  {(caseData?.type as string) === "Visto de Investidor" && (
+                    <>
+                      {renderRow(stepId, "Comprovante do Investimento", "comprovanteInvestimento", "comprovanteInvestimentoDoc", "Extrato, contrato, transferência etc.")}
+                      {renderRow(stepId, "Plano de Investimentos", "planoInvestimentos", "planoInvestimentosDoc")}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1483,6 +1516,7 @@ export default function VistoDetailsPage() {
         const countryStr = String(visto?.country || (caseData as any)?.country || '').toLowerCase();
         const showBrasil = (
           (t.includes('trabalho') && (t.includes('brasil') || countryStr.includes('brasil'))) ||
+          t.includes('desportista') ||
           Boolean(
             (visto?.certidaoNascimento && String(visto.certidaoNascimento).trim()) ||
             (visto?.declaracaoCompreensao && String(visto.declaracaoCompreensao).trim()) ||
@@ -2017,11 +2051,62 @@ export default function VistoDetailsPage() {
       }
 
       case 1: { // Agendar no Consulado
-        // Implementação do fluxo de documentos para protocolo (Renovação 1 ano)
-        const isRenovacao1Ano = (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
+        // Implementação do fluxo de documentos para protocolo
+
+        // 1. Mudança de Empregador (Lógica Específica)
+        const isMudancaEmpregador = (caseData?.type as string)?.toLowerCase().includes("mudan") &&
+          (caseData?.type as string)?.toLowerCase().includes("empregador");
+
+        const isInvestidor = (caseData?.type as string) === "Visto de Investidor";
+
+        if (isInvestidor) {
+          return (
+            <div className="space-y-8 pb-8">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Documentos para Protocolo")}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
+                  {renderRow(stepId, "Comprovante do Investimento", "comprovanteInvestimento", "comprovanteInvestimentoDoc")}
+                  {renderRow(stepId, "Formulário de Requerimento", "formularioRequerimento", "formularioRequerimentoDoc")}
+                  {renderRow(stepId, "CNPJ", "cartaoCnpj", "cartaoCnpjDoc")}
+                  {renderRow(stepId, "Plano de Investimentos", "planoInvestimentos", "planoInvestimentosDoc")}
+                  {renderRow(stepId, "Procuração", "procuracaoEmpresa", "procuracaoEmpresaDoc")}
+                  {renderRow(stepId, "Passaporte", "passaporte", "passaporteDoc")}
+                  {renderRow(stepId, "GUIA PAGA", "guiaPaga", "guiaPagaDoc")}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (isMudancaEmpregador) {
+          return (
+            <div className="space-y-8 pb-8">
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                {renderHeader("Documentos para Protocolo")}
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderRow(stepId, "Contrato Social", "contratoEmpresa", "contratoEmpresaDoc")}
+                  {renderRow(stepId, "Contrato de trabalho", "contratoTrabalho", "contratoTrabalhoDoc")}
+                  {renderRow(stepId, "Formulário RN 01", "formularioRn01", "formularioRn01Doc")}
+                  {renderRow(stepId, "GUIA PAGA", "guiaPaga", "guiaPagaDoc")}
+                  {renderRow(stepId, "CNPJ", "cartaoCnpj", "cartaoCnpjDoc")}
+                  {renderRow(stepId, "Justificativa", "justificativaMudanca", "justificativaMudancaDoc")}
+                  {renderRow(stepId, "Procuração da empresa", "procuracaoEmpresa", "procuracaoEmpresaDoc")}
+                  {renderRow(stepId, "Trabalho e Diploma", "trabalhoDiploma", "trabalhoDiplomaDoc")}
+                  {renderRow(stepId, "CTPS e outros (RNM, Folha de Pagamento)", "ctpsOutros", "ctpsOutrosDoc")}
+                  {renderRow(stepId, "Passaporte", "passaporte", "passaporteDoc")}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // 2. Renovação 1 Ano / Indeterminado (Excluindo Mudança de Empregador)
+        const isRenovacao1Ano = !isMudancaEmpregador && (
+          (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
           (caseData?.type as string)?.includes("Renovação 1 ano") ||
-          (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
-          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
+          (caseData?.type as string)?.toLowerCase().includes("indeterminado")
+        );
 
         if (isRenovacao1Ano) {
           return (
@@ -2046,7 +2131,8 @@ export default function VistoDetailsPage() {
 
         // Implementação do fluxo de documentos para protocolo (Brasil e Residência Prévia)
         const isBrasil = (caseData?.type as string) === "Visto de Trabalho - Brasil" ||
-          (caseData?.type as string)?.includes("Trabalho:Brasil");
+          (caseData?.type as string)?.includes("Trabalho:Brasil") ||
+          (caseData?.type as string) === "Visto Desportista";
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil) {
@@ -2225,7 +2311,9 @@ export default function VistoDetailsPage() {
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
           (caseData?.type as string)?.includes("Renovação 1 ano") ||
           (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
-          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador")) ||
+          (caseData?.type as string) === "Visto de Investidor" ||
+          (caseData?.type as string) === "Visto Desportista";
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2284,7 +2372,9 @@ export default function VistoDetailsPage() {
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
           (caseData?.type as string)?.includes("Renovação 1 ano") ||
           (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
-          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador")) ||
+          (caseData?.type as string) === "Visto de Investidor" ||
+          (caseData?.type as string) === "Visto Desportista";
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {
@@ -2370,7 +2460,9 @@ export default function VistoDetailsPage() {
           (caseData?.type as string) === "Visto de Trabalho - Renovação 1 ano" ||
           (caseData?.type as string)?.includes("Renovação 1 ano") ||
           (caseData?.type as string)?.toLowerCase().includes("indeterminado") ||
-          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador"));
+          ((caseData?.type as string)?.toLowerCase().includes("mudan") && (caseData?.type as string)?.toLowerCase().includes("empregador")) ||
+          (caseData?.type as string) === "Visto de Investidor" ||
+          (caseData?.type as string) === "Visto Desportista";
         const isResidenciaPrevia = (caseData?.type as string) === "Visto de Residência Prévia" || (caseData?.type as string)?.includes("Residência Prévia");
 
         if (isBrasil || isResidenciaPrevia) {

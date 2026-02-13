@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-server";
-import { computePendingByFlow, extractDocumentsFromRecord, getTurismoDocRequirements, getVistosDocRequirements } from "@/lib/pending-documents";
+import {
+  computePendingByFlow,
+  extractDocumentsFromRecord,
+  getAcoesCiveisDocRequirements,
+  getAcoesCriminaisDocRequirements,
+  getAcoesTrabalhistasDocRequirements,
+  getCompraVendaDocRequirements,
+  getPerdaNacionalidadeDocRequirements,
+  getTurismoDocRequirements,
+  getVistosDocRequirements
+} from "@/lib/pending-documents";
 
 export const runtime = "nodejs";
 
 type RebuildBody = {
-  moduleTypes?: Array<"vistos" | "turismo">;
+  moduleTypes?: Array<"vistos" | "turismo" | "acoes_trabalhistas" | "acoes_civeis" | "acoes_criminais" | "compra_venda_imoveis" | "perda_nacionalidade">;
 };
 
 function extractUploadedKeys(documents: any[]) {
@@ -55,7 +65,8 @@ export async function POST(request: NextRequest) {
       body = {};
     }
 
-    const moduleTypes = (body.moduleTypes?.length ? body.moduleTypes : ["vistos", "turismo"]) as Array<"vistos" | "turismo">;
+    const allModules = ["vistos", "turismo", "acoes_trabalhistas", "acoes_civeis", "acoes_criminais", "compra_venda_imoveis", "perda_nacionalidade"];
+    const moduleTypes = (body.moduleTypes?.length ? body.moduleTypes : allModules) as string[];
     let processed = 0;
 
     // Limpar tabela antes de reconstruir para evitar duplicatas/órfãos
@@ -101,6 +112,66 @@ export async function POST(request: NextRequest) {
             );
           if (upsertError) throw upsertError;
           processed += 1;
+        }
+      }
+
+      // Generic handler for other modules to avoid repetition
+      if (["acoes_trabalhistas", "acoes_civeis", "acoes_criminais", "compra_venda_imoveis", "perda_nacionalidade"].includes(moduleType)) {
+        let tableName = moduleType;
+        let getReqs: any = null;
+
+        switch (moduleType) {
+          case "acoes_trabalhistas":
+            getReqs = getAcoesTrabalhistasDocRequirements;
+            break;
+          case "acoes_civeis":
+            getReqs = getAcoesCiveisDocRequirements;
+            break;
+          case "acoes_criminais":
+            getReqs = getAcoesCriminaisDocRequirements;
+            break;
+          case "compra_venda_imoveis":
+            getReqs = getCompraVendaDocRequirements;
+            break;
+          case "perda_nacionalidade":
+            getReqs = getPerdaNacionalidadeDocRequirements;
+            break;
+        }
+
+        if (getReqs) {
+          const records = await listAllRows<any>(
+            supabase.from(tableName).select("*").order("id", { ascending: true })
+          );
+
+          for (const r of records) {
+            const docsPrimary = await supabase.from("documents").select("*").eq("record_id", r.id).eq("module_type", moduleType);
+            const docs = Array.isArray(docsPrimary.data) ? docsPrimary.data : [];
+
+            const uploaded = extractUploadedKeys(docs);
+            // Extract from record itself (e.g. procuracao_doc column)
+            const recordDocs = extractDocumentsFromRecord(r);
+            recordDocs.forEach((k: string) => uploaded.add(k));
+
+            const requirements = getReqs();
+            const computed = computePendingByFlow(requirements, uploaded);
+
+            const { error: upsertError } = await supabase
+              .from("pending_documents")
+              .upsert(
+                {
+                  module_type: moduleType,
+                  record_id: r.id,
+                  client_name: r.client_name || "Cliente sem nome",
+                  pending: computed.pending,
+                  missing_count: computed.missingCount,
+                  total_count: computed.totalCount,
+                  computed_at: new Date().toISOString(),
+                },
+                { onConflict: "module_type,record_id" }
+              );
+            if (upsertError) throw upsertError;
+            processed += 1;
+          }
         }
       }
 

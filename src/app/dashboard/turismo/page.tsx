@@ -240,7 +240,11 @@ export default function TurismoPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-lg flex items-center justify-center overflow-hidden bg-amber-500/20">
-                <Plane className="h-8 w-8 text-amber-500" />
+                <img
+                  src="https://cdn-icons-png.flaticon.com/512/2200/2200326.png"
+                  alt="Turismo"
+                  className="h-8 w-8 object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-white">Vistos de Turismo</h1>

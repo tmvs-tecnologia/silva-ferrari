@@ -553,7 +553,17 @@ export default function PendenciasPage() {
                       </div>
 
                       <div className="col-span-1 flex justify-end gap-2">
-                        <Link href={`/dashboard/${doc.module_type === 'turismo' ? 'turismo' : 'vistos'}/${doc.record_id}`}>
+                        <Link href={(() => {
+                          const t = doc.module_type;
+                          const id = doc.record_id;
+                          if (t === "acoes_civeis") return `/dashboard/acoes-civeis/${id}`;
+                          if (t === "acoes_trabalhistas") return `/dashboard/acoes-trabalhistas/${id}`;
+                          if (t === "acoes_criminais") return `/dashboard/acoes-criminais/${id}`;
+                          if (t === "compra_venda_imoveis") return `/dashboard/compra-venda/${id}`;
+                          if (t === "perda_nacionalidade") return `/dashboard/perda-nacionalidade/${id}`;
+                          if (t === "turismo") return `/dashboard/turismo/${id}`;
+                          return `/dashboard/vistos/${id}`;
+                        })()}>
                           <button className="w-9 h-9 rounded-xl bg-white/40 hover:bg-white flex items-center justify-center text-slate-500 hover:text-slate-900 transition-all border border-white/50 shadow-sm">
                             <Eye className="h-5 w-5" />
                           </button>

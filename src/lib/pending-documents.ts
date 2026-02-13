@@ -42,19 +42,19 @@ export function extractDocumentsFromRecord(record: any): Set<string> {
 
 export function getVistosDocRequirements(input: { type?: string; country?: string }): PendingDocGroup[] {
   const t = String(input.type || "").toLowerCase();
-  
+
   // Detect specific types
   const isIndeterminado = t.includes("indeterminado");
   const isMudancaEmpregador = t.includes("mudan") && t.includes("empregador");
-  
+
   // Force showBrasil to true for Indeterminado and Mudanca de Empregador
   const showBrasil = isBrasilVisto(input.type, input.country) || isIndeterminado || isMudancaEmpregador;
-  
+
   const showResidenciaPrevia = t.includes("trabalho") && (t.includes("resid") || t.includes("prévia") || t.includes("previ"));
   const showInvestidor = t.includes("invest");
   const showTrabalhistas = t.includes("trabalhistas");
   const showRenovacao = t.includes("renov") || t.includes("1 ano");
-  
+
   // Note: These flags are now redundant if showBrasil is true, but kept for other potential logic
   const showIndeterminado = isIndeterminado;
   const showMudancaEmpregador = isMudancaEmpregador;
@@ -460,6 +460,202 @@ export function getTurismoDocRequirements(): PendingDocGroup[] {
         { key: "processo-finalizado", label: "Processo Finalizado" },
         { key: "relatorio-final", label: "Relatório Final" },
       ],
+    },
+  ];
+}
+
+export function getAcoesTrabalhistasDocRequirements(): PendingDocGroup[] {
+  return [
+    {
+      title: "Documentação Inicial",
+      step: "Cadastro de Documentos",
+      fields: [
+        { key: "documentosIniciaisFile", label: "Documentos Iniciais" },
+        { key: "calculoFile", label: "Cálculo Inicial" },
+      ],
+    },
+    {
+      title: "Audiência",
+      step: "Audiência",
+      fields: [{ key: "ataAudienciaFile", label: "Ata de Audiência" }],
+    },
+    {
+      title: "Sentença",
+      step: "Sentença",
+      fields: [{ key: "sentenciaFile", label: "Sentença" }],
+    },
+    {
+      title: "Recurso",
+      step: "Recurso",
+      fields: [{ key: "recursoFile", label: "Recurso" }],
+    },
+    {
+      title: "Acórdão",
+      step: "Acórdão",
+      fields: [{ key: "acordaoFile", label: "Acórdão" }],
+    },
+    {
+      title: "Trânsito em Julgado",
+      step: "Trânsito em Julgado",
+      fields: [
+        { key: "transitoJulgadoFile", label: "Certidão de Trânsito em Julgado" },
+        { key: "documentosExecucaoFile", label: "Documentos para Execução" },
+      ],
+    },
+  ];
+}
+
+export function getAcoesCiveisDocRequirements(): PendingDocGroup[] {
+  return [
+    {
+      title: "Cadastro de Documentos",
+      step: "Cadastro de Documentos",
+      fields: [
+        { key: "rnmMaeDoc", label: "RNM Mãe" },
+        { key: "rnmPaiDoc", label: "RNM Pai" },
+        { key: "rnmSupostoPaiDoc", label: "RNM Suposto Pai" },
+        { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
+        { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
+        { key: "passaporteDoc", label: "Passaporte" },
+      ],
+    },
+    {
+      title: "Agendar Exame DNA",
+      step: "Agendar Exame DNA",
+      fields: [{ key: "resultadoExameDnaDoc", label: "Resultado DNA" }],
+    },
+    {
+      title: "Procuração",
+      step: "Procuração",
+      fields: [{ key: "procuracaoDoc", label: "Procuração" }],
+    },
+    {
+      title: "Petição",
+      step: "Petição",
+      fields: [{ key: "peticaoDoc", label: "Petição Inicial" }],
+    },
+    {
+      title: "Protocolo do Processo",
+      step: "Protocolo do Processo",
+      fields: [{ key: "processoDoc", label: "Protocolo" }],
+    },
+    {
+      title: "Exigências do Juiz",
+      step: "Exigências do Juiz",
+      fields: [{ key: "documentosFinaisDoc", label: "Documentos Finais" }],
+    },
+    {
+      title: "Processo Finalizado",
+      step: "Processo Finalizado",
+      fields: [{ key: "documentosFinalizadoDoc", label: "Sentença/Final" }],
+    },
+  ];
+}
+
+export function getAcoesCriminaisDocRequirements(): PendingDocGroup[] {
+  return [
+    {
+      title: "Cadastro de Documentos",
+      step: "Cadastro de Documentos",
+      fields: [
+        { key: "procuracaoDoc", label: "Procuração" },
+        { key: "documentosIniciaisDoc", label: "Documentos Iniciais" },
+      ],
+    },
+  ];
+}
+
+export function getCompraVendaDocRequirements(): PendingDocGroup[] {
+  return [
+    {
+      title: "Cadastro Documentos",
+      step: "Cadastro Documentos",
+      fields: [
+        { key: "matriculaDoc", label: "Matrícula" },
+        { key: "cadastroContribuinteDoc", label: "Cadastro Contribuinte" },
+        { key: "rgVendedorDoc", label: "RG Vendedores" },
+        { key: "cpfVendedorDoc", label: "CPF Vendedores" },
+        { key: "rnmCompradorDoc", label: "RNM Comprador" },
+        { key: "cpfCompradorDoc", label: "CPF Comprador" },
+      ],
+    },
+    {
+      title: "Certidões",
+      step: "Certidões",
+      fields: [{ key: "certidoesDoc", label: "Certidões Negativas" }],
+    },
+    {
+      title: "Contrato",
+      step: "Contrato",
+      fields: [{ key: "contratoDoc", label: "Minuta do Contrato" }],
+    },
+    {
+      title: "Assinatura",
+      step: "Assinatura",
+      fields: [{ key: "assinaturaContratoDoc", label: "Contrato Assinado" }],
+    },
+    {
+      title: "Escritura",
+      step: "Escritura",
+      fields: [{ key: "escrituraDoc", label: "Escritura Pública" }],
+    },
+    {
+      title: "Registro",
+      step: "Registro",
+      fields: [{ key: "matriculaCartorioDoc", label: "Matrícula Atualizada" }],
+    },
+  ];
+}
+
+export function getPerdaNacionalidadeDocRequirements(): PendingDocGroup[] {
+  return [
+    {
+      title: "Cadastro",
+      step: "Cadastro",
+      fields: [
+        { key: "rnmMaeDoc", label: "RNM Mãe" },
+        { key: "rnmPaiDoc", label: "RNM Pai" },
+        { key: "certidaoNascimentoDoc", label: "Certidão de Nascimento" },
+        { key: "comprovanteEnderecoDoc", label: "Comprovante de Endereço" },
+        { key: "passaportesDoc", label: "Passaportes" },
+        { key: "documentoChinesDoc", label: "Documento Chinês" },
+        { key: "traducaoJuramentadaDoc", label: "Tradução Juramentada" },
+      ],
+    },
+    {
+      title: "Procuração",
+      step: "Procuração",
+      fields: [{ key: "procuracaoDoc", label: "Procuração" }],
+    },
+    {
+      title: "Pedido",
+      step: "Pedido",
+      fields: [{ key: "pedidoPerdaDoc", label: "Pedido de Perda" }],
+    },
+    {
+      title: "Protocolo",
+      step: "Protocolo",
+      fields: [{ key: "protocoloDoc", label: "Protocolo" }],
+    },
+    {
+      title: "DOU",
+      step: "DOU",
+      fields: [{ key: "douDoc", label: "Publicação DOU" }],
+    },
+    {
+      title: "Passaporte Chinês",
+      step: "Passaporte Chinês",
+      fields: [{ key: "passaporteChinesDoc", label: "Passaporte Chinês" }],
+    },
+    {
+      title: "Manifesto",
+      step: "Manifesto",
+      fields: [{ key: "manifestoDoc", label: "Manifesto" }],
+    },
+    {
+      title: "Portaria",
+      step: "Portaria",
+      fields: [{ key: "portariaDoc", label: "Portaria" }],
     },
   ];
 }
