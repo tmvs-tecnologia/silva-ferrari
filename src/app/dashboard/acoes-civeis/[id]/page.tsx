@@ -219,13 +219,13 @@ interface CaseData {
 }
 
 const RESPONSAVEIS = [
-  "Secretária – Jessica Cavallaro",
-  "Advogada – Jailda Silva",
-  "Advogada – Adriana Roder",
-  "Advogado – Fábio Ferrari",
-  "Advogado – Guilherme Augusto",
-  "Estagiário – Wendel Macriani",
-];
+    "Secretária – Jessica Cavallaro",
+    "Administrativo - Priscila Ribeiro",
+    "Advogada – Jailda Silva",
+    "Advogada – Adriana Roder",
+    "Advogado - Giuliano Pereira",
+    "Estagiário – Wendel Macriani",
+  ];
 
 // --- Standardized Helper Components ---
 

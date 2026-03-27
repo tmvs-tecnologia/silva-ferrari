@@ -144,10 +144,10 @@ export default function CompraVendaDetailsPage() {
 
   const RESPONSAVEIS = [
     "Secretária – Jessica Cavallaro",
+    "Administrativo - Priscila Ribeiro",
     "Advogada – Jailda Silva",
     "Advogada – Adriana Roder",
-    "Advogado – Fábio Ferrari",
-    "Advogado – Guilherme Augusto",
+    "Advogado - Giuliano Pereira",
     "Estagiário – Wendel Macriani",
   ];
 

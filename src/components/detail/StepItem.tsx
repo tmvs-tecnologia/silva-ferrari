@@ -36,10 +36,10 @@ export function StepItem({ index, title, isCurrent, isCompleted, isPending, expa
   const [assignOpen, setAssignOpen] = useState(false);
   const RESPONSAVEIS = [
     "Secretária – Jessica Cavallaro",
+    "Administrativo - Priscila Ribeiro",
     "Advogada – Jailda Silva",
     "Advogada – Adriana Roder",
-    "Advogado – Fábio Ferrari",
-    "Advogado – Guilherme Augusto",
+    "Advogado - Giuliano Pereira",
     "Estagiário – Wendel Macriani",
   ];
   const statusColor = useMemo(() => {
