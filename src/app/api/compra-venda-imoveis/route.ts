@@ -6,6 +6,14 @@ import { getSupabaseAdminClient } from '@/lib/supabase-server';
 // Normalize empty strings/undefined to null for database compatibility
 const toNullIfEmpty = (v: any) => (v === '' || v === undefined ? null : v);
 
+const normalizeJson = (v: any) => {
+  if (v === undefined || v === null || v === '') return null;
+  if (typeof v === 'string') {
+    try { return JSON.parse(v); } catch { return v; }
+  }
+  return v;
+};
+
 // Helper function to map database fields to frontend format
 function mapDbFieldsToFrontend(record: any) {
   if (!record) return record;
@@ -141,14 +149,6 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdminClient();
     const body = await request.json();
 
-    const normalizeJson = (v: any) => {
-      if (v === undefined || v === null || v === '') return null;
-      if (typeof v === 'string') {
-        try { return JSON.parse(v); } catch { return v; }
-      }
-      return v;
-    };
-
     // Prepare data for Supabase (map camelCase to snake_case)
     const insertData = {
       tipo_transacao: toNullIfEmpty(body.tipoTransacao),
@@ -263,7 +263,7 @@ export async function PUT(request: NextRequest) {
     if (body.prazoEscritura !== undefined) updateData.prazo_escritura = toNullIfEmpty(body.prazoEscritura);
     if (body.contractNotes !== undefined) updateData.contract_notes = toNullIfEmpty(body.contractNotes);
     if (body.stepNotes !== undefined) updateData.step_notes = toNullIfEmpty(body.stepNotes);
-    if (body.completedSteps !== undefined) updateData.completed_steps = toNullIfEmpty(body.completedSteps);
+    if (body.completedSteps !== undefined) updateData.completed_steps = normalizeJson(body.completedSteps);
 
     const { data: updated, error } = await supabase
       .from('compra_venda_imoveis')

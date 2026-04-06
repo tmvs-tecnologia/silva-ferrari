@@ -52,6 +52,18 @@ const PREFETCH_FUNCTIONS = {
   "/dashboard/turismo": prefetchTurismo,
 };
 
+// Mapeamento de chaves de cache para parear com useDataCache nas páginas
+const CACHE_KEYS = {
+  "/dashboard": "dashboard-data",
+  "/dashboard/acoes-trabalhistas": "acoes-trabalhistas",
+  "/dashboard/acoes-civeis": "acoes-civeis",
+  "/dashboard/acoes-criminais": "acoes-criminais",
+  "/dashboard/compra-venda": "compra-venda",
+  "/dashboard/perda-nacionalidade": "perda-nacionalidade",
+  "/dashboard/vistos": "vistos",
+  "/dashboard/turismo": "turismo_page_1",
+};
+
 function Sidebar({
   searchQuery,
   setSearchQuery,
@@ -79,6 +91,7 @@ function Sidebar({
             width={180}
             height={60}
             className="object-contain"
+            style={{ height: "auto" }}
             priority
             unoptimized
           />
@@ -105,6 +118,7 @@ function Sidebar({
               href={item.href}
               onClick={onNavigate}
               prefetchData={PREFETCH_FUNCTIONS[item.href as keyof typeof PREFETCH_FUNCTIONS]}
+              cacheKey={CACHE_KEYS[item.href as keyof typeof CACHE_KEYS]}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${pathname === item.href
                 ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/20"
                 : "text-slate-600 hover:bg-white/70 hover:text-slate-900 hover:shadow-sm"
@@ -304,7 +318,7 @@ export default function DashboardLayout({
               />
             </div>
           ) : (
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="popLayout">
               <PageTransition key={pathname} className="w-full h-full">
                 {children}
               </PageTransition>

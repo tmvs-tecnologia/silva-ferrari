@@ -72,7 +72,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`antialiased force-light ${plusJakarta.className}`}>
+      <body className={`antialiased force-light ${plusJakarta.className}`} suppressHydrationWarning>
         <ErrorReporter />
         <Toaster />
         <Script id="sw-unregister" strategy="afterInteractive">

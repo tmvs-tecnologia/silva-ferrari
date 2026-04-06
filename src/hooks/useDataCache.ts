@@ -86,3 +86,13 @@ export function clearCache(key?: string) {
     cache.clear();
   }
 }
+
+// Função para atualizar o cache manualmente (usada pelo prefetch)
+export function setCacheData(key: string, data: any) {
+  cache.set(key, {
+    data,
+    timestamp: Date.now(),
+    isLoading: false,
+    error: null
+  });
+}

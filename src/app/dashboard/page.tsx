@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { NotificationBell } from "@/components/notification-bell";
+import { useDataCache } from "@/hooks/useDataCache";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,40 +26,38 @@ export default function DashboardPage() {
     vistos: 0,
     turismo: 0,
   });
-  const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState<number>(0);
 
   const [mounted, setMounted] = useState(false);
 
+  // Usar useDataCache para permitir prefetch instantâneo
+  const { data: dashboardData, isLoading: isDataLoading } = useDataCache(
+    "dashboard-data",
+    async () => {
+      const response = await fetch('/api/processos/count');
+      return response.json();
+    }
+  );
+
   useEffect(() => {
     setMounted(true);
-    const fetchData = async () => {
-      try {
-        const totalRes = await fetch('/api/processos/count');
-        if (totalRes.ok) {
-          const data = await totalRes.json();
-          const { total, byTable } = data;
-
-          setTotalCount(total ?? 0);
-          setStats({
-            acoesCiveis: byTable?.acoes_civeis ?? 0,
-            acoesTrabalhistas: byTable?.acoes_trabalhistas ?? 0,
-            acoesCriminais: byTable?.acoes_criminais ?? 0,
-            compraVenda: byTable?.compra_venda_imoveis ?? 0,
-            perdaNacionalidade: byTable?.perda_nacionalidade ?? 0,
-            vistos: byTable?.vistos ?? 0,
-            turismo: byTable?.turismo ?? 0,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    if (dashboardData) {
+      const { total, byTable } = dashboardData;
+      setTotalCount(total ?? 0);
+      setStats({
+        acoesCiveis: byTable?.acoes_civeis ?? 0,
+        acoesTrabalhistas: byTable?.acoes_trabalhistas ?? 0,
+        acoesCriminais: byTable?.acoes_criminais ?? 0,
+        compraVenda: byTable?.compra_venda_imoveis ?? 0,
+        perdaNacionalidade: byTable?.perda_nacionalidade ?? 0,
+        vistos: byTable?.vistos ?? 0,
+        turismo: byTable?.turismo ?? 0,
+      });
+    }
+  }, [dashboardData]);
 
   const totalProcessos = Object.values(stats).reduce((a, b) => a + b, 0);
 
@@ -201,7 +200,7 @@ export default function DashboardPage() {
               >
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600 mb-2">Processos Totais</p>
                 <div className="text-7xl font-black text-slate-900/90 tracking-tighter">
-                  {loading ? "..." : totalCount}
+                  {isDataLoading ? "..." : totalCount}
                 </div>
               </motion.div>
             </div>
@@ -218,7 +217,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ações</p>
-                    <p className="text-3xl font-bold text-slate-900">{loading ? '...' : totalCount}</p>
+                    <p className="text-3xl font-bold text-slate-900">{isDataLoading ? '...' : totalCount}</p>
                   </div>
                 </div>
               </motion.div>

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { clearCache } from './useDataCache';
+import { clearCache, setCacheData } from './useDataCache';
 
 // Hook para prefetch de dados - carrega dados antes que sejam necessários
 export function usePrefetch() {
@@ -7,7 +7,11 @@ export function usePrefetch() {
     try {
       // Usar requestAnimationFrame para não bloquear a UI
       requestAnimationFrame(async () => {
-        await fetchFunction();
+        const data = await fetchFunction();
+        if (data) {
+          // Salva o dado no cache global para que o useDataCache o encontre imediatamente
+          setCacheData(key, data);
+        }
       });
     } catch (error) {
       console.warn(`Prefetch failed for ${key}:`, error);

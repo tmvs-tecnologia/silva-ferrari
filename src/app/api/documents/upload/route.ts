@@ -222,7 +222,8 @@ export async function POST(request: NextRequest) {
 
     console.log('🔹 Upload/Registro iniciado:', {
       mode: isRegisterOnly ? 'Register Only' : 'Upload + Register',
-      caseId, entityId, recordId, fieldName, clientName, moduleType
+      caseId, entityId, recordId, fieldName, clientName, moduleType,
+      recordIdParsed: parseInt(recordId as string)
     });
 
     // Validation
@@ -463,7 +464,13 @@ export async function POST(request: NextRequest) {
         .update(supabaseUpdateData)
         .eq('id', parseInt(recordId));
 
-      if (updateError) console.error('❌ Erro ao atualizar registro:', updateError);
+      if (updateError) {
+        console.error('❌ Erro ao atualizar registro no módulo:', {
+          tableName,
+          recordId,
+          error: updateError
+        });
+      }
     }
 
     console.log('✅ Completo!');

@@ -9,6 +9,7 @@ interface OptimizedLinkProps {
   children: React.ReactNode;
   className?: string;
   prefetchData?: () => Promise<any>;
+  cacheKey?: string; // Chave opcional para parear com useDataCache no destino
   onClick?: () => void;
 }
 
@@ -17,6 +18,7 @@ export function OptimizedLink({
   children, 
   className, 
   prefetchData, 
+  cacheKey,
   onClick,
   ...props 
 }: OptimizedLinkProps) {
@@ -24,19 +26,22 @@ export function OptimizedLink({
 
   const handleMouseEnter = useCallback(() => {
     if (prefetchData) {
+      // Usar a chave explícita ou o href como fallback
+      const key = cacheKey || href;
+      
       // Usar requestIdleCallback para prefetch não bloqueante
       if ('requestIdleCallback' in window) {
         requestIdleCallback(() => {
-          prefetch(href, prefetchData);
+          prefetch(key, prefetchData);
         });
       } else {
         // Fallback para navegadores que não suportam requestIdleCallback
         setTimeout(() => {
-          prefetch(href, prefetchData);
+          prefetch(key, prefetchData);
         }, 100);
       }
     }
-  }, [href, prefetchData, prefetch]);
+  }, [href, cacheKey, prefetchData, prefetch]);
 
   return (
     <Link

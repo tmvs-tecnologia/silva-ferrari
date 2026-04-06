@@ -45,55 +45,54 @@ async function safeJson(res: Response | null, fallback: any) {
   }
 }
 
-export const prefetchAcoesTrabalhistas = async () => {
-  const res = await fetchWithRetry("/api/acoes-trabalhistas?limit=100");
+export const prefetchAcoesCiveis = async () => {
+  const columns = 'id,client_name,type,status,current_step,notes,created_at,updated_at';
+  const res = await fetchWithRetry(`/api/acoes-civeis?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
-export const prefetchAcoesCiveis = async () => {
-  const res = await fetchWithRetry("/api/acoes-civeis?limit=100");
+export const prefetchAcoesTrabalhistas = async () => {
+  const columns = 'id,client_name,current_step,status,notes,responsavel_name,responsavel_date,numero_processo,reu_name';
+  const res = await fetchWithRetry(`/api/acoes-trabalhistas?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchAcoesCriminais = async () => {
-  const res = await fetchWithRetry("/api/acoes-criminais?limit=100");
+  const columns = 'id,client_name,status,responsavel_name,responsavel_date,numero_processo,reu_name,notes';
+  const res = await fetchWithRetry(`/api/acoes-criminais?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchCompraVenda = async () => {
-  const res = await fetchWithRetry("/api/compra-venda-imoveis?limit=100");
+  const columns = 'id,client_name,status,current_step,endereco_imovel,prazo_sinal,prazo_escritura,contract_notes,rg_vendedores,rg_vendedores_doc,cpf_comprador,rnm_comprador';
+  const res = await fetchWithRetry(`/api/compra-venda-imoveis?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchPerdaNacionalidade = async () => {
-  const res = await fetchWithRetry("/api/perda-nacionalidade?limit=100");
+  const columns = 'id,client_name,status,current_step,notes,created_at';
+  const res = await fetchWithRetry(`/api/perda-nacionalidade?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchVistos = async () => {
-  const res = await fetchWithRetry("/api/vistos?limit=100");
+  const columns = 'id,client_name,type,status,created_at,current_step,completed_steps,country,travel_start_date,travel_end_date,status_final,status_final_outro,step_data';
+  const res = await fetchWithRetry(`/api/vistos?limit=100&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchTurismo = async () => {
-  const res = await fetchWithRetry("/api/turismo?limit=100");
+  const columns = 'id,client_name,status,current_step,country,travel_start_date,travel_end_date,status_final,status_final_outro,created_at';
+  const res = await fetchWithRetry(`/api/turismo?limit=20&offset=0&select=${columns}`);
   return await safeJson(res, []);
 };
 
 export const prefetchDashboard = async () => {
   try {
-    const [statsRes, notificationsRes, activitiesRes] = await Promise.all([
-      fetchWithRetry("/api/processos/count"),
-      fetchWithRetry("/api/alerts?isRead=false&limit=10"),
-      fetchWithRetry("/api/recent-activities")
-    ]);
-    return {
-      stats: await safeJson(statsRes, {}),
-      notifications: await safeJson(notificationsRes, []),
-      activities: await safeJson(activitiesRes, [])
-    };
+    const res = await fetchWithRetry("/api/processos/count");
+    return await safeJson(res, { total: 0, byTable: {} });
   } catch {
-    return { stats: {}, notifications: [], activities: [] };
+    return { total: 0, byTable: {} };
   }
 };
 
