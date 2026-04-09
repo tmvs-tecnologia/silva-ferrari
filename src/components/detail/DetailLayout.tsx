@@ -11,8 +11,8 @@ interface DetailLayoutProps {
   title: string;
   subtitle?: string;
   onDelete?: () => void;
-  left: ReactNode;
-  right: ReactNode;
+  left?: ReactNode;
+  right?: ReactNode;
   children?: ReactNode;
 }
 
