@@ -792,7 +792,7 @@ export default function CompraVendaDetailsPage() {
 
   // Helper functions for Rendering
   const renderHeader = (title: string, onEdit?: () => void, isEditing?: boolean, onSave?: () => void, onCancel?: () => void) => (
-    <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+    <div className="bg-slate-50 px-3 py-2 md:px-4 md:py-3 border-b border-slate-100 flex justify-between items-center">
       <h3 className="font-semibold text-slate-800 flex items-center gap-2">
         <FileText className="w-4 h-4 text-slate-500" />
         {title}
@@ -826,7 +826,7 @@ export default function CompraVendaDetailsPage() {
     return (
       <div className="flex flex-col gap-1 w-full min-w-0">
         <div className="flex items-center justify-between gap-2">
-          <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{label}</Label>
+          <Label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</Label>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {isUploading && <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />}
             {fileKey && (
@@ -850,10 +850,10 @@ export default function CompraVendaDetailsPage() {
               <Input
                 value={String(caseData?.[valueKey] || "")}
                 onChange={(e) => onChangeValue?.(e.target.value)}
-                className="h-8 bg-white text-sm"
+                className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate"
               />
             ) : (
-              <div className="text-sm font-semibold text-slate-800">
+              <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">
                 {String(caseData?.[valueKey] || "-")}
               </div>
             )
@@ -867,12 +867,12 @@ export default function CompraVendaDetailsPage() {
                 const displayName = doc.name || doc.file_name || "Doc";
                 return (
                   <div key={doc.id} className="group flex items-center gap-1.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100/50 px-2 py-0.5 rounded-full transition-all max-w-[140px]">
-                    <Paperclip className="w-2.5 h-2.5 text-blue-500 flex-shrink-0" />
+                    <Paperclip className="w-3 h-3 text-blue-500 flex-shrink-0" />
                     <a 
                       href={doc.url || doc.file_path} 
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className="text-[10px] text-blue-700 hover:underline truncate font-medium"
+                      className="text-[11px] sm:text-xs text-blue-700 hover:underline truncate font-medium"
                       title={displayName}
                     >
                       {displayName}
@@ -881,7 +881,7 @@ export default function CompraVendaDetailsPage() {
                       onClick={() => handleDeleteDocument(doc)}
                       className="p-0.5 rounded-full hover:bg-red-100 text-slate-400 hover:text-red-500 transition-colors"
                     >
-                      <X className="w-2.5 h-2.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 );
@@ -909,9 +909,9 @@ export default function CompraVendaDetailsPage() {
             },
             () => setIsEditingDocuments(false)
           )}
-          <div className="p-4 space-y-8">
+          <div className="p-3 sm:p-4 md:p-6 space-y-6">
             {/* Seção 1: Dados do Imóvel/Cliente */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-4 md:gap-x-6 lg:gap-x-8">
               {renderRow("Nome do Cliente", "clientName", "", isEditingDocuments, (v) => setCaseData(prev => prev ? ({ ...prev, clientName: v }) : null), undefined, stepId)}
               {renderRow("Endereço Imóvel", "enderecoImovel", "comprovanteEnderecoImovelDoc", isEditingDocuments, (v) => setCaseData(prev => prev ? ({ ...prev, enderecoImovel: v }) : null), undefined, stepId)}
               {renderRow("Matrícula", "numeroMatricula", "numeroMatriculaDoc", isEditingDocuments, (v) => setCaseData(prev => prev ? ({ ...prev, numeroMatricula: v }) : null), undefined, stepId)}
@@ -966,16 +966,16 @@ export default function CompraVendaDetailsPage() {
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
                         {renderRow("Nome", undefined, "", isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={seller.nome || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, nome: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{seller.nome || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={seller.nome || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, nome: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{seller.nome || '-'}</div>, stepId
                         )}
                         {renderRow("RG", undefined, `rgVendedorDoc_${idx}`, isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={seller.rg || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, rg: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{seller.rg || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={seller.rg || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, rg: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{seller.rg || '-'}</div>, stepId
                         )}
                         {renderRow("CPF", undefined, `cpfVendedorDoc_${idx}`, isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={seller.cpf || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, cpf: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{seller.cpf || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={seller.cpf || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, cpf: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{seller.cpf || '-'}</div>, stepId
                         )}
                         {renderRow("Nascimento", undefined, "", isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input type="date" value={seller.dataNascimento || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, dataNascimento: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{formatDateBR(seller.dataNascimento)}</div>, stepId
+                          isEditingDocuments ? <Input type="date" value={seller.dataNascimento || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, dataNascimento: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{formatDateBR(seller.dataNascimento)}</div>, stepId
                         )}
                         {renderRow("Est. Civil", undefined, `certidaoEstadoCivilVendedorDoc_${idx}`, isEditingDocuments, undefined,
                           isEditingDocuments ? (
@@ -983,7 +983,7 @@ export default function CompraVendaDetailsPage() {
                               value={seller.estadoCivil || ""} 
                               onValueChange={(val) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, estadoCivil: val } : s))}
                             >
-                              <SelectTrigger className="h-8 bg-white text-sm">
+                              <SelectTrigger className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate">
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -993,10 +993,10 @@ export default function CompraVendaDetailsPage() {
                                 <SelectItem value="Viúvo">Viúvo</SelectItem>
                               </SelectContent>
                             </Select>
-                          ) : <div className="text-sm font-semibold text-slate-800">{seller.estadoCivil || '-'}</div>, stepId
+                          ) : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{seller.estadoCivil || '-'}</div>, stepId
                         )}
                         {renderRow("Certidões", undefined, `certidoesVendedorDoc_${idx}`, isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={seller.certidoes || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, certidoes: e.target.value } : s))} className="h-8 bg-white text-sm" placeholder="Ex: CND federal, CND estadual..." /> : <div className="text-sm font-semibold text-slate-800">{seller.certidoes || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={seller.certidoes || ""} onChange={(e) => setEditableSellers(prev => prev.map((s, i) => i === idx ? { ...s, certidoes: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" placeholder="Ex: CND federal, CND estadual..." /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{seller.certidoes || '-'}</div>, stepId
                         )}
                       </div>
                     </div>
@@ -1050,18 +1050,18 @@ export default function CompraVendaDetailsPage() {
                           <X className="w-3 h-3" />
                         </button>
                       )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                         {renderRow("Nome", undefined, "", isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={comp.nome || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, nome: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{comp.nome || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={comp.nome || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, nome: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{comp.nome || '-'}</div>, stepId
                         )}
                         {renderRow("RNM", undefined, `rnmCompradorDoc_${idx}`, isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={comp.rnm || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, rnm: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{comp.rnm || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={comp.rnm || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, rnm: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{comp.rnm || '-'}</div>, stepId
                         )}
                         {renderRow("CPF", undefined, `cpfCompradorDoc_${idx}`, isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={comp.cpf || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, cpf: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{comp.cpf || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={comp.cpf || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, cpf: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{comp.cpf || '-'}</div>, stepId
                         )}
                         {renderRow("Endereço", undefined, "", isEditingDocuments, undefined,
-                          isEditingDocuments ? <Input value={comp.endereco || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, endereco: e.target.value } : s))} className="h-8 bg-white text-sm" /> : <div className="text-sm font-semibold text-slate-800">{comp.endereco || '-'}</div>, stepId
+                          isEditingDocuments ? <Input value={comp.endereco || ""} onChange={(e) => setEditableCompradores(prev => prev.map((s, i) => i === idx ? { ...s, endereco: e.target.value } : s))} className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate" /> : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{comp.endereco || '-'}</div>, stepId
                         )}
                         {renderRow("Est. Civil", undefined, `certidaoEstadoCivilCompradorDoc_${idx}`, isEditingDocuments, undefined,
                           isEditingDocuments ? (
@@ -1069,7 +1069,7 @@ export default function CompraVendaDetailsPage() {
                               value={comp.estadoCivil || ""} 
                               onValueChange={(val) => setEditableCompradores(prev => prev.map((c, i) => i === idx ? { ...c, estadoCivil: val } : c))}
                             >
-                              <SelectTrigger className="h-8 bg-white text-sm">
+                              <SelectTrigger className="h-9 bg-white text-[11px] xl:text-xs 2xl:text-sm truncate">
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -1079,7 +1079,7 @@ export default function CompraVendaDetailsPage() {
                                 <SelectItem value="Viúvo">Viúvo</SelectItem>
                               </SelectContent>
                             </Select>
-                          ) : <div className="text-sm font-semibold text-slate-800">{comp.estadoCivil || '-'}</div>, stepId
+                          ) : <div className="text-[11px] xl:text-xs 2xl:text-sm font-semibold text-slate-800 truncate">{comp.estadoCivil || '-'}</div>, stepId
                         )}
                       </div>
                     </div>
@@ -1096,17 +1096,17 @@ export default function CompraVendaDetailsPage() {
       return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           {renderHeader("Assinatura e Prazos", undefined, false)}
-          <div className="p-4 md:p-6 space-y-6">
+          <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-500 uppercase">Prazo Sinal</Label>
+                <Label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase">Prazo Sinal</Label>
                 <div className="flex gap-2">
                   <Input type="date" value={caseData?.prazoSinal || ""} onChange={(e) => setCaseData(prev => prev ? ({ ...prev, prazoSinal: e.target.value }) : null)} className="h-9 bg-white" />
                   <Button size="sm" onClick={savePrazos}>Salvar</Button>
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-slate-500 uppercase">Prazo Escritura</Label>
+                <Label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase">Prazo Escritura</Label>
                 <div className="flex gap-2">
                   <Input type="date" value={caseData?.prazoEscritura || ""} onChange={(e) => setCaseData(prev => prev ? ({ ...prev, prazoEscritura: e.target.value }) : null)} className="h-9 bg-white" />
                   <Button size="sm" onClick={savePrazos}>Salvar</Button>
@@ -1130,11 +1130,11 @@ export default function CompraVendaDetailsPage() {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {renderHeader(step.title, undefined, false)}
-        <div className="p-4 md:p-6 space-y-4">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4">
           {key && renderRow(step.description, undefined, key, false, undefined, undefined, stepId)}
 
           <div className="space-y-1 mt-4">
-            <Label className="text-xs font-semibold text-slate-500 uppercase">Observações</Label>
+            <Label className="text-[11px] sm:text-xs font-bold text-slate-500 uppercase">Observações</Label>
             <div className="flex gap-2">
               <Textarea
                 rows={3}
@@ -1170,7 +1170,7 @@ export default function CompraVendaDetailsPage() {
   }).filter(s => s.docs.length > 0);
 
   return (
-    <div className="w-full p-4 space-y-6 bg-gray-50 min-h-screen">
+    <div className="w-full space-y-4 md:space-y-6 bg-transparent min-h-screen">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/dashboard/compra-venda">
@@ -1219,7 +1219,7 @@ export default function CompraVendaDetailsPage() {
         {/* COLUNA ESQUERDA - FLUXO E DOCUMENTOS */}
         <div className="flex flex-col gap-8 lg:flex-[2] min-w-0">
           <Card className="rounded-xl border-gray-200 shadow-sm relative overflow-visible">
-            <CardHeader className="bg-white border-b border-gray-100 py-4 px-6 rounded-t-xl">
+            <CardHeader className="bg-white border-b border-gray-100 py-3 sm:py-4 px-4 sm:px-6 rounded-t-xl">
               <CardTitle className="flex items-center w-full justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
@@ -1234,7 +1234,7 @@ export default function CompraVendaDetailsPage() {
                 </button>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               <div className="space-y-0">
                 {caseData.steps.map((step, index) => {
                   const isCurrent = index === currentStepIndex;
@@ -1275,7 +1275,7 @@ export default function CompraVendaDetailsPage() {
                         )}
                       </div>
 
-                      <div className={`flex-grow pt-2 ${isCurrent ? 'p-5 bg-blue-50 rounded-xl border border-blue-100 shadow-sm' : isCompleted ? '' : 'opacity-70'}`}>
+                      <div className={`flex-grow pt-2 ${isCurrent ? 'p-3 sm:p-4 md:p-5 bg-blue-50 rounded-xl border border-blue-100 shadow-sm' : isCompleted ? '' : 'opacity-70'}`}>
                         <div className="flex justify-between items-start">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -1408,7 +1408,7 @@ export default function CompraVendaDetailsPage() {
                 <span className="text-slate-800 text-sm font-bold uppercase tracking-wider">Documentos do Cliente</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-3 sm:p-4 md:p-6">
               <div className="space-y-6">
                 {/* Barra de Progresso Expansível */}
                 <div 
@@ -1588,14 +1588,14 @@ export default function CompraVendaDetailsPage() {
                                 className="p-1 bg-white border border-slate-100 rounded-lg shadow-sm hover:bg-slate-50 text-slate-600"
                                 title="Renomear"
                               >
-                                <Edit2 className="w-2.5 h-2.5" />
+                                <Edit2 className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteDocument(doc); }}
                                 className="p-1 bg-white border border-slate-100 rounded-lg shadow-sm hover:bg-red-50 text-red-600"
                                 title="Excluir"
                               >
-                                <X className="w-2.5 h-2.5" />
+                                <X className="w-3 h-3" />
                               </button>
                             </div>
                           </div>

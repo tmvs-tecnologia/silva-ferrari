@@ -193,7 +193,7 @@ export function PendingDocumentsList({
             </div>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="max-h-[60vh] lg:max-h-[70vh] overflow-y-auto custom-scrollbar">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-500 uppercase bg-gray-50 sticky top-0 z-10">
                 <tr>

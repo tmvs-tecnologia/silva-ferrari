@@ -38,10 +38,7 @@ export function StatusPanel({ status, onStatusChange, currentStep, totalSteps, c
           {isInProgress ? <Clock className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
           {displayStatus}
         </span>
-        <div className="pt-2 border-t">
-          <p className="text-xs text-muted-foreground uppercase">Fluxo</p>
-          <p className="text-sm font-medium">{workflowTitle || "—"}</p>
-        </div>
+
         <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground uppercase">Etapa atual</p>
           <span className="text-sm font-medium" data-testid="current-step-label">

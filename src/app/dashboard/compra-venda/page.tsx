@@ -205,7 +205,7 @@ export default function CompraVendaPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex flex-col gap-5 sm:gap-6 h-full">
       <PageHeader
         title="Compra e Venda de Imóveis"
         description="Gerencie transações imobiliárias"

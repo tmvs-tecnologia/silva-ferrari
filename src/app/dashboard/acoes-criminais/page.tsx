@@ -172,7 +172,7 @@ export default function AcoesCriminaisPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex flex-col gap-5 sm:gap-6 h-full">
       {/* Header com gradiente */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-8 shadow-lg border border-slate-700">
         <div className="flex items-center justify-between">

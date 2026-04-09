@@ -229,6 +229,15 @@ nextjs-portal {
   display: none !important;
 }
 
+/* Page Layout Wrappers */
+.page-container {
+  @apply p-4 sm:p-5 md:p-6 lg:p-8 w-full max-w-screen-2xl mx-auto flex flex-col gap-5 sm:gap-6;
+}
+
+.page-content-grid {
+  @apply grid gap-4 md:gap-5 lg:gap-6;
+}
+
 /* Design System from detalhespasta.html */
 .liquid-glass {
   background: rgba(255, 255, 255, 0.45);

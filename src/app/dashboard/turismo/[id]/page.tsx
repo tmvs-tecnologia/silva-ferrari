@@ -1759,7 +1759,7 @@ export default function TurismoDetailsPage() {
   const currentStepIndex = getCurrentStepIndex();
 
   return (
-    <div className="w-full p-4 space-y-6 bg-gray-50">
+    <div className="w-full space-y-4 md:space-y-6 bg-transparent min-h-screen">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/dashboard/turismo">

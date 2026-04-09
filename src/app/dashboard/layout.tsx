@@ -308,9 +308,9 @@ export default function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className={`flex-1 ${pathname === "/dashboard" ? "" : "p-4 lg:p-6"}`}>
+        <main className={`flex-1 ${pathname === "/dashboard" ? "" : "page-container"}`}>
           {query.trim() ? (
-            <div className="p-6 max-w-7xl mx-auto w-full">
+            <div className="w-full">
               <GlobalSearchResults
                 results={results}
                 isSearching={isSearching}

@@ -539,7 +539,7 @@ export default function AcaoCriminalDetailPage() {
 
   // Render Helpers
   const renderHeader = (title: string, onEdit?: () => void, isEditing?: boolean, onSave?: () => void, onCancel?: () => void) => (
-    <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+    <div className="bg-slate-50 px-3 py-2 md:px-4 md:py-3 border-b border-slate-100 flex justify-between items-center">
       <h3 className="font-semibold text-slate-800 flex items-center gap-2">
         <FileText className="w-4 h-4 text-slate-500" />
         {title}
@@ -629,7 +629,7 @@ export default function AcaoCriminalDetailPage() {
               undefined,
               false
             )}
-            <div className="p-4 md:p-6 space-y-6">
+            <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
               {/* Classificação */}
               <div className="space-y-2">
                 <Label className="text-base font-semibold">Classificação da Ação</Label>
@@ -754,7 +754,7 @@ export default function AcaoCriminalDetailPage() {
               },
               () => setIsEditingResumo(false)
             )}
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="p-3 sm:p-4 md:p-6 space-y-4">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Observações</Label>
                 {isEditingResumo ? (
@@ -777,7 +777,7 @@ export default function AcaoCriminalDetailPage() {
         })();
         return (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+            <div className="bg-slate-50 px-3 py-2 md:px-4 md:py-3 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-semibold text-slate-800 flex items-center gap-2">
                 <History className="w-4 h-4 text-slate-500" />
                 Histórico de Acompanhamento
@@ -787,7 +787,7 @@ export default function AcaoCriminalDetailPage() {
               </Button>
             </div>
 
-            <div className="p-4 md:p-6 space-y-6">
+            <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
               {isEditingAcompanhamento && (
                 <div className="bg-slate-50 p-4 rounded-md space-y-3 animate-in fade-in slide-in-from-top-2 border border-slate-200">
                   <Label>Novo Registro</Label>
@@ -838,7 +838,7 @@ export default function AcaoCriminalDetailPage() {
               },
               () => setIsEditingFinalizado(false)
             )}
-            <div className="p-4 md:p-6 space-y-4">
+            <div className="p-3 sm:p-4 md:p-6 space-y-4">
               <div className="space-y-1">
                 <Label>Considerações Finais</Label>
                 <Textarea
@@ -890,7 +890,7 @@ export default function AcaoCriminalDetailPage() {
   if (!caseData) return <div>Caso não encontrado</div>;
 
   return (
-    <div className="w-full p-4 space-y-6 bg-gray-50 min-h-screen">
+    <div className="w-full space-y-4 md:space-y-6 bg-transparent min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

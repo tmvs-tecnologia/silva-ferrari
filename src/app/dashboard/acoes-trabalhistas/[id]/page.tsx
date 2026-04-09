@@ -874,7 +874,7 @@ export default function AcoesTrabalhistasDetailsPage() {
   if (!caseData) return <div className="p-8">Caso não encontrado</div>;
 
   return (
-    <div className="w-full p-4 space-y-6 bg-gray-50 min-h-screen">
+    <div className="w-full space-y-4 md:space-y-6 bg-transparent min-h-screen">
       {/*... Top Bar ...*/}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

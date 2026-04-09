@@ -3130,7 +3130,7 @@ export default function VistoDetailsPage() {
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0;
 
   return (
-    <div className="w-full p-4 space-y-6 bg-gray-50">
+    <div className="w-full space-y-4 md:space-y-6 bg-transparent min-h-screen">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/dashboard/vistos">

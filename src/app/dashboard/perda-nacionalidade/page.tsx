@@ -194,7 +194,7 @@ export default function PerdaNacionalidadePage() {
   }, [cases]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex flex-col gap-5 sm:gap-6 h-full">
       <PageHeader
         title="Perda de Nacionalidade"
         description="Gerencie processos de perda de nacionalidade brasileira"
