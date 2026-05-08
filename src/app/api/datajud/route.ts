@@ -22,10 +22,10 @@ const getTribunalIndex = (npu: string) => {
     return tjs[tr] ? `api_publica_${tjs[tr]}` : 'api_publica_*';
   }
   if (j === '4') {
-    return `api_publica_trf${tr}`;
+    return `api_publica_trf${parseInt(tr, 10)}`;
   }
   if (j === '5') {
-    return `api_publica_trt${tr}`;
+    return `api_publica_trt${parseInt(tr, 10)}`;
   }
 
   return 'api_publica_*';
