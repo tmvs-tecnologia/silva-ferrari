@@ -38,7 +38,7 @@ import Link from "next/link";
 export default function ConsultaProcessualPage() {
   const [npu, setNpu] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchMode, setSearchMode] = useState<"processos" | "jurisprudencia" | "diarios" | "legislacao" | "empresas">("processos");
+  const [searchMode, setSearchMode] = useState<"processos" | "jurisprudencia" | "diarios" | "legislacao" | "empresas" | "pessoas">("processos");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +200,20 @@ export default function ConsultaProcessualPage() {
         } else {
           setError(data.error || "Empresa não encontrada.");
         }
+      } else if (searchMode === "pessoas") {
+        const cleanCpf = searchQuery.replace(/\D/g, "");
+        if (cleanCpf.length !== 11) {
+          toast.error("O CPF deve conter 11 dígitos.");
+          setLoading(false);
+          return;
+        }
+        const response = await fetch(`/api/search/pessoas?cpf=${cleanCpf}`);
+        const data = await response.json();
+        if (data.success) {
+          setResult(data.data);
+        } else {
+          setError(data.error || "Pessoa não encontrada.");
+        }
       } else {
         // LexML, Jurisprudencia, Diarios
         let url = "";
@@ -328,6 +342,18 @@ export default function ConsultaProcessualPage() {
     }
   };
 
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length > 11) value = value.substring(0, 11);
+    
+    let formatted = value;
+    if (value.length > 3) formatted = value.substring(0, 3) + "." + value.substring(3);
+    if (value.length > 6) formatted = formatted.substring(0, 7) + "." + formatted.substring(7);
+    if (value.length > 9) formatted = formatted.substring(0, 11) + "-" + formatted.substring(11);
+    
+    setSearchQuery(formatted);
+  };
+
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, "");
     if (value.length > 14) value = value.substring(0, 14);
@@ -347,6 +373,7 @@ export default function ConsultaProcessualPage() {
     { id: "diarios", label: "Diários Oficiais", icon: Newspaper, placeholder: "Ex: Nome ou termo jurídico", description: "Querido Diário / Municípios" },
     { id: "legislacao", label: "Legislação", icon: BookOpen, placeholder: "Ex: Lei 14.133", description: "Leis e Decretos (LexML)" },
     { id: "empresas", label: "Empresas", icon: Building, placeholder: "00.000.000/0000-00", description: "ReceitaWS / CNPJ" },
+    { id: "pessoas", label: "Pessoas", icon: Info, placeholder: "000.000.000-00", description: "CPFhub / CPF" },
   ];
 
   const formatDate = (dateString?: string) => {
@@ -424,7 +451,7 @@ export default function ConsultaProcessualPage() {
               type="text"
               placeholder={searchTabs.find(t => t.id === searchMode)?.placeholder}
               value={searchMode === "processos" ? npu : searchQuery}
-              onChange={searchMode === "processos" ? handleNpuChange : (searchMode === "empresas" ? handleCnpjChange : (e) => setSearchQuery(e.target.value))}
+              onChange={searchMode === "processos" ? handleNpuChange : (searchMode === "empresas" ? handleCnpjChange : (searchMode === "pessoas" ? handleCpfChange : (e) => setSearchQuery(e.target.value)))}
               disabled={loading}
               className="flex-1 bg-transparent text-xl sm:text-2xl tracking-tight py-4 px-5 outline-none text-slate-800 placeholder:text-slate-300 font-bold min-w-0"
             />
@@ -468,7 +495,9 @@ export default function ConsultaProcessualPage() {
                   ? npu.replace(/\D/g, "").length !== 20 
                   : searchMode === "empresas" 
                     ? searchQuery.replace(/\D/g, "").length !== 14 
-                    : searchQuery.trim().length < 3
+                    : searchMode === "pessoas" 
+                      ? searchQuery.replace(/\D/g, "").length !== 11
+                      : searchQuery.trim().length < 3
               )}
               className="bg-slate-900 hover:bg-sky-700 disabled:bg-slate-100 disabled:text-slate-400 text-white h-full px-10 py-7 rounded-2xl font-black tracking-wide transition-all duration-300 flex items-center justify-center shrink-0 shadow-xl shadow-slate-900/10"
             >
@@ -691,6 +720,83 @@ export default function ConsultaProcessualPage() {
                                  <p className="text-[10px] font-black uppercase tracking-widest text-sky-800/40 mb-1">Telefone</p>
                                  <p className="text-sm font-bold text-sky-900">{result.telefone || "Não informado"}</p>
                                </div>
+                            </div>
+                         </div>
+                       </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {result && searchMode === "pessoas" && (
+            <motion.div 
+              key="pessoa-view"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-5xl"
+            >
+              <Card className="rounded-[40px] border-slate-200/60 shadow-2xl overflow-hidden bg-white">
+                <CardContent className="p-0">
+                  <div className="bg-slate-900 p-10 md:p-16 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-10 opacity-10">
+                      <Info className="w-64 h-64" />
+                    </div>
+                    <Badge className="bg-sky-500 text-white mb-6 border-0 font-bold tracking-widest px-4 py-1">CONSULTA CPFHUB</Badge>
+                    <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-4">{result.nome}</h2>
+                    <div className="flex flex-wrap gap-4 text-slate-300 font-bold text-lg">
+                      <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+                        <CreditCard className="w-5 h-5" /> {result.cpf}
+                      </div>
+                      <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+                        <Calendar className="w-5 h-5" /> Nascimento: {result.nascimento}
+                      </div>
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-xl backdrop-blur-md ${result.situacao?.includes("REGULAR") ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+                        <Info className="w-5 h-5" /> {result.situacao}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-10 md:p-16 grid grid-cols-1 md:grid-cols-2 gap-16">
+                    <div className="space-y-10">
+                      <div>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Informações Pessoais</h4>
+                        <div className="space-y-6">
+                           <div className="flex gap-4">
+                             <div className="p-3 bg-slate-50 rounded-2xl"><Info className="w-6 h-6 text-slate-400" /></div>
+                             <div>
+                               <p className="text-sm font-black text-slate-900 tracking-tight leading-tight mb-1">Mãe</p>
+                               <p className="text-sm text-slate-600 font-medium leading-relaxed">{result.mae || "Não informado"}</p>
+                             </div>
+                           </div>
+                           <div className="flex gap-4">
+                             <div className="p-3 bg-slate-50 rounded-2xl"><Info className="w-6 h-6 text-slate-400" /></div>
+                             <div>
+                               <p className="text-sm font-black text-slate-900 tracking-tight leading-tight mb-1">Gênero</p>
+                               <p className="text-sm text-slate-600 font-medium leading-relaxed">{result.genero || "Não informado"}</p>
+                             </div>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-10">
+                       <div>
+                         <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Documentos & Protocolo</h4>
+                         <div className="p-8 bg-sky-50 rounded-[32px] border border-sky-100/50">
+                            <div className="flex gap-4 mb-6">
+                               <div className="p-3 bg-white rounded-2xl shadow-sm"><FileText className="w-6 h-6 text-sky-600" /></div>
+                               <div>
+                                 <p className="text-sm font-black text-slate-900 tracking-tight mb-1">Título de Eleitor</p>
+                                 <p className="text-sm text-slate-600 font-medium leading-relaxed">
+                                   {result.titulo_eleitor || "Não informado"}
+                                 </p>
+                               </div>
+                            </div>
+                            <div className="pt-6 border-t border-sky-200/30">
+                               <p className="text-[10px] font-black uppercase tracking-widest text-sky-800/40 mb-1">Protocolo de Consulta</p>
+                               <p className="text-sm font-bold text-sky-900 truncate">{result.protocolo || "Gerado automaticamente"}</p>
                             </div>
                          </div>
                        </div>
