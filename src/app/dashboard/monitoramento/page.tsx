@@ -245,12 +245,14 @@ export default function MonitoramentoPage() {
                   <Plus className="w-4 h-4" /> Cadastrar Processo
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-lg">
-                    <Scale className="w-5 h-5 text-indigo-600" /> Cadastrar Processo para Monitoramento
-                  </DialogTitle>
-                </DialogHeader>
+              <DialogContent className="max-w-lg bg-white border-slate-200/60 shadow-2xl overflow-hidden p-0">
+                <div className="p-8">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl font-black text-slate-900 tracking-tight">
+                      <Scale className="w-6 h-6 text-indigo-600" /> Cadastrar Processo
+                    </DialogTitle>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Insira os dados para monitoramento em tempo real</p>
+                  </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-5 mt-4">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700">Número do Processo (NPU)</label>
@@ -273,6 +275,7 @@ export default function MonitoramentoPage() {
                     {formLoading ? (<><Loader2 className="w-5 h-5 animate-spin mr-2" /> Consultando Datajud...</>) : (<><Satellite className="w-5 h-5 mr-2" /> Iniciar Monitoramento</>)}
                   </Button>
                 </form>
+                </div>
               </DialogContent>
             </Dialog>
           </div>
