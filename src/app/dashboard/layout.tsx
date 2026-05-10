@@ -242,12 +242,6 @@ export default function DashboardLayout({
       icon: "https://cdn-icons-png.flaticon.com/512/2200/2200326.png",
       description: "Vistos de Turismo",
     },
-    {
-      title: "Monitoramento",
-      href: "/dashboard/monitoramento",
-      icon: "https://cdn-icons-png.flaticon.com/512/10514/10514565.png",
-      description: "Vigília processual",
-    },
   ];
 
 
