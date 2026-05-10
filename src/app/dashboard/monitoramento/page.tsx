@@ -354,7 +354,7 @@ export default function MonitoramentoPage() {
             </div>
 
             {/* RIGHT: Timeline de Movimentações */}
-            <div className="lg:col-span-3 flex flex-col bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden">
+            <div className="lg:col-span-3 flex flex-col bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-0">
               {!selectedProcess ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
                   <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-50 to-cyan-50 flex items-center justify-center mb-6 border border-indigo-100">
@@ -407,12 +407,11 @@ export default function MonitoramentoPage() {
                   </div>
 
                   {/* Timeline */}
-                  <ScrollArea className="flex-1">
+                  <div className="flex-1 overflow-y-auto min-h-0">
                     <div className="p-5">
                       <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                         <Clock className="w-4 h-4 text-indigo-500" /> Linha do Tempo
                       </h3>
-
                       {loadingMovements ? (
                         <div className="flex flex-col items-center py-16">
                           <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
@@ -463,7 +462,7 @@ export default function MonitoramentoPage() {
                         </div>
                       )}
                     </div>
-                  </ScrollArea>
+                  </div>
                 </>
               )}
             </div>
