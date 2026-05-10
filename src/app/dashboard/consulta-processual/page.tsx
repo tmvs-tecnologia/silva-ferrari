@@ -22,7 +22,11 @@ import {
   Building,
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  Layers,
+  Database,
+  Sparkles,
+  BrainCircuit
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +43,45 @@ export default function ConsultaProcessualPage() {
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultsList, setResultsList] = useState<any[]>([]);
+  const [selectedDocMetadata, setSelectedDocMetadata] = useState<any | null>(null);
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
+  const [courts, setCourts] = useState<any[]>([]);
+  const [selectedCourt, setSelectedCourt] = useState("stj");
+  const [aiAnalysis, setAiAnalysis] = useState<Record<number, { label: string; summary: string; loading: boolean; mention?: string }>>({});
+  
+  // Estados para filtro de cidade (Diários Oficiais)
+  const [citySearch, setCitySearch] = useState("");
+  const [territories, setTerritories] = useState<any[]>([]);
+  const [selectedTerritory, setSelectedTerritory] = useState<any | null>(null);
+  const [searchingCity, setSearchingCity] = useState(false);
+
+  const commonCities = [
+    { territory_id: "3550308", territory_name: "São Paulo", state_code: "SP" },
+    { territory_id: "3304557", territory_name: "Rio de Janeiro", state_code: "RJ" },
+    { territory_id: "3106200", territory_name: "Belo Horizonte", state_code: "MG" },
+    { territory_id: "4106902", territory_name: "Curitiba", state_code: "PR" },
+    { territory_id: "4314902", territory_name: "Porto Alegre", state_code: "RS" },
+    { territory_id: "5300108", territory_name: "Brasília", state_code: "DF" },
+    { territory_id: "2927408", territory_name: "Salvador", state_code: "BA" },
+    { territory_id: "2304400", territory_name: "Fortaleza", state_code: "CE" },
+    { territory_id: "2611606", territory_name: "Recife", state_code: "PE" },
+    { territory_id: "1302603", territory_name: "Manaus", state_code: "AM" },
+  ];
+
+  useEffect(() => {
+    const fetchCourts = async () => {
+      try {
+        const response = await fetch("/api/search/jurisprudencia?listCourts=true");
+        const data = await response.json();
+        if (data.success) {
+          setCourts(data.courts);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar tribunais:", err);
+      }
+    };
+    fetchCourts();
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -104,6 +147,17 @@ export default function ConsultaProcessualPage() {
     setNpu(formatted);
   };
 
+  const handleTabChange = (mode: any) => {
+    setSearchMode(mode);
+    setSearchQuery("");
+    setResult(null);
+    setResultsList([]);
+    setError(null);
+    setSelectedTerritory(null);
+    setCitySearch("");
+    setTerritories([]);
+  };
+
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
@@ -148,20 +202,129 @@ export default function ConsultaProcessualPage() {
         }
       } else {
         // LexML, Jurisprudencia, Diarios
-        const endpoint = searchMode === "jurisprudencia" ? "/api/search/jurisprudencia" : "/api/search/lexml";
-        const response = await fetch(`${endpoint}?q=${encodeURIComponent(searchQuery)}`);
+        let url = "";
+        if (searchMode === "jurisprudencia") {
+          url = `/api/search/jurisprudencia?q=${encodeURIComponent(searchQuery)}&court=${selectedCourt}`;
+        } else if (searchMode === "diarios") {
+          let query = searchQuery;
+          // Se for um CNPJ ou contiver espaços/pontuação, usamos aspas para busca exata
+          if (searchQuery.replace(/\D/g, "").length === 14 || searchQuery.includes(" ")) {
+            query = `"${searchQuery}"`;
+          }
+          url = `/api/search/diarios?q=${encodeURIComponent(query)}`;
+          if (selectedTerritory) {
+            url += `&territory_id=${selectedTerritory.territory_id}`;
+          }
+        } else {
+          url = `/api/search/lexml?q=${encodeURIComponent(searchQuery)}`;
+        }
+        
+        const response = await fetch(url);
         const data = await response.json();
         if (data.success) {
-          setResultsList(data.results);
-          if (data.results.length === 0) setError("Nenhum resultado encontrado para este termo.");
+          let results = (searchMode === "jurisprudencia" || searchMode === "diarios") ? data.data : data.results;
+          
+          // Filtro estrito para Diários Oficiais: o termo deve estar explicitamente presente no trecho
+          if (searchMode === "diarios" && results.length > 0) {
+            const queryClean = searchQuery.toLowerCase().trim();
+            results = results.filter((doc: any) => {
+              const fullText = (doc.excerpts?.join(" ") || "").toLowerCase();
+              return fullText.includes(queryClean);
+            });
+            
+            if (results.length === 0) {
+              setError("O termo foi encontrado no diário, mas não nos trechos disponíveis para prévia. Tente uma busca mais específica.");
+            }
+          }
+
+          setResultsList(results);
+          if (results.length === 0 && !error) setError("Nenhum resultado encontrado para este termo.");
         } else {
           setError(data.error || "Erro ao realizar busca.");
         }
       }
+
     } catch (err) {
       setError("Erro de conexão com os servidores de busca.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Análise IA removida do useEffect automático a pedido do usuário (agora é manual)
+
+  const handleCitySearch = async () => {
+    if (!citySearch || citySearch.length < 3) {
+      toast.error("Digite pelo menos 3 letras para buscar a cidade.");
+      return;
+    }
+    setSearchingCity(true);
+    try {
+      const response = await fetch(`/api/search/diarios?city=${encodeURIComponent(citySearch)}`);
+      const data = await response.json();
+      if (data.success) {
+        setTerritories(data.data || []);
+        if (data.data.length === 0) toast.info("Nenhuma cidade encontrada.");
+      } else {
+        toast.error("Erro ao buscar cidades.");
+      }
+    } catch (err) {
+      toast.error("Erro de conexão.");
+    } finally {
+      setSearchingCity(false);
+    }
+  };
+
+
+  const handleAIAnalysis = async (index: number, text: string) => {
+    if (aiAnalysis[index]?.loading) return;
+
+    setAiAnalysis(prev => ({
+      ...prev,
+      [index]: { label: "", summary: "", loading: true }
+    }));
+
+    try {
+      const response = await fetch("/api/ai/analyze-gazette", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, searchTerm: searchQuery })
+      });
+
+      const data = await response.json();
+
+      if (data.error) throw new Error(data.error);
+
+      setAiAnalysis(prev => ({
+        ...prev,
+        [index]: { label: data.label, summary: data.summary, mention: data.mention, loading: false }
+      }));
+    } catch (err: any) {
+      console.error("Erro na análise IA:", err);
+      toast.error("Erro ao realizar análise IA: " + err.message);
+      setAiAnalysis(prev => {
+        const newState = { ...prev };
+        delete newState[index];
+        return newState;
+      });
+    }
+  };
+
+  const fetchMetadata = async (urn: string) => {
+    if (!urn) return;
+    setLoadingMetadata(true);
+    try {
+      const response = await fetch(`/api/search/lexml/metadata?urn=${encodeURIComponent(urn)}`);
+      const data = await response.json();
+      if (data.success) {
+        setSelectedDocMetadata(data.metadata);
+      } else {
+        toast.error("Não foi possível carregar os detalhes do documento.");
+      }
+    } catch (err) {
+      toast.error("Erro ao carregar metadados.");
+    } finally {
+      setLoadingMetadata(false);
     }
   };
 
@@ -181,8 +344,8 @@ export default function ConsultaProcessualPage() {
   const searchTabs = [
     { id: "processos", label: "Processos", icon: Scale, placeholder: "0000000-00.0000.0.00.0000", description: "Busca CNJ/Datajud" },
     { id: "jurisprudencia", label: "Jurisprudência", icon: Gavel, placeholder: "Ex: Dano moral atraso voo", description: "STF, STJ e TST" },
-    { id: "diarios", label: "Diários Oficiais", icon: Newspaper, placeholder: "Ex: Nome ou termo jurídico", description: "LexML / DOU" },
-    { id: "legislacao", label: "Legislação", icon: BookOpen, placeholder: "Ex: Lei 14.133", description: "Leis e Decretos" },
+    { id: "diarios", label: "Diários Oficiais", icon: Newspaper, placeholder: "Ex: Nome ou termo jurídico", description: "Querido Diário / Municípios" },
+    { id: "legislacao", label: "Legislação", icon: BookOpen, placeholder: "Ex: Lei 14.133", description: "Leis e Decretos (LexML)" },
     { id: "empresas", label: "Empresas", icon: Building, placeholder: "00.000.000/0000-00", description: "ReceitaWS / CNPJ" },
   ];
 
@@ -237,13 +400,7 @@ export default function ConsultaProcessualPage() {
             {searchTabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => {
-                  setSearchMode(tab.id as any);
-                  setResult(null);
-                  setResultsList([]);
-                  setError(null);
-                  if (tab.id !== "processos") setSearchQuery("");
-                }}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
                   searchMode === tab.id 
                     ? "bg-white text-sky-700 shadow-md shadow-sky-900/5 ring-1 ring-slate-200" 
@@ -271,6 +428,39 @@ export default function ConsultaProcessualPage() {
               disabled={loading}
               className="flex-1 bg-transparent text-xl sm:text-2xl tracking-tight py-4 px-5 outline-none text-slate-800 placeholder:text-slate-300 font-bold min-w-0"
             />
+            
+            {searchMode === "jurisprudencia" && courts.length > 0 && (
+              <div className="px-2 border-l border-slate-100 hidden md:block">
+                <select 
+                  value={selectedCourt}
+                  onChange={(e) => setSelectedCourt(e.target.value)}
+                  className="bg-slate-50 text-xs font-black uppercase tracking-widest text-slate-500 py-2 px-3 rounded-xl outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+                >
+                  {courts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.abbreviation}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {searchMode === "diarios" && (
+              <div className="px-2 border-l border-slate-100 hidden md:block">
+                <select 
+                  value={selectedTerritory?.territory_id || ""}
+                  onChange={(e) => {
+                    const city = commonCities.find(c => c.territory_id === e.target.value);
+                    setSelectedTerritory(city || null);
+                  }}
+                  className="bg-slate-50 text-xs font-black uppercase tracking-widest text-slate-500 py-2 px-3 rounded-xl outline-none cursor-pointer hover:bg-slate-100 transition-colors"
+                >
+                  <option value="">Todas Cidades</option>
+                  {commonCities.map((c) => (
+                    <option key={c.territory_id} value={c.territory_id}>{c.territory_name} - {c.state_code}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <Button 
               type="submit" 
               disabled={loading || (
@@ -285,6 +475,7 @@ export default function ConsultaProcessualPage() {
               {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Buscar"}
             </Button>
           </form>
+          
 
           {error && (
             <motion.div 
@@ -528,7 +719,7 @@ export default function ConsultaProcessualPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4">
-                {resultsList.map((doc: any, i: number) => (
+                 {resultsList.map((doc: any, i: number) => (
                   <motion.div 
                     key={i} 
                     initial={{ opacity: 0, x: -10 }}
@@ -539,18 +730,119 @@ export default function ConsultaProcessualPage() {
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                       <div className="flex-1 space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                           <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100 border-0 font-bold uppercase tracking-widest text-[9px]">{doc.source || doc.tribunal || "LexML"}</Badge>
-                           <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-widest">{doc.type || doc.classificacao || "Documento"}</Badge>
+                           <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100 border-0 font-bold uppercase tracking-widest text-[9px]">
+                             {searchMode === "jurisprudencia" 
+                               ? (doc.adjudicating_body || "Tribunal") 
+                               : searchMode === "diarios" 
+                                 ? `${doc.territory_name} - ${doc.state_code}`
+                                 : (doc.source || doc.tribunal || "LexML")}
+                           </Badge>
+                           <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-widest">
+                             {searchMode === "jurisprudencia" 
+                               ? (doc.process_type || "Decisão") 
+                               : searchMode === "diarios"
+                                 ? "Diário Municipal"
+                                 : (doc.type || doc.classificacao || "Documento")}
+                           </Badge>
                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-auto md:ml-2">
-                             {doc.date ? doc.date.split('-').reverse().join('/') : "Data não disponível"}
+                             {searchMode === "jurisprudencia" 
+                               ? (doc.publication_date ? doc.publication_date.split('-').reverse().join('/') : "Data N/A")
+                               : searchMode === "diarios"
+                                 ? (doc.date ? doc.date.split('-').reverse().join('/') : "Data N/A")
+                                 : (doc.date ? doc.date.split('-').reverse().join('/') : "Data N/A")}
                            </span>
                         </div>
                         <h4 className="text-xl font-black text-slate-900 tracking-tight leading-tight group-hover:text-sky-700 transition-colors">
-                          {doc.title}
+                          {searchMode === "jurisprudencia" 
+                            ? (doc.process_number || "Decisão Jurídica") 
+                            : searchMode === "diarios"
+                              ? `Diário de ${doc.territory_name}`
+                              : doc.title}
                         </h4>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">
-                          {doc.description || doc.ementa || "Sem descrição disponível para este documento."}
+                          {searchMode === "jurisprudencia" 
+                            ? doc.excerpt 
+                            : searchMode === "diarios"
+                              ? (doc.excerpts && doc.excerpts[0] ? doc.excerpts[0].replace(/<[^>]*>?/gm, '') : "Trecho não disponível.")
+                              : (doc.description || doc.ementa || "Sem descrição disponível.")}
                         </p>
+
+                        {/* Análise de IA */}
+                        {searchMode === "diarios" && (
+                          <div className="pt-2">
+                            {aiAnalysis[i] ? (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-sky-50/50 border border-sky-100 p-5 rounded-2xl space-y-4"
+                              >
+                                {aiAnalysis[i].loading ? (
+                                  <div className="flex items-center gap-2 text-sky-600">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Processando Análise IA & Buscando Menção...</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-sky-600 text-white border-0 text-[9px] font-black tracking-widest">
+                                          IA: {aiAnalysis[i].label}
+                                        </Badge>
+                                        <Sparkles className="w-3 h-3 text-sky-500" />
+                                      </div>
+                                      <span className="text-[10px] font-black text-sky-600 uppercase tracking-widest">Análise Concluída</span>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                      <div>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-sky-800/40 mb-1">Resumo Jurídico</p>
+                                        <p className="text-xs text-sky-900 font-semibold italic">
+                                          "{aiAnalysis[i].summary}"
+                                        </p>
+                                      </div>
+                                      
+                                      {aiAnalysis[i].mention && (
+                                        <div className="p-4 bg-white/60 rounded-xl border border-sky-200/50">
+                                          <p className="text-[9px] font-black uppercase tracking-widest text-sky-800/40 mb-2">Trecho Exato da Menção</p>
+                                          <p className="text-xs text-slate-800 font-medium leading-relaxed">
+                                            {aiAnalysis[i].mention}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                              </motion.div>
+                            ) : (
+                              <Button
+                                onClick={() => handleAIAnalysis(i, doc.excerpts?.[0] || "")}
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-3 rounded-lg text-sky-600 hover:text-sky-700 hover:bg-sky-50 font-bold text-[10px] uppercase tracking-wider gap-1.5 border border-dashed border-sky-200"
+                              >
+                                <BrainCircuit className="w-3.5 h-3.5" />
+                                Iniciar Análise IA
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        
+                        {searchMode === "jurisprudencia" && doc.rapporteur && (
+                          <div className="flex items-center gap-2 pt-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Relator:</span>
+                            <span className="text-xs font-bold text-slate-700">{doc.rapporteur}</span>
+                          </div>
+                        )}
+
+                        {selectedDocMetadata && selectedDocMetadata.urn === doc.urn && searchMode !== "jurisprudencia" && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3"
+                          >
+                            {/* LexML specific metadata - already implemented */}
+                          </motion.div>
+                        )}
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
                          <Button 
@@ -562,17 +854,31 @@ export default function ConsultaProcessualPage() {
                              <ExternalLink className="w-4 h-4" /> Ver Íntegra
                            </a>
                          </Button>
-                         <Button className="h-12 w-12 rounded-xl bg-slate-100 hover:bg-sky-100 p-0 shadow-none border-0 text-slate-400 hover:text-sky-600 transition-all">
-                            <ChevronRight className="w-5 h-5" />
-                         </Button>
+                         {searchMode !== "jurisprudencia" && (
+                           <Button 
+                            onClick={() => doc.urn && fetchMetadata(doc.urn)}
+                            disabled={loadingMetadata}
+                            className="h-12 w-12 rounded-xl bg-slate-100 hover:bg-sky-100 p-0 shadow-none border-0 text-slate-400 hover:text-sky-600 transition-all"
+                           >
+                              {loadingMetadata ? <Loader2 className="w-5 h-5 animate-spin" /> : <ChevronRight className={`w-5 h-5 transition-transform ${selectedDocMetadata?.urn === doc.urn ? 'rotate-90' : ''}`} />}
+                           </Button>
+                         )}
                       </div>
                     </div>
                   </motion.div>
                 ))}
+
+
               </div>
               <div className="pt-10 flex justify-center">
                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
-                   <Info className="w-4 h-4" /> Busca finalizada via portal LexML
+                   <Info className="w-4 h-4" /> {
+                     searchMode === "jurisprudencia" 
+                       ? "Busca inteligente via Jurisprudencias.ai" 
+                       : searchMode === "diarios"
+                         ? "Dados abertos via Querido Diário (OKBR)"
+                         : "Busca finalizada via portal LexML"
+                   }
                  </p>
               </div>
             </motion.div>

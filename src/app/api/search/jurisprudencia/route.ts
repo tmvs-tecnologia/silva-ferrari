@@ -1,52 +1,40 @@
 import { NextResponse } from 'next/server';
+import { JurisprudenciaService } from '@/lib/jurisprudencia';
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q');
-    const tribunal = searchParams.get('tribunal'); // STF, STJ, TST
+    const court = searchParams.get('court') || 'stj';
+    const page = parseInt(searchParams.get('page') || '0');
+
+    if (searchParams.get('listCourts') === 'true') {
+      const courts = await JurisprudenciaService.listCourts();
+      return NextResponse.json({ success: true, courts });
+    }
 
     if (!query) {
       return NextResponse.json({ error: "Termo de busca não fornecido." }, { status: 400 });
     }
 
-    // Usando LexML com filtro de tribunal se fornecido
-    // Ex: q=termo+AND+fonte:"Superior Tribunal de Justiça"
-    let q = query;
-    if (tribunal === 'STF') q += ' AND fonte:"Supremo Tribunal Federal"';
-    if (tribunal === 'STJ') q += ' AND fonte:"Superior Tribunal de Justiça"';
-    if (tribunal === 'TST') q += ' AND fonte:"Tribunal Superior do Trabalho"';
+    const result = await JurisprudenciaService.search(court, query, page);
 
-    const url = `https://www.lexml.gov.br/busca/search?f=json&q=${encodeURIComponent(q)}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "Erro ao consultar base de jurisprudência." }, { status: response.status });
+    if (!result.success) {
+      return NextResponse.json({ 
+        success: false, 
+        error: result.error || "Erro ao consultar Jurisprudencias.ai" 
+      }, { status: 500 });
     }
 
-    const data = await response.json();
-    const results = data.docs || data.results || [];
-
-    return NextResponse.json({ 
-      success: true, 
-      results: results.map((doc: any) => ({
-        id: doc.id,
-        title: doc.titulo || doc.title,
-        ementa: doc.descricao || doc.description || doc.summary,
-        date: doc.data || doc.date,
-        tribunal: doc.fonte || doc.source,
-        url: doc.url || `https://www.lexml.gov.br/busca/exibir?id=${doc.id}`,
-        classificacao: doc.tipo || doc.type
-      }))
+    return NextResponse.json({
+      success: true,
+      data: result.data,
+      meta: result.meta
     });
 
   } catch (error: any) {
-    console.error("Erro na API Jurisprudência:", error);
+    console.error("Erro na API de Jurisprudência:", error);
     return NextResponse.json({ error: "Erro interno ao buscar jurisprudência." }, { status: 500 });
   }
 }
+
