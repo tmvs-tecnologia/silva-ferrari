@@ -87,7 +87,13 @@ export const prefetchTurismo = async () => {
   return await safeJson(res, []);
 };
 
+export const prefetchMonitoramento = async () => {
+  const res = await fetchWithRetry('/api/monitoramento?status=Ativo');
+  return await safeJson(res, []);
+};
+
 export const prefetchDashboard = async () => {
+
   try {
     const res = await fetchWithRetry("/api/processos/count");
     return await safeJson(res, { total: 0, byTable: {} });

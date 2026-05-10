@@ -205,7 +205,7 @@ export default function DashboardPage() {
               </motion.div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12 relative z-10">
               <motion.div
                 whileHover={{ y: -5 }}
                 onClick={() => router.push('/dashboard/acoes')}
@@ -266,6 +266,22 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Consultar Processo</p>
                     <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Buscar dados (CNJ)</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                whileHover={{ y: -5 }}
+                onClick={() => router.push('/dashboard/monitoramento')}
+                className="rounded-2xl p-6 bg-indigo-50/60 border border-white hover:bg-indigo-50/80 transition-all cursor-pointer shadow-lg shadow-indigo-500/5 h-full"
+              >
+                <div className="flex items-center gap-5">
+                  <div className="p-3 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                    <img src="https://cdn-icons-png.flaticon.com/512/10514/10514565.png" alt="Monitor" className="w-8 h-8 object-contain" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Monitoramento</p>
+                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Vigília processual</p>
                   </div>
                 </div>
               </motion.div>

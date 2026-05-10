@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const API_KEY = "APIKey cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==";
+const API_KEY = process.env.DATAJUD_API_KEY || "APIKey cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==";
 const BASE_URL = "https://api-publica.datajud.cnj.jus.br";
 
 const getTribunalIndex = (npu: string) => {

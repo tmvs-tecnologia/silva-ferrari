@@ -28,7 +28,8 @@ import {
   prefetchPerdaNacionalidade,
   prefetchVistos,
   prefetchTurismo,
-  prefetchDashboard
+  prefetchDashboard,
+  prefetchMonitoramento
 } from "@/utils/prefetch-functions";
 import { useGlobalSearch } from "@/hooks/use-global-search";
 import { GlobalSearchResults } from "@/components/global-search/global-search-results";
@@ -50,6 +51,7 @@ const PREFETCH_FUNCTIONS = {
   "/dashboard/perda-nacionalidade": prefetchPerdaNacionalidade,
   "/dashboard/vistos": prefetchVistos,
   "/dashboard/turismo": prefetchTurismo,
+  "/dashboard/monitoramento": prefetchMonitoramento,
 };
 
 // Mapeamento de chaves de cache para parear com useDataCache nas páginas
@@ -62,6 +64,7 @@ const CACHE_KEYS = {
   "/dashboard/perda-nacionalidade": "perda-nacionalidade",
   "/dashboard/vistos": "vistos",
   "/dashboard/turismo": "turismo_page_1",
+  "/dashboard/monitoramento": "monitoramento",
 };
 
 function Sidebar({
@@ -238,6 +241,12 @@ export default function DashboardLayout({
       href: "/dashboard/turismo",
       icon: "https://cdn-icons-png.flaticon.com/512/2200/2200326.png",
       description: "Vistos de Turismo",
+    },
+    {
+      title: "Monitoramento",
+      href: "/dashboard/monitoramento",
+      icon: "https://cdn-icons-png.flaticon.com/512/10514/10514565.png",
+      description: "Vigília processual",
     },
   ];
 
