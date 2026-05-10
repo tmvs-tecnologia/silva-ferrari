@@ -205,7 +205,7 @@ export default function DashboardPage() {
               </motion.div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-12 relative z-10">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-12 relative z-10">
               <motion.div
                 whileHover={{ y: -5 }}
                 onClick={() => router.push('/dashboard/acoes')}
@@ -275,13 +275,13 @@ export default function DashboardPage() {
                 onClick={() => router.push('/dashboard/monitoramento')}
                 className="rounded-2xl p-6 bg-indigo-50/60 border border-white hover:bg-indigo-50/80 transition-all cursor-pointer shadow-lg shadow-indigo-500/5 h-full"
               >
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                    <img src="https://cdn-icons-png.flaticon.com/512/10514/10514565.png" alt="Monitor" className="w-8 h-8 object-contain" />
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-indigo-600"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/></svg>
                   </div>
-                  <div>
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Monitoramento</p>
-                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Vigília processual</p>
+                  <div className="min-w-0">
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Monitor</p>
+                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">Processos</p>
                   </div>
                 </div>
               </motion.div>
