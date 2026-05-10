@@ -233,7 +233,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Pendências</p>
-                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Calendário de pendências</p>
+                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Calendário</p>
                   </div>
                 </div>
               </motion.div>
@@ -249,7 +249,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Procuração</p>
-                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Criar uma procuração</p>
+                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Criar</p>
                   </div>
                 </div>
               </motion.div>
@@ -264,8 +264,8 @@ export default function DashboardPage() {
                     <img src="https://cdn-icons-png.flaticon.com/512/6008/6008851.png" alt="Search" className="w-8 h-8 object-contain" />
                   </div>
                   <div>
-                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Consultar Processo</p>
-                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Buscar dados (CNJ)</p>
+                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Buscar</p>
+                    <p className="text-sm sm:text-base font-bold text-slate-900 leading-tight">Dados (CNJ)</p>
                   </div>
                 </div>
               </motion.div>
