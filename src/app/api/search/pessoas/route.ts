@@ -9,55 +9,90 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "CPF inválido ou não fornecido. Certifique-se de digitar 11 dígitos." }, { status: 400 });
     }
 
-    // Token vindo das variáveis de ambiente
-    const token = process.env.CPFHUB_TOKEN;
-    const url = `https://cpfhub.io/api/v1/cpf/${cpf}?token=${token}`;
+    // --- PROVEDOR 1: CPFhub.io ---
+    const tokenCpfHub = process.env.CPFHUB_TOKEN;
+    let personData = null;
+    let source = "";
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
+    if (tokenCpfHub) {
+      try {
+        const urlCpfHub = `https://cpfhub.io/api/v1/cpf/${cpf}?token=${tokenCpfHub}`;
+        const responseCpfHub = await fetch(urlCpfHub, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(8000),
+        });
 
-    if (response.status === 401 || response.status === 403) {
-      return NextResponse.json({ error: "Chave da API CPFhub inválida ou expirada." }, { status: response.status });
+        if (responseCpfHub.ok) {
+          const data = await responseCpfHub.json();
+          if (!data.erro && data.status !== false) {
+            personData = {
+              nome: data.nome,
+              cpf: data.cpf,
+              nascimento: data.nascimento,
+              mae: data.mae,
+              situacao: data.situacao,
+              genero: data.genero,
+              titulo_eleitor: data.titulo_eleitor,
+              protocolo: data.protocolo,
+            };
+            source = "CPFhub.io";
+          }
+        }
+      } catch (e) {
+        console.error("Erro primário (CPFhub):", e);
+      }
     }
 
-    if (response.status === 404) {
-      return NextResponse.json({ error: "CPF não localizado na base de dados." }, { status: 404 });
+    // --- PROVEDOR 2: API-CPF (apicpf.com) [FALLBACK] ---
+    if (!personData) {
+      const apiKeyApiCpf = process.env.APICPF_KEY;
+      if (apiKeyApiCpf) {
+        try {
+          const urlApiCpf = `https://apicpf.com/api/consulta?cpf=${cpf}&api_key=${apiKeyApiCpf}`;
+          const responseApiCpf = await fetch(urlApiCpf, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(8000),
+          });
+
+          if (responseApiCpf.ok) {
+            const data = await responseApiCpf.json();
+            // Mapeamento baseado no padrão do apicpf.com
+            if (data && !data.error) {
+              personData = {
+                nome: data.nome,
+                cpf: data.cpf || cpf,
+                nascimento: data.nascimento || data.data_nascimento,
+                mae: data.mae || data.nome_mae,
+                situacao: data.situacao || data.situacao_cadastral,
+                genero: data.genero || data.sexo,
+                titulo_eleitor: data.titulo_eleitor,
+                protocolo: data.protocolo || data.id,
+              };
+              source = "API-CPF (apicpf.com)";
+            }
+          }
+        } catch (e) {
+          console.error("Erro secundário (API-CPF):", e);
+        }
+      }
     }
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Erro ao consultar provedor CPFhub." }, { status: response.status });
-    }
-
-    const data = await response.json();
-
-    // Verificação baseada no padrão comum dessas APIs
-    if (data.erro || data.status === false) {
-      return NextResponse.json({ error: data.mensagem || "CPF não encontrado." }, { status: 404 });
+    if (!personData) {
+      return NextResponse.json({ error: "CPF não localizado em nenhum dos provedores disponíveis." }, { status: 404 });
     }
 
     return NextResponse.json({ 
       success: true, 
       data: {
-        nome: data.nome,
-        cpf: data.cpf,
-        nascimento: data.nascimento,
-        mae: data.mae,
-        situacao: data.situacao,
-        genero: data.genero,
-        // Campos adicionais comuns que podem vir no CPFhub
-        titulo_eleitor: data.titulo_eleitor,
-        protocolo: data.protocolo,
-        origem: "CPFhub.io"
+        ...personData,
+        origem: source
       }
     });
 
   } catch (error: any) {
-    console.error("Erro na API CPFhub:", error);
+    console.error("Erro geral na API de Pessoas:", error);
     return NextResponse.json({ error: "Erro interno ao buscar dados da pessoa." }, { status: 500 });
   }
 }
